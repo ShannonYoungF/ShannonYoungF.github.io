@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="记录技术实践、理论学习与长期思考。">
+<meta name="theme-color" content="#f4f1ea">
+<title>你的名字 — 技术、理论与思考</title>
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+  <canvas id="constellation" aria-hidden="true"></canvas>
+  <header class="site-header">
+  <a class="identity" href="index.html" aria-label="返回首页">
+    <span class="avatar" aria-hidden="true">名</span>
+    <span>你的名字</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">打开导航</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="主导航">
+    <a href="index.html">首页</a>
+    <a href="blog.html?category=tech">技术</a>
+    <a href="blog.html?category=theory">理论</a>
+    <a href="blog.html?category=thought">思考</a>
+  </nav>
+
+  <div class="header-actions">
+    <a href="https://github.com/yourname" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="切换深浅色主题">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+
+  <main id="top">
+    <section class="hero home-hero reveal">
+      <div class="eyebrow"><span class="status-dot"></span> 一座持续生长的个人知识库</div>
+      <h1>记录技术，<br>也追问它背后的<span class="name-mark">理论</span>。</h1>
+      <p class="hero-lede">这里存放我关于技术实践、理论学习与长期问题的笔记。它不是答案的陈列柜，而是一张不断修订的思维地图。</p>
+      <p>我会尽量写清楚：问题从哪里来、假设是什么、推导如何成立，以及实验究竟说明了什么。</p>
+      <div class="hero-actions">
+        <a class="primary-link" href="blog.html">开始阅读 <span aria-hidden="true">↗</span></a>
+        <a class="quiet-link" href="#tracks">查看内容地图 <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
+
+    <section id="tracks" class="content-section reveal">
+      <div class="section-heading">
+        <p class="section-kicker">01 / Knowledge map</p>
+        <h2>三条写作线</h2>
+        <p>同一个问题，往往需要从实现、理论和经验三个方向来理解。</p>
+      </div>
+
+      <div class="track-grid">
+        <a class="track-card tech" href="blog.html?category=tech">
+          <span class="track-number">01</span>
+          <div>
+            <p class="track-label">技术实践</p>
+            <h3>从想法到可运行的系统</h3>
+            <p>算法实现、工程工具、实验复现，以及真实系统中的取舍。</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="track-card theory" href="blog.html?category=theory">
+          <span class="track-number">01</span>
+          <div>
+            <p class="track-label">理论学习</p>
+            <h3>从定义到可以迁移的直觉</h3>
+            <p>概念、假设、推导和证明；记录我如何把一个理论真正想明白。</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="track-card thought" href="blog.html?category=thought">
+          <span class="track-number">01</span>
+          <div>
+            <p class="track-label">思考随笔</p>
+            <h3>保留尚未收敛的问题</h3>
+            <p>研究方法、认知工具、失败复盘，以及还没有标准答案的事情。</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="content-section reveal">
+      <div class="section-heading latest-heading">
+        <div>
+          <p class="section-kicker">02 / Latest writing</p>
+          <h2>最近更新</h2>
+        </div>
+        <a class="quiet-link" href="blog.html">全部文章 <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="notes-list">
+        <a class="note-row" href="posts/reproducible-experiments.html">
+  <time datetime="2026-10-19">2026.10.19</time>
+  <span><strong>从问题到可复现实验：我的技术笔记模板</strong><small>技术实践 · 1 min</small></span>
+  <span class="arrow" aria-hidden="true">↗</span>
+</a>
+<a class="note-row" href="posts/reading-a-theory.html">
+  <time datetime="2026-10-12">2026.10.12</time>
+  <span><strong>如何读懂一个理论：从定义、假设到可迁移的直觉</strong><small>理论学习 · 1 min</small></span>
+  <span class="arrow" aria-hidden="true">↗</span>
+</a>
+<a class="note-row" href="posts/writing-to-think.html">
+  <time datetime="2026-10-05">2026.10.05</time>
+  <span><strong>为什么要公开写作</strong><small>思考随笔 · 1 min</small></span>
+  <span class="arrow" aria-hidden="true">↗</span>
+</a>
+      </div>
+    </section>
+
+    <section class="manifesto reveal">
+      <p class="section-kicker">03 / Why write</p>
+      <blockquote>“写下来，不是因为已经想明白；而是为了让模糊的直觉有机会变成可以检查的结构。”</blockquote>
+      <p>如果一篇笔记能让未来的我少走一点弯路，或让另一个人更快地进入一个问题，它就已经有价值。</p>
+    </section>
+  </main>
+
+  <footer>
+  <p>© <span id="year"></span> 你的名字</p>
+  <p>技术 · 理论 · 思考</p>
+</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
