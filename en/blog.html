@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Technical practice, theoretical learning, and reflections arranged over time.">
+<meta name="theme-color" content="#f4f1ea">
+<title>Writing and Notes — Shannon Young</title>
+<link rel="canonical" href="https://shannonyoungf.github.io/en/blog.html">
+<link rel="alternate" hreflang="zh-CN" href="https://shannonyoungf.github.io/blog.html">
+<link rel="alternate" hreflang="en" href="https://shannonyoungf.github.io/en/blog.html">
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="../styles.css">
+
+</head>
+<body>
+  <canvas id="constellation" aria-hidden="true"></canvas>
+  <header class="site-header">
+  <a class="identity" href="index.html" aria-label="Back to home">
+    <span class="avatar" aria-hidden="true">SY</span>
+    <span>Shannon Young</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">Open navigation</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="blog.html?category=tech">Tech</a>
+    <a href="blog.html?category=theory">Theory</a>
+    <a href="blog.html?category=thought">Reflections</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="language-switch" href="../blog.html" hreflang="zh-CN" lang="zh-CN" aria-label="Switch to Chinese">中</a>
+    <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="Toggle light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+
+  <main id="top" class="blog-shell">
+    <section class="page-intro reveal">
+      <p class="section-kicker">Writing archive</p>
+      <h1>Writing and Notes</h1>
+      <p>A chronological record of changing ideas. Posts may continue to evolve as my understanding deepens.</p>
+    </section>
+
+    <section class="archive-section reveal" aria-label="Post archive">
+      <div class="filter-toolbar">
+        <div class="filter-group" aria-label="Post categories">
+          <button class="filter-button is-active" type="button" data-filter="all">All <span>1</span></button>
+          <button class="filter-button" type="button" data-filter="tech">Tech <span>0</span></button>
+          <button class="filter-button" type="button" data-filter="theory">Theory <span>1</span></button>
+          <button class="filter-button" type="button" data-filter="thought">Reflections <span>0</span></button>
+        </div>
+        <label class="search-box">
+          <span class="sr-only">Search posts</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <input id="post-search" type="search" placeholder="Search titles, summaries, or tags…" autocomplete="off">
+        </label>
+      </div>
+
+      <div id="entry-list" class="entry-list">
+        <article class="entry-card" data-category="theory" data-search="understanding kernel functions intuitively: from matrices and inner products to infinite-dimensional function spaces starting from matrix multiplication and inner products, this article builds an intuitive path toward integral kernels, function spaces, spectral decomposition, kernel methods, and neural operators. kernel functions function spaces spectral decomposition neural operators">
+  <div class="entry-date"><time datetime="2026-10-19">2026.10.19</time></div>
+  <div class="entry-content">
+    <div class="entry-overline"><span class="category-dot theory"></span>Theory · 10 min</div>
+    <h2><a href="posts/kernel-functions-explained.html">Understanding Kernel Functions Intuitively: From Matrices and Inner Products to Infinite-Dimensional Function Spaces</a></h2>
+    <p>Starting from matrix multiplication and inner products, this article builds an intuitive path toward integral kernels, function spaces, spectral decomposition, kernel methods, and neural operators.</p>
+    <div class="entry-tags"><span>Kernel Functions</span><span>Function Spaces</span><span>Spectral Decomposition</span><span>Neural Operators</span></div>
+  </div>
+  <a class="entry-arrow" href="posts/kernel-functions-explained.html" aria-label="Read “Understanding Kernel Functions Intuitively: From Matrices and Inner Products to Infinite-Dimensional Function Spaces”">↗</a>
+</article>
+      </div>
+      <p id="empty-state" class="empty-state" hidden>No matching posts. Try another search.</p>
+    </section>
+  </main>
+
+  <footer>
+  <p>© <span id="year"></span> Shannon Young</p>
+  <p>Technology · Theory · Reflection</p>
+</footer>
+
+  <script src="../script.js"></script>
+</body>
+</html>

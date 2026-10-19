@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Starting from matrix multiplication and inner products, this article builds an intuitive path toward integral kernels, function spaces, spectral decomposition, kernel methods, and neural operators.">
+<meta name="theme-color" content="#f4f1ea">
+<title>Understanding Kernel Functions Intuitively: From Matrices and Inner Products to Infinite-Dimensional Function Spaces — Shannon Young</title>
+<link rel="canonical" href="https://shannonyoungf.github.io/en/posts/kernel-functions-explained.html">
+<link rel="alternate" hreflang="en" href="https://shannonyoungf.github.io/en/posts/kernel-functions-explained.html">
+<link rel="alternate" hreflang="zh-CN" href="https://shannonyoungf.github.io/posts/kernel-functions-explained.html">
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="../../styles.css">
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["$$", "$$"], ["\\[", "\\]"]] },
+      options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <div id="reading-progress" class="reading-progress" aria-hidden="true"></div>
+  <header class="site-header">
+  <a class="identity" href="../index.html" aria-label="Back to home">
+    <span class="avatar" aria-hidden="true">SY</span>
+    <span>Shannon Young</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">Open navigation</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+    <a href="../index.html">Home</a>
+    <a href="../blog.html?category=tech">Tech</a>
+    <a href="../blog.html?category=theory">Theory</a>
+    <a href="../blog.html?category=thought">Reflections</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="language-switch" href="../../posts/kernel-functions-explained.html" hreflang="zh-CN" lang="zh-CN" aria-label="Switch to Chinese">中</a>
+    <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="Toggle light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+
+  <main class="post-shell">
+    <article>
+      <header class="post-header reveal">
+        <a class="back-link" href="../blog.html?category=theory">← Back to Theory</a>
+        <p class="post-category">Theory</p>
+        <h1>Understanding Kernel Functions Intuitively: From Matrices and Inner Products to Infinite-Dimensional Function Spaces</h1>
+        <p class="post-summary">Starting from matrix multiplication and inner products, this article builds an intuitive path toward integral kernels, function spaces, spectral decomposition, kernel methods, and neural operators.</p>
+        <div class="post-meta">
+          <time datetime="2026-10-19">2026.10.19</time>
+          <span>10 min read</span>
+          <span>Last updated 2026.10.19</span>
+        </div>
+        <div class="post-tags"><span>Kernel Functions</span><span>Function Spaces</span><span>Spectral Decomposition</span><span>Neural Operators</span></div>
+      </header>
+
+      <div class="post-body reveal">
+        <h3 id="1-what-is-a-kernel-function">1. What Is a Kernel Function?</h3>
+<p>Kernel functions appear throughout mathematics, machine learning, signal processing, and dynamical systems.</p>
+<p>When we first encounter the term, we may see Gaussian kernels, convolution kernels, integral kernels, Green's function kernels, and heat kernels. Their mathematical forms and applications differ, but one important class of kernels shares a common idea: <strong>describing how input at one location influences output at another.</strong></p>
+<p>For example, consider an integral operator:</p>
+<div class="math-block">$$v(x)=\int_\Omega k(x,y)u(y)\,dy$$</div>
+<p>Here:</p>
+<ul>
+<li>$u(y)$ is the input function;</li>
+<li>$v(x)$ is the output function;</li>
+<li>$k(x,y)$ is the kernel function, describing how the input at $y$ influences the output at $x$;</li>
+<li>$\Omega$ is the domain of integration.</li>
+</ul>
+<p>For a fixed output location $x$, the kernel determines the contribution made by every location of the input function. Integration accumulates those contributions to produce the output value $v(x)$.</p>
+<p>An integral kernel can therefore be understood intuitively as <strong>a continuous influence-weight function</strong>.</p>
+<p>This is only an intuition for integral kernels, however, not a universal definition of every kind of kernel. A positive-definite kernel in machine learning, for example, is usually used to compute an inner product in a feature space and need not represent a physical influence.</p>
+<h3 id="2-understanding-kernels-through-matrix-multiplication">2. Understanding Kernels Through Matrix Multiplication</h3>
+<p>The easiest route to an integral kernel begins with familiar matrix multiplication.</p>
+<p>Suppose we have three inputs:</p>
+<div class="math-block">$$\boldsymbol{u}=\begin{bmatrix}u_1\\u_2\\u_3\end{bmatrix}$$</div>
+<p>Applying a matrix $A$ gives the output:</p>
+<div class="math-block">$$\boldsymbol{v}=A\boldsymbol{u}$$</div>
+<p>Expanding this expression:</p>
+<div class="math-block">$$\begin{aligned}
+v_1&amp;=a_{11}u_1+a_{12}u_2+a_{13}u_3\\
+v_2&amp;=a_{21}u_1+a_{22}u_2+a_{23}u_3\\
+v_3&amp;=a_{31}u_1+a_{32}u_2+a_{33}u_3
+\end{aligned}$$</div>
+<p>The entry $a_{ij}$ is the weight describing how the $j$-th input affects the $i$-th output. <strong>Each row of the matrix specifies how all inputs contribute to one output.</strong></p>
+<p>Now suppose the input is no longer three discrete values but a continuously varying function $u(y)$. A robot, for example, may receive a control input $u(t)$ throughout its motion. There is an input at every instant, and those inputs may jointly affect a future state.</p>
+<p>We want to describe the influence of any input location $y$ on any output location $x$. The discrete matrix entry $a_{ij}$ then has a continuous analogue: the kernel $k(x,y)$.</p>
+<p>The original matrix sum</p>
+<div class="math-block">$$v_i=\sum_j a_{ij}u_j$$</div>
+<p>corresponds to the continuous integral</p>
+<div class="math-block">$$v(x)=\int_\Omega k(x,y)u(y)\,dy$$</div>
+<p>Strictly speaking, numerical discretization must also account for quadrature weights. On a uniform grid, for example:</p>
+<div class="math-block">$$a_{ij}\approx k(x_i,y_j)\Delta y$$</div>
+<p>Kernel values and matrix entries are therefore not always numerically identical. Their correspondence lies in the input-output relationship they describe.</p>
+<p><strong>Matrix multiplication is a weighted sum over discrete inputs; a kernel integral is a weighted integral over continuous inputs.</strong></p>
+<h3 id="3-why-call-a-kernel-a-continuous-infinite-dimensional-matrix">3. Why Call a Kernel a Continuous “Infinite-Dimensional Matrix”?</h3>
+<p>An ordinary matrix has finitely many rows and columns, such as $3\times3$ or $100\times100$.</p>
+<p>A continuous function, by contrast, has a value at every point in its domain. We can therefore imagine $k(x,y)$ as a matrix with continuous row and column indices:</p>
+<ul>
+<li>$x$ identifies the output location, analogous to a row index;</li>
+<li>$y$ identifies the input location, analogous to a column index;</li>
+<li>$k(x,y)$ is the weight at that input-output pair.</li>
+</ul>
+<p>From this perspective, an integral operator looks like a continuous form of matrix transformation.</p>
+<p>This picture can lead to a common misunderstanding: <strong>the fact that $x$ and $y$ can take infinitely many values does not make either variable infinite-dimensional.</strong></p>
+<p>If $x\in[0,1]$, the interval contains infinitely many real numbers, but $x$ is still a one-dimensional variable. The true infinite dimensionality comes from the function space.</p>
+<p>Consider the expansion</p>
+<div class="math-block">$$u(x)=\sum_{n=1}^{\infty}c_n\phi_n(x)$$</div>
+<p>where $\phi_n(x)$ are basis functions and $c_n$ are expansion coefficients. Representing an arbitrary element of an infinite-dimensional function space generally requires infinitely many independent basis functions and coefficients.</p>
+<p>We should therefore distinguish between:</p>
+<ul>
+<li><strong>the dimension of the independent variable</strong>: how many independent coordinates specify one location;</li>
+<li><strong>the dimension of the function space</strong>: how many independent basis directions are needed to specify one function.</li>
+</ul>
+<p>A curve $u(x)$ has only one independent variable, while the space containing all such curves can still be infinite-dimensional.</p>
+<p><strong>An integral kernel may represent an infinite-dimensional linear operator in continuous coordinates. This does not mean that the kernel's two arguments are themselves infinite-dimensional variables.</strong></p>
+<h3 id="4-why-does-a-kernel-not-automatically-remove-infinite-dimensionality">4. Why Does a Kernel Not Automatically Remove Infinite Dimensionality?</h3>
+<p>If a kernel replaces the weights of a discrete matrix, does it turn an infinite-dimensional problem into a finite-dimensional one? No.</p>
+<p>Consider again:</p>
+<div class="math-block">$$v(x)=\int_\Omega k(x,y)u(y)\,dy$$</div>
+<p>Although we have written only one function of two variables, $k(x,y)$ must still describe relationships between locations across a continuous domain. The kernel itself may therefore contain infinitely many degrees of freedom.</p>
+<p>Its value is not that it automatically reduces dimension. Rather, <strong>it converts an abstract mapping between functions into a weighted integral with explicit structure.</strong></p>
+<p>This representation lets us use integration theory, spectral theory, Fourier analysis, and numerical methods to study the operator.</p>
+<p>Suppose, for example, that the kernel is translation-invariant:</p>
+<div class="math-block">$$k(x,y)=k(x-y)$$</div>
+<p>On an appropriate domain, the integral operator then takes the form of a convolution:</p>
+<div class="math-block">$$v(x)=(k*u)(x)$$</div>
+<p>By the convolution theorem:</p>
+<div class="math-block">$$\mathcal F(v)=\mathcal F(k)\mathcal F(u)$$</div>
+<p>The integral in physical space becomes multiplication in Fourier space. This is one of the key mathematical ideas behind frequency-domain computation in the Fourier Neural Operator (FNO).</p>
+<p><strong>A kernel does not necessarily reduce the dimension of a problem, but special structure in a kernel can make the computation dramatically simpler.</strong></p>
+<h3 id="5-how-do-kernels-relate-to-inner-products-orthogonality-and-basis-functions">5. How Do Kernels Relate to Inner Products, Orthogonality, and Basis Functions?</h3>
+<p>A kernel is not an isolated concept. It is deeply connected to inner products, orthogonality, and basis expansions from linear algebra.</p>
+<h4 id="51-inner-products-measuring-relationships-between-objects">5.1 Inner Products: Measuring Relationships Between Objects</h4>
+<p>In a finite-dimensional vector space, the inner product is</p>
+<div class="math-block">$$\langle\boldsymbol a,\boldsymbol b\rangle=\sum_{i=1}^{n}a_ib_i$$</div>
+<p>For real-valued square-integrable functions, we can define</p>
+<div class="math-block">$$\langle f,g\rangle=\int_\Omega f(x)g(x)\,dx$$</div>
+<p>The discrete sum in a vector inner product thus extends naturally to the continuous integral in a function inner product. An inner product not only expresses a geometric relationship between two objects; it also computes the projection of a function onto a particular direction.</p>
+<h4 id="52-orthogonality-separating-independent-components">5.2 Orthogonality: Separating Independent Components</h4>
+<p>Suppose a collection of basis functions satisfies</p>
+<div class="math-block">$$\langle\phi_i,\phi_j\rangle=\delta_{ij}$$</div>
+<p>Then it forms an orthonormal system. If the system is complete, a function can be expanded as</p>
+<div class="math-block">$$f(x)=\sum_{n=1}^{\infty}c_n\phi_n(x)$$</div>
+<p>with coefficients</p>
+<div class="math-block">$$c_n=\langle f,\phi_n\rangle$$</div>
+<p><strong>Basis functions determine the representational directions, inner products compute the projection coefficients, and orthogonality allows different directions to be extracted independently.</strong> Fourier series are a classic example of this idea.</p>
+<h4 id="53-a-kernel-integral-as-a-function-inner-product">5.3 A Kernel Integral as a Function Inner Product</h4>
+<p>Return to the integral operator</p>
+<div class="math-block">$$v(x)=\int_\Omega k(x,y)u(y)\,dy$$</div>
+<p>For a fixed $x$, define</p>
+<div class="math-block">$$k_x(y)=k(x,y)$$</div>
+<p>If $k_x$ and $u$ belong to the appropriate real-valued $L^2$ space, then</p>
+<div class="math-block">$$v(x)=\langle k_x,u\rangle$$</div>
+<p><strong>Every output value of the integral operator can be viewed as the inner product of the input function with one kernel function.</strong> As the output location $x$ changes, the corresponding function $k_x$ changes, producing the complete output function $v(x)$.</p>
+<p>This inner-product interpretation of an integral kernel is related in form to the way a positive-definite kernel represents a feature-space inner product in a support vector machine, but the two are not identical mathematical definitions.</p>
+<h3 id="6-kernels-and-spectral-decomposition-diagonalizing-an-operator-in-infinite-dimensions">6. Kernels and Spectral Decomposition: Diagonalizing an Operator in Infinite Dimensions</h3>
+<p>In linear algebra, a real symmetric matrix admits an eigendecomposition:</p>
+<div class="math-block">$$A=Q\Lambda Q^\mathsf T$$</div>
+<p>The central idea is to find special orthogonal directions along which the matrix transformation acts as simple scaling.</p>
+<p>Similarly, for a suitable compact self-adjoint integral operator</p>
+<div class="math-block">$$(\mathcal Ku)(x)=\int_\Omega k(x,y)u(y)\,dy$$</div>
+<p>we can write an eigenfunction expansion:</p>
+<div class="math-block">$$\mathcal Ku=\sum_{n=1}^{\infty}\lambda_n\langle u,\phi_n\rangle\phi_n$$</div>
+<p>where:</p>
+<ul>
+<li>$\phi_n$ is an eigenfunction;</li>
+<li>$\lambda_n$ is an eigenvalue;</li>
+<li>$\langle u,\phi_n\rangle$ is the projection of the input function onto that eigenfunction.</li>
+</ul>
+<p>This expression reveals how the integral operator works. First, project the input function onto the eigenfunction directions. Next, scale each component by its eigenvalue. Finally, recombine the components to form the output function.</p>
+<p>Under suitable conditions, the kernel itself can also be expanded as</p>
+<div class="math-block">$$k(x,y)=\sum_{n=1}^{\infty}\lambda_n\phi_n(x)\phi_n(y)$$</div>
+<p>Kernel functions, basis expansions, and spectral decomposition are therefore directly connected.</p>
+<p>They can be understood as three views of the same linear operator:</p>
+<ul>
+<li><strong>Matrix representation</strong> focuses on mappings between discrete coordinates.</li>
+<li><strong>Kernel-integral representation</strong> focuses on interactions between continuous input and output locations.</li>
+<li><strong>Spectral representation</strong> focuses on how the operator acts along eigenfunction directions.</li>
+</ul>
+<p>The operator may be the same; only its representation changes.</p>
+<h3 id="7-what-are-some-common-kernel-functions">7. What Are Some Common Kernel Functions?</h3>
+<p>There is no single, mutually exclusive taxonomy of kernels. Different fields emphasize different mathematical properties when they use the word “kernel.”</p>
+<div class="table-wrap"><table><thead><tr><th>Kernel</th><th>Typical form or property</th><th>Main applications</th></tr></thead><tbody>
+<tr><td>Gaussian kernel</td><td>Exponential decay with squared distance</td><td>Kernel regression, Gaussian processes</td></tr>
+<tr><td>Exponential kernel</td><td>Exponential decay with temporal or spatial distance</td><td>Stochastic processes, dynamical modeling</td></tr>
+<tr><td>Convolution kernel</td><td>$k(x-y)$</td><td>Signal processing, CNNs, FNOs</td></tr>
+<tr><td>Sinc kernel</td><td>$\sin(\omega_c r)/(\pi r)$</td><td>Sampling theory, ideal low-pass filtering</td></tr>
+<tr><td>Green's function kernel</td><td>Response kernel of a differential operator</td><td>Solving differential equations</td></tr>
+<tr><td>Heat kernel</td><td>Fundamental solution describing heat diffusion</td><td>Diffusion processes, geometric analysis</td></tr>
+<tr><td>Matérn kernel</td><td>Tunable smoothness of random functions</td><td>Gaussian processes, spatial statistics</td></tr>
+<tr><td>Polynomial kernel</td><td>$(x^\mathsf Ty+c)^d$</td><td>Kernel methods, feature maps</td></tr>
+</tbody></table></div>
+<p>Some of these kernels express similarity, some express a physical response, and others construct an integral operator.</p>
+<p>Their common feature is not that they all represent physical influence. Rather, each uses a function with particular mathematical properties to encode relationships between objects or to define an operation.</p>
+<h3 id="8-how-do-kernels-relate-to-neural-operators">8. How Do Kernels Relate to Neural Operators?</h3>
+<p>A neural operator aims to learn a mapping between function spaces:</p>
+<div class="math-block">$$\mathcal G:u(\cdot)\mapsto v(\cdot)$$</div>
+<p>Ordinary neural networks mainly process finite-dimensional inputs and outputs. Neural operators instead focus on mappings from one function to another. Kernel functions are an important building block for some neural operators.</p>
+<h4 id="81-fourier-neural-operator-fno">8.1 Fourier Neural Operator (FNO)</h4>
+<p>A typical integral-operator layer in an FNO can be written as</p>
+<div class="math-block">$$(\mathcal K_\theta u)(x)=\int_\Omega\kappa_\theta(x,y)u(y)\,dy$$</div>
+<p>where $\kappa_\theta$ is a learnable kernel.</p>
+<p>When an operator has convolutional structure, the Fourier transform can be used to compute it in the frequency domain.</p>
+<p>The important idea behind an FNO is that <strong>we do not have to evaluate a complicated integral directly in physical space; a frequency-domain representation can simplify the computation for operators with suitable structure.</strong></p>
+<h4 id="82-deep-operator-network-deeponet">8.2 Deep Operator Network (DeepONet)</h4>
+<p>DeepONet uses a different representation:</p>
+<div class="math-block">$$\mathcal G_\theta(u)(x)=\sum_{j=1}^{p}b_j(u)t_j(x)$$</div>
+<p>where:</p>
+<ul>
+<li>$b_j(u)$ is an input-dependent coefficient produced by the Branch Net;</li>
+<li>$t_j(x)$ is an output representation function produced by the Trunk Net.</li>
+</ul>
+<p>This architecture has a clear formal resemblance to a basis expansion.</p>
+<p>It constructs a mapping between function spaces by learning input-dependent coefficients and output representation functions, without requiring an explicit integral kernel.</p>
+<p>Thus, <strong>the FNO emphasizes kernel integration and Fourier representation, while DeepONet emphasizes function expansion and coefficient representation.</strong> Their implementations differ, but both aim to learn complex mappings between functions.</p>
+<h3 id="9-summary">9. Summary</h3>
+<p>The discussion above gives us a clear conceptual path:</p>
+<div class="math-block">$$\boxed{\text{vector}\longrightarrow\text{function}\longrightarrow\text{function space}\longrightarrow\text{operator}\longrightarrow\text{kernel representation}}$$</div>
+<p><strong>First, vectors and functions.</strong> A vector can be represented by finitely many coordinates, while a general function may require infinitely many basis coefficients. A function space can therefore be infinite-dimensional.</p>
+<p><strong>Second, inner products and orthogonality.</strong> Inner products define the geometry of a space, and an orthogonal basis decomposes a function into independent components.</p>
+<p><strong>Third, matrices and operators.</strong> A matrix describes a finite-dimensional linear map; an operator can describe a map between infinite-dimensional function spaces.</p>
+<p><strong>Fourth, kernels and integral operators.</strong> For operators that admit an ordinary integral-kernel representation, the kernel describes interactions between input and output locations, while integration performs the continuous weighted accumulation.</p>
+<p><strong>Fifth, spectral decomposition and neural operators.</strong> By choosing an appropriate representation of functions, a complex operator transformation can become a more tractable computation over coefficients.</p>
+<p>The essence of an integral kernel can be summarized in one sentence:</p>
+<blockquote><p><strong>A matrix uses discrete weights to describe relationships among finitely many inputs and outputs, while an integral kernel uses continuous weights to describe relationships among locations of functions. It does not eliminate infinite dimensionality; it gives certain infinite-dimensional linear maps a clear, analyzable, and computable representation.</strong></p></blockquote>
+<p>Seen this way, a kernel is no longer just a formula to memorize. It becomes an important bridge connecting linear algebra, function spaces, integral equations, differential equations, Fourier analysis, and the theory of neural operators.</p>
+      </div>
+
+      <footer class="post-footer">
+        <p>If this note was useful, or if you spotted an error, feel free to reach out on <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer">GitHub</a>.</p>
+        <a class="text-link" href="../blog.html">Keep reading <span aria-hidden="true">↗</span></a>
+      </footer>
+    </article>
+  </main>
+
+  <footer>
+  <p>© <span id="year"></span> Shannon Young</p>
+  <p>Technology · Theory · Reflection</p>
+</footer>
+
+  <script src="../../script.js"></script>
+</body>
+</html>

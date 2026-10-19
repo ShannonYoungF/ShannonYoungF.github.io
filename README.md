@@ -16,6 +16,8 @@ title: 文章标题
 date: 2026-10-19
 updated: 2026-10-19
 category: tech
+lang: zh
+translation_key: article-url
 summary: 用一两句话概括文章。
 tags: Python, 实验, 工程方法
 slug: article-url
@@ -29,6 +31,8 @@ slug: article-url
 - `tech`：技术实践
 - `theory`：理论学习
 - `thought`：思考随笔
+
+`lang` 使用 `zh` 或 `en`。中英文版本应使用相同的 `translation_key`，构建器会据此生成文章页上的语言切换链接。两种语言可以使用相同的 `slug`，因为英文页面会输出到独立的 `en/` 目录。
 
 正文支持标题、段落、粗体、斜体、链接、行内代码、代码块、引用、有序/无序列表、表格、分隔线和 MathJax 数学公式。
 
@@ -44,6 +48,8 @@ python build.py
 - `index.html`：首页与最近文章
 - `blog.html`：可搜索、可分类筛选的文章归档
 - `posts/*.html`：独立文章页面
+- `en/index.html`、`en/blog.html`：英文首页与归档
+- `en/posts/*.html`：英文文章页面
 
 这些是生成文件。日常写作应修改 `content/posts/<分类>/*.md`，页面结构修改 `templates/` 和 `includes/`。构建时会自动删除已不存在原稿所对应的旧文章页面。
 
@@ -74,11 +80,12 @@ python -m http.server 8000
 personal-site/
 ├── content/posts/             # Markdown 原稿
 │   ├── tech/                  # 技术实践
-│   ├── theory/                # 理论学习
+│   ├── theory/                # 理论学习（中英文译文可放在同一分类）
 │   └── thought/               # 思考随笔
 ├── includes/        # 共享导航、页头和页脚
 ├── templates/       # 首页、归档页和文章页模板
 ├── posts/           # 自动生成的文章 HTML
+├── en/              # 自动生成的英文站点
 ├── build.py         # 零依赖构建脚本
 ├── site.json        # 个人资料与站点配置
 ├── index.html       # 自动生成的首页

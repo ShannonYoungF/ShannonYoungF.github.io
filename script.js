@@ -3,6 +3,13 @@ const themeButton = document.querySelector(".theme-button");
 const menuButton = document.querySelector(".menu-button");
 const nav = document.querySelector(".site-nav");
 const header = document.querySelector(".site-header");
+const languageSwitch = document.querySelector(".language-switch");
+
+if (languageSwitch && window.location.pathname.endsWith("blog.html") && window.location.search) {
+  const target = new URL(languageSwitch.href, window.location.href);
+  target.search = window.location.search;
+  languageSwitch.href = target.toString();
+}
 
 themeButton?.addEventListener("click", () => {
   const next = root.dataset.theme === "dark" ? "light" : "dark";

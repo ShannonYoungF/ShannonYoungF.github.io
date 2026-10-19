@@ -16,11 +16,123 @@ CONTENT_DIR = ROOT / "content" / "posts"
 TEMPLATE_DIR = ROOT / "templates"
 INCLUDE_DIR = ROOT / "includes"
 POST_OUTPUT_DIR = ROOT / "posts"
+EN_OUTPUT_DIR = ROOT / "en"
 
 CATEGORIES = {
-    "tech": "技术实践",
-    "theory": "理论学习",
-    "thought": "思考随笔",
+    "tech": {"zh": "技术实践", "en": "Technical Practice"},
+    "theory": {"zh": "理论学习", "en": "Theory"},
+    "thought": {"zh": "思考随笔", "en": "Reflections"},
+}
+
+UI = {
+    "zh": {
+        "html_lang": "zh-CN",
+        "other_html_lang": "en",
+        "language_switch_label": "EN",
+        "language_switch_aria": "切换到英文",
+        "home_aria": "返回首页",
+        "menu_label": "打开导航",
+        "nav_label": "主导航",
+        "nav_home": "首页",
+        "nav_tech": "技术",
+        "nav_theory": "理论",
+        "nav_thought": "思考",
+        "theme_label": "切换深浅色主题",
+        "footer_tagline": "技术 · 理论 · 思考",
+        "home_title_suffix": "技术、理论与思考",
+        "home_eyebrow": "一座持续生长的个人知识库",
+        "home_hero_title": "记录技术，<br>也追问它背后的<span class=\"name-mark\">理论</span>。",
+        "home_lede": "这里存放我关于技术实践、理论学习与长期问题的笔记。它不是答案的陈列柜，而是一张不断修订的思维地图。",
+        "home_note": "我会尽量写清楚：问题从哪里来、假设是什么、推导如何成立，以及实验究竟说明了什么。",
+        "home_start": "开始阅读",
+        "home_view_map": "查看内容地图",
+        "tracks_title": "三条写作线",
+        "tracks_intro": "同一个问题，往往需要从实现、理论和经验三个方向来理解。",
+        "tech_card_title": "从想法到可运行的系统",
+        "tech_card_text": "算法实现、工程工具、实验复现，以及真实系统中的取舍。",
+        "theory_card_title": "从定义到可以迁移的直觉",
+        "theory_card_text": "概念、假设、推导和证明；记录我如何把一个理论真正想明白。",
+        "thought_card_title": "保留尚未收敛的问题",
+        "thought_card_text": "研究方法、认知工具、失败复盘，以及还没有标准答案的事情。",
+        "latest_title": "最近更新",
+        "all_posts_label": "全部文章",
+        "manifesto_quote": "“写下来，不是因为已经想明白；而是为了让模糊的直觉有机会变成可以检查的结构。”",
+        "manifesto_text": "如果一篇笔记能让未来的我少走一点弯路，或让另一个人更快地进入一个问题，它就已经有价值。",
+        "blog_title": "文章与笔记",
+        "blog_description": "按时间整理的技术实践、理论学习与思考随笔。",
+        "blog_intro": "按时间保留想法的变化。文章可能会在理解加深后继续修订。",
+        "archive_aria": "文章列表",
+        "filter_aria": "文章分类",
+        "filter_all": "全部",
+        "filter_tech": "技术",
+        "filter_theory": "理论",
+        "filter_thought": "思考",
+        "search_label": "搜索文章",
+        "search_placeholder": "搜索标题、摘要或标签…",
+        "empty_state": "没有找到对应的文章，试试别的关键词。",
+        "back_prefix": "返回",
+        "reading_time_format": "{minutes} 分钟阅读",
+        "archive_time_format": "{minutes} 分钟",
+        "updated_prefix": "最后更新于",
+        "post_footer": "如果这篇笔记对你有帮助，或你发现了错误，欢迎通过",
+        "post_footer_suffix": "交流。",
+        "continue_reading": "继续阅读",
+        "read_aria_format": "阅读《{title}》",
+    },
+    "en": {
+        "html_lang": "en",
+        "other_html_lang": "zh-CN",
+        "language_switch_label": "中",
+        "language_switch_aria": "Switch to Chinese",
+        "home_aria": "Back to home",
+        "menu_label": "Open navigation",
+        "nav_label": "Main navigation",
+        "nav_home": "Home",
+        "nav_tech": "Tech",
+        "nav_theory": "Theory",
+        "nav_thought": "Reflections",
+        "theme_label": "Toggle light and dark theme",
+        "footer_tagline": "Technology · Theory · Reflection",
+        "home_title_suffix": "Technology, Theory and Reflection",
+        "home_eyebrow": "A personal knowledge base in continual growth",
+        "home_hero_title": "Documenting technology,<br>and questioning the <span class=\"name-mark\">theory</span> behind it.",
+        "home_lede": "This is where I keep notes on technical practice, theoretical learning, and long-running questions. It is not a cabinet of answers, but an evolving map of thought.",
+        "home_note": "I try to make four things explicit: where a problem comes from, what assumptions it rests on, why a derivation works, and what an experiment actually shows.",
+        "home_start": "Start reading",
+        "home_view_map": "View the content map",
+        "tracks_title": "Three lines of inquiry",
+        "tracks_intro": "The same problem often needs to be understood through implementation, theory, and experience.",
+        "tech_card_title": "From an idea to a working system",
+        "tech_card_text": "Algorithms, engineering tools, reproducible experiments, and trade-offs in real systems.",
+        "theory_card_title": "From definitions to transferable intuition",
+        "theory_card_text": "Concepts, assumptions, derivations, and proofs—and how I work toward genuine understanding.",
+        "thought_card_title": "Keeping unresolved questions alive",
+        "thought_card_text": "Research methods, cognitive tools, lessons from failure, and questions without settled answers.",
+        "latest_title": "Latest writing",
+        "all_posts_label": "All posts",
+        "manifesto_quote": "“I write not because the thought is already clear, but to give a vague intuition the chance to become a structure that can be examined.”",
+        "manifesto_text": "If a note helps my future self avoid a detour, or helps someone else enter a problem more quickly, it has already done something worthwhile.",
+        "blog_title": "Writing and Notes",
+        "blog_description": "Technical practice, theoretical learning, and reflections arranged over time.",
+        "blog_intro": "A chronological record of changing ideas. Posts may continue to evolve as my understanding deepens.",
+        "archive_aria": "Post archive",
+        "filter_aria": "Post categories",
+        "filter_all": "All",
+        "filter_tech": "Tech",
+        "filter_theory": "Theory",
+        "filter_thought": "Reflections",
+        "search_label": "Search posts",
+        "search_placeholder": "Search titles, summaries, or tags…",
+        "empty_state": "No matching posts. Try another search.",
+        "back_prefix": "Back to",
+        "reading_time_format": "{minutes} min read",
+        "archive_time_format": "{minutes} min",
+        "updated_prefix": "Last updated",
+        "post_footer": "If this note was useful, or if you spotted an error, feel free to reach out on",
+        "post_footer_suffix": ".",
+        "continue_reading": "Keep reading",
+        "read_aria_format": "Read “{title}”",
+    },
 }
 
 
@@ -231,8 +343,8 @@ def render_template(template: str, context: dict[str, Any]) -> str:
 
 def load_posts() -> list[dict[str, Any]]:
     posts: list[dict[str, Any]] = []
-    seen_slugs: set[str] = set()
-    required = {"title", "date", "category", "summary", "tags", "slug"}
+    seen_slugs: set[tuple[str, str]] = set()
+    required = {"title", "date", "category", "lang", "translation_key", "summary", "tags", "slug"}
     for path in sorted(CONTENT_DIR.rglob("*.md")):
         metadata, markdown = parse_front_matter(path.read_text(encoding="utf-8"))
         missing = required - metadata.keys()
@@ -240,15 +352,18 @@ def load_posts() -> list[dict[str, Any]]:
             raise ValueError(f"{path.name} is missing: {', '.join(sorted(missing))}")
         if metadata["category"] not in CATEGORIES:
             raise ValueError(f"Unknown category in {path.name}: {metadata['category']}")
+        if metadata["lang"] not in UI:
+            raise ValueError(f"Unknown language in {path.name}: {metadata['lang']}")
         category_dir = path.relative_to(CONTENT_DIR).parts[0]
         if category_dir != metadata["category"]:
             raise ValueError(
                 f"Category mismatch in {path.name}: move it to "
                 f"content/posts/{metadata['category']}/"
             )
-        if metadata["slug"] in seen_slugs:
-            raise ValueError(f"Duplicate slug: {metadata['slug']}")
-        seen_slugs.add(metadata["slug"])
+        slug_key = (metadata["lang"], metadata["slug"])
+        if slug_key in seen_slugs:
+            raise ValueError(f"Duplicate {metadata['lang']} slug: {metadata['slug']}")
+        seen_slugs.add(slug_key)
         published = parse_date(metadata["date"])
         updated = parse_date(metadata.get("updated", metadata["date"]))
         posts.append(
@@ -261,7 +376,6 @@ def load_posts() -> list[dict[str, Any]]:
                 "updated_obj": updated,
                 "date_display": format_date(published),
                 "updated_display": format_date(updated),
-                "category_label": CATEGORIES[metadata["category"]],
                 "tags_list": [tag.strip() for tag in metadata["tags"].split(",") if tag.strip()],
                 "reading_time": reading_time(markdown),
             }
@@ -269,37 +383,64 @@ def load_posts() -> list[dict[str, Any]]:
     return sorted(posts, key=lambda item: item["date_obj"], reverse=True)
 
 
-def post_row(post: dict[str, Any], prefix: str = "") -> str:
-    return f'''<a class="note-row" href="{prefix}posts/{quote(post['slug'])}.html">
+def post_row(post: dict[str, Any], lang: str) -> str:
+    category_label = CATEGORIES[post["category"]][lang]
+    reading_time = UI[lang]["archive_time_format"].format(minutes=post["reading_time"])
+    return f'''<a class="note-row" href="posts/{quote(post['slug'])}.html">
   <time datetime="{post['date']}">{post['date_display']}</time>
-  <span><strong>{html.escape(post['title'])}</strong><small>{post['category_label']} · {post['reading_time']} min</small></span>
+  <span><strong>{html.escape(post['title'])}</strong><small>{category_label} · {reading_time}</small></span>
   <span class="arrow" aria-hidden="true">↗</span>
 </a>'''
 
 
-def archive_card(post: dict[str, Any]) -> str:
+def archive_card(post: dict[str, Any], lang: str) -> str:
     tags = "".join(f"<span>{html.escape(tag)}</span>" for tag in post["tags_list"])
     search_value = " ".join([post["title"], post["summary"], *post["tags_list"]]).lower()
+    category_label = CATEGORIES[post["category"]][lang]
+    reading_time = UI[lang]["archive_time_format"].format(minutes=post["reading_time"])
+    read_aria = UI[lang]["read_aria_format"].format(title=post["title"])
     return f'''<article class="entry-card" data-category="{post['category']}" data-search="{html.escape(search_value, quote=True)}">
   <div class="entry-date"><time datetime="{post['date']}">{post['date_display']}</time></div>
   <div class="entry-content">
-    <div class="entry-overline"><span class="category-dot {post['category']}"></span>{post['category_label']} · {post['reading_time']} 分钟</div>
+    <div class="entry-overline"><span class="category-dot {post['category']}"></span>{category_label} · {reading_time}</div>
     <h2><a href="posts/{quote(post['slug'])}.html">{html.escape(post['title'])}</a></h2>
     <p>{html.escape(post['summary'])}</p>
     <div class="entry-tags">{tags}</div>
   </div>
-  <a class="entry-arrow" href="posts/{quote(post['slug'])}.html" aria-label="阅读《{html.escape(post['title'], quote=True)}》">↗</a>
+  <a class="entry-arrow" href="posts/{quote(post['slug'])}.html" aria-label="{html.escape(read_aria, quote=True)}">↗</a>
 </article>'''
 
 
-def common_context(site: dict[str, str], root: str, title: str, description: str) -> dict[str, str]:
+def absolute_url(site: dict[str, str], path: str) -> str:
+    return f"{site['url'].rstrip('/')}/{path.lstrip('/')}"
+
+
+def common_context(
+    site: dict[str, str],
+    lang: str,
+    asset_root: str,
+    locale_root: str,
+    title: str,
+    description: str,
+    language_switch_url: str,
+    canonical_path: str,
+    alternate_paths: dict[str, str],
+) -> dict[str, str]:
     values = {
-        "root": root,
+        **UI[lang],
+        "asset_root": asset_root,
+        "locale_root": locale_root,
+        "language_switch_url": language_switch_url,
         "page_title": title,
         "page_description": description,
+        "canonical_url": absolute_url(site, canonical_path),
+        "alternate_links": "\n".join(
+            f'<link rel="alternate" hreflang="{UI[alternate_lang]["html_lang"]}" href="{absolute_url(site, path)}">'
+            for alternate_lang, path in alternate_paths.items()
+        ),
         "site_name": site["name"],
         "site_short_name": site["short_name"],
-        "site_description": site["description"],
+        "site_description": site["description"] if lang == "zh" else site["description_en"],
         "site_email": site["email"],
         "site_github": site["github"],
     }
@@ -309,37 +450,64 @@ def common_context(site: dict[str, str], root: str, title: str, description: str
     return values
 
 
-def build() -> None:
-    site = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
-    posts = load_posts()
+def build_locale(
+    site: dict[str, str],
+    all_posts: list[dict[str, Any]],
+    translations: dict[str, dict[str, dict[str, Any]]],
+    lang: str,
+) -> None:
+    posts = [post for post in all_posts if post["lang"] == lang]
     counts = {key: sum(post["category"] == key for post in posts) for key in CATEGORIES}
+    is_english = lang == "en"
+    page_dir = EN_OUTPUT_DIR if is_english else ROOT
+    post_output_dir = page_dir / "posts"
+    page_asset_root = "../" if is_english else ""
+    post_asset_root = "../../" if is_english else "../"
+    index_switch = "../index.html" if is_english else "en/index.html"
+    blog_switch = "../blog.html" if is_english else "en/blog.html"
+    index_path = "en/" if is_english else ""
+    blog_path = "en/blog.html" if is_english else "blog.html"
+    page_dir.mkdir(exist_ok=True)
 
     index_context: dict[str, Any] = common_context(
         site,
+        lang,
+        page_asset_root,
         "",
-        f"{site['name']} — 技术、理论与思考",
-        site["description"],
+        f"{site['name']} — {UI[lang]['home_title_suffix']}",
+        site["description"] if lang == "zh" else site["description_en"],
+        index_switch,
+        index_path,
+        {"zh": "", "en": "en/"},
     )
     index_context.update(
         {
-            "latest_posts": "\n".join(post_row(post) for post in posts[:5]),
+            "latest_posts": "\n".join(post_row(post, lang) for post in posts[:5]),
             "tech_count_padded": f"{counts['tech']:02d}",
             "theory_count_padded": f"{counts['theory']:02d}",
             "thought_count_padded": f"{counts['thought']:02d}",
+            "tech_category_label": CATEGORIES["tech"][lang],
+            "theory_category_label": CATEGORIES["theory"][lang],
+            "thought_category_label": CATEGORIES["thought"][lang],
         }
     )
     index_html = render_template((TEMPLATE_DIR / "index.html").read_text(encoding="utf-8"), index_context)
-    (ROOT / "index.html").write_text(index_html, encoding="utf-8")
+    (page_dir / "index.html").write_text(index_html, encoding="utf-8")
 
     blog_context: dict[str, Any] = common_context(
         site,
+        lang,
+        page_asset_root,
         "",
-        f"文章与笔记 — {site['name']}",
-        "按时间整理的技术实践、理论学习与思考随笔。",
+        f"{UI[lang]['blog_title']} — {site['name']}",
+        UI[lang]["blog_description"],
+        blog_switch,
+        blog_path,
+        {"zh": "blog.html", "en": "en/blog.html"},
     )
     blog_context.update(
         {
-            "all_posts": "\n".join(archive_card(post) for post in posts),
+            "all_posts": "\n".join(archive_card(post, lang) for post in posts),
             "total_count": len(posts),
             "tech_count": counts["tech"],
             "theory_count": counts["theory"],
@@ -347,30 +515,79 @@ def build() -> None:
         }
     )
     blog_html = render_template((TEMPLATE_DIR / "blog.html").read_text(encoding="utf-8"), blog_context)
-    (ROOT / "blog.html").write_text(blog_html, encoding="utf-8")
+    (page_dir / "blog.html").write_text(blog_html, encoding="utf-8")
 
-    POST_OUTPUT_DIR.mkdir(exist_ok=True)
+    post_output_dir.mkdir(exist_ok=True)
     expected_outputs = {f"{post['slug']}.html" for post in posts}
-    for path in POST_OUTPUT_DIR.glob("*.html"):
+    for path in post_output_dir.glob("*.html"):
         if path.name not in expected_outputs:
             path.unlink()
 
     post_template = (TEMPLATE_DIR / "post.html").read_text(encoding="utf-8")
     for post in posts:
+        translation_group = translations[post["translation_key"]]
+        other_lang = "zh" if lang == "en" else "en"
+        counterpart = translation_group.get(other_lang)
+        if counterpart:
+            if is_english:
+                language_switch_url = f"../../posts/{quote(counterpart['slug'])}.html"
+            else:
+                language_switch_url = f"../en/posts/{quote(counterpart['slug'])}.html"
+        else:
+            language_switch_url = "../../blog.html" if is_english else "../en/blog.html"
+
+        canonical_path = (
+            f"en/posts/{quote(post['slug'])}.html"
+            if is_english
+            else f"posts/{quote(post['slug'])}.html"
+        )
+        alternate_paths = {
+            alternate_lang: (
+                f"en/posts/{quote(item['slug'])}.html"
+                if alternate_lang == "en"
+                else f"posts/{quote(item['slug'])}.html"
+            )
+            for alternate_lang, item in translation_group.items()
+        }
         post_context: dict[str, Any] = common_context(
             site,
+            lang,
+            post_asset_root,
             "../",
             f"{post['title']} — {site['name']}",
             post["summary"],
+            language_switch_url,
+            canonical_path,
+            alternate_paths,
         )
         post_context.update(post)
+        post_context["category_label"] = CATEGORIES[post["category"]][lang]
+        post_context["reading_time_label"] = UI[lang]["reading_time_format"].format(
+            minutes=post["reading_time"]
+        )
         post_context["tags_html"] = "".join(
             f"<span>{html.escape(tag)}</span>" for tag in post["tags_list"]
         )
         rendered = render_template(post_template, post_context)
-        (POST_OUTPUT_DIR / f"{post['slug']}.html").write_text(rendered, encoding="utf-8")
+        (post_output_dir / f"{post['slug']}.html").write_text(rendered, encoding="utf-8")
 
-    print(f"Built {len(posts)} posts, index.html, and blog.html")
+
+def build() -> None:
+    site = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
+    posts = load_posts()
+    translations: dict[str, dict[str, dict[str, Any]]] = {}
+    for post in posts:
+        group = translations.setdefault(post["translation_key"], {})
+        if post["lang"] in group:
+            raise ValueError(
+                f"Duplicate {post['lang']} translation for {post['translation_key']}"
+            )
+        group[post["lang"]] = post
+
+    for lang in UI:
+        build_locale(site, posts, translations, lang)
+
+    print(f"Built {len(posts)} localized posts and {len(UI)} site languages")
 
 
 if __name__ == "__main__":

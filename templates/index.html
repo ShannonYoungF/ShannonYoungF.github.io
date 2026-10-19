@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="{{html_lang}}">
 <head>
   {{head}}
 </head>
@@ -9,48 +9,48 @@
 
   <main id="top">
     <section class="hero home-hero reveal">
-      <div class="eyebrow"><span class="status-dot"></span> 一座持续生长的个人知识库</div>
-      <h1>记录技术，<br>也追问它背后的<span class="name-mark">理论</span>。</h1>
-      <p class="hero-lede">这里存放我关于技术实践、理论学习与长期问题的笔记。它不是答案的陈列柜，而是一张不断修订的思维地图。</p>
-      <p>我会尽量写清楚：问题从哪里来、假设是什么、推导如何成立，以及实验究竟说明了什么。</p>
+      <div class="eyebrow"><span class="status-dot"></span> {{home_eyebrow}}</div>
+      <h1>{{home_hero_title}}</h1>
+      <p class="hero-lede">{{home_lede}}</p>
+      <p>{{home_note}}</p>
       <div class="hero-actions">
-        <a class="primary-link" href="blog.html">开始阅读 <span aria-hidden="true">↗</span></a>
-        <a class="quiet-link" href="#tracks">查看内容地图 <span aria-hidden="true">↓</span></a>
+        <a class="primary-link" href="blog.html">{{home_start}} <span aria-hidden="true">↗</span></a>
+        <a class="quiet-link" href="#tracks">{{home_view_map}} <span aria-hidden="true">↓</span></a>
       </div>
     </section>
 
     <section id="tracks" class="content-section reveal">
       <div class="section-heading">
         <p class="section-kicker">01 / Knowledge map</p>
-        <h2>三条写作线</h2>
-        <p>同一个问题，往往需要从实现、理论和经验三个方向来理解。</p>
+        <h2>{{tracks_title}}</h2>
+        <p>{{tracks_intro}}</p>
       </div>
 
       <div class="track-grid">
         <a class="track-card tech" href="blog.html?category=tech">
           <span class="track-number">{{tech_count_padded}}</span>
           <div>
-            <p class="track-label">技术实践</p>
-            <h3>从想法到可运行的系统</h3>
-            <p>算法实现、工程工具、实验复现，以及真实系统中的取舍。</p>
+            <p class="track-label">{{tech_category_label}}</p>
+            <h3>{{tech_card_title}}</h3>
+            <p>{{tech_card_text}}</p>
           </div>
           <span class="track-arrow" aria-hidden="true">↗</span>
         </a>
         <a class="track-card theory" href="blog.html?category=theory">
           <span class="track-number">{{theory_count_padded}}</span>
           <div>
-            <p class="track-label">理论学习</p>
-            <h3>从定义到可以迁移的直觉</h3>
-            <p>概念、假设、推导和证明；记录我如何把一个理论真正想明白。</p>
+            <p class="track-label">{{theory_category_label}}</p>
+            <h3>{{theory_card_title}}</h3>
+            <p>{{theory_card_text}}</p>
           </div>
           <span class="track-arrow" aria-hidden="true">↗</span>
         </a>
         <a class="track-card thought" href="blog.html?category=thought">
           <span class="track-number">{{thought_count_padded}}</span>
           <div>
-            <p class="track-label">思考随笔</p>
-            <h3>保留尚未收敛的问题</h3>
-            <p>研究方法、认知工具、失败复盘，以及还没有标准答案的事情。</p>
+            <p class="track-label">{{thought_category_label}}</p>
+            <h3>{{thought_card_title}}</h3>
+            <p>{{thought_card_text}}</p>
           </div>
           <span class="track-arrow" aria-hidden="true">↗</span>
         </a>
@@ -61,9 +61,9 @@
       <div class="section-heading latest-heading">
         <div>
           <p class="section-kicker">02 / Latest writing</p>
-          <h2>最近更新</h2>
+          <h2>{{latest_title}}</h2>
         </div>
-        <a class="quiet-link" href="blog.html">全部文章 <span aria-hidden="true">↗</span></a>
+        <a class="quiet-link" href="blog.html">{{all_posts_label}} <span aria-hidden="true">↗</span></a>
       </div>
       <div class="notes-list">
         {{latest_posts}}
@@ -72,12 +72,12 @@
 
     <section class="manifesto reveal">
       <p class="section-kicker">03 / Why write</p>
-      <blockquote>“写下来，不是因为已经想明白；而是为了让模糊的直觉有机会变成可以检查的结构。”</blockquote>
-      <p>如果一篇笔记能让未来的我少走一点弯路，或让另一个人更快地进入一个问题，它就已经有价值。</p>
+      <blockquote>{{manifesto_quote}}</blockquote>
+      <p>{{manifesto_text}}</p>
     </section>
   </main>
 
   {{footer}}
-  <script src="script.js"></script>
+  <script src="{{asset_root}}script.js"></script>
 </body>
 </html>

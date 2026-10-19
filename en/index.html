@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Notes on technical practice, theoretical learning, and long-term questions.">
+<meta name="theme-color" content="#f4f1ea">
+<title>Shannon Young — Technology, Theory and Reflection</title>
+<link rel="canonical" href="https://shannonyoungf.github.io/en/">
+<link rel="alternate" hreflang="zh-CN" href="https://shannonyoungf.github.io/">
+<link rel="alternate" hreflang="en" href="https://shannonyoungf.github.io/en/">
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="../styles.css">
+
+</head>
+<body>
+  <canvas id="constellation" aria-hidden="true"></canvas>
+  <header class="site-header">
+  <a class="identity" href="index.html" aria-label="Back to home">
+    <span class="avatar" aria-hidden="true">SY</span>
+    <span>Shannon Young</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">Open navigation</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="blog.html?category=tech">Tech</a>
+    <a href="blog.html?category=theory">Theory</a>
+    <a href="blog.html?category=thought">Reflections</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="language-switch" href="../index.html" hreflang="zh-CN" lang="zh-CN" aria-label="Switch to Chinese">中</a>
+    <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="Toggle light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+
+  <main id="top">
+    <section class="hero home-hero reveal">
+      <div class="eyebrow"><span class="status-dot"></span> A personal knowledge base in continual growth</div>
+      <h1>Documenting technology,<br>and questioning the <span class="name-mark">theory</span> behind it.</h1>
+      <p class="hero-lede">This is where I keep notes on technical practice, theoretical learning, and long-running questions. It is not a cabinet of answers, but an evolving map of thought.</p>
+      <p>I try to make four things explicit: where a problem comes from, what assumptions it rests on, why a derivation works, and what an experiment actually shows.</p>
+      <div class="hero-actions">
+        <a class="primary-link" href="blog.html">Start reading <span aria-hidden="true">↗</span></a>
+        <a class="quiet-link" href="#tracks">View the content map <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
+
+    <section id="tracks" class="content-section reveal">
+      <div class="section-heading">
+        <p class="section-kicker">01 / Knowledge map</p>
+        <h2>Three lines of inquiry</h2>
+        <p>The same problem often needs to be understood through implementation, theory, and experience.</p>
+      </div>
+
+      <div class="track-grid">
+        <a class="track-card tech" href="blog.html?category=tech">
+          <span class="track-number">00</span>
+          <div>
+            <p class="track-label">Technical Practice</p>
+            <h3>From an idea to a working system</h3>
+            <p>Algorithms, engineering tools, reproducible experiments, and trade-offs in real systems.</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="track-card theory" href="blog.html?category=theory">
+          <span class="track-number">01</span>
+          <div>
+            <p class="track-label">Theory</p>
+            <h3>From definitions to transferable intuition</h3>
+            <p>Concepts, assumptions, derivations, and proofs—and how I work toward genuine understanding.</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="track-card thought" href="blog.html?category=thought">
+          <span class="track-number">00</span>
+          <div>
+            <p class="track-label">Reflections</p>
+            <h3>Keeping unresolved questions alive</h3>
+            <p>Research methods, cognitive tools, lessons from failure, and questions without settled answers.</p>
+          </div>
+          <span class="track-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="content-section reveal">
+      <div class="section-heading latest-heading">
+        <div>
+          <p class="section-kicker">02 / Latest writing</p>
+          <h2>Latest writing</h2>
+        </div>
+        <a class="quiet-link" href="blog.html">All posts <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="notes-list">
+        <a class="note-row" href="posts/kernel-functions-explained.html">
+  <time datetime="2026-10-19">2026.10.19</time>
+  <span><strong>Understanding Kernel Functions Intuitively: From Matrices and Inner Products to Infinite-Dimensional Function Spaces</strong><small>Theory · 10 min</small></span>
+  <span class="arrow" aria-hidden="true">↗</span>
+</a>
+      </div>
+    </section>
+
+    <section class="manifesto reveal">
+      <p class="section-kicker">03 / Why write</p>
+      <blockquote>“I write not because the thought is already clear, but to give a vague intuition the chance to become a structure that can be examined.”</blockquote>
+      <p>If a note helps my future self avoid a detour, or helps someone else enter a problem more quickly, it has already done something worthwhile.</p>
+    </section>
+  </main>
+
+  <footer>
+  <p>© <span id="year"></span> Shannon Young</p>
+  <p>Technology · Theory · Reflection</p>
+</footer>
+
+  <script src="../script.js"></script>
+</body>
+</html>

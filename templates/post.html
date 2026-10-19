@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="{{html_lang}}">
 <head>
   {{head}}
   <script>
@@ -17,14 +17,14 @@
   <main class="post-shell">
     <article>
       <header class="post-header reveal">
-        <a class="back-link" href="../blog.html?category={{category}}">← 返回{{category_label}}</a>
+        <a class="back-link" href="../blog.html?category={{category}}">← {{back_prefix}} {{category_label}}</a>
         <p class="post-category">{{category_label}}</p>
         <h1>{{title}}</h1>
         <p class="post-summary">{{summary}}</p>
         <div class="post-meta">
           <time datetime="{{date}}">{{date_display}}</time>
-          <span>{{reading_time}} 分钟阅读</span>
-          <span>最后更新于 {{updated_display}}</span>
+          <span>{{reading_time_label}}</span>
+          <span>{{updated_prefix}} {{updated_display}}</span>
         </div>
         <div class="post-tags">{{tags_html}}</div>
       </header>
@@ -34,13 +34,13 @@
       </div>
 
       <footer class="post-footer">
-        <p>如果这篇笔记对你有帮助，或你发现了错误，欢迎通过<a href="{{site_github}}" target="_blank" rel="noreferrer">GitHub</a>交流。</p>
-        <a class="text-link" href="../blog.html">继续阅读 <span aria-hidden="true">↗</span></a>
+        <p>{{post_footer}} <a href="{{site_github}}" target="_blank" rel="noreferrer">GitHub</a>{{post_footer_suffix}}</p>
+        <a class="text-link" href="../blog.html">{{continue_reading}} <span aria-hidden="true">↗</span></a>
       </footer>
     </article>
   </main>
 
   {{footer}}
-  <script src="../script.js"></script>
+  <script src="{{asset_root}}script.js"></script>
 </body>
 </html>

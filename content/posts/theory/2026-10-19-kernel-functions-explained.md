@@ -3,6 +3,8 @@ title: 如何通俗理解核函数：从矩阵、内积到无限维函数空间
 date: 2026-10-19
 updated: 2026-10-19
 category: theory
+lang: zh
+translation_key: kernel-functions-explained
 summary: 从矩阵乘法与内积出发，逐步理解积分核、函数空间、谱分解，以及核方法与神经算子之间的联系。
 tags: 核函数, 函数空间, 谱分解, 神经算子
 slug: kernel-functions-explained

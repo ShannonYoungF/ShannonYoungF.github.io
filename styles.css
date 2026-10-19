@@ -172,6 +172,23 @@ button { font: inherit; }
   gap: 14px;
 }
 
+.header-actions .language-switch {
+  min-width: 34px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+.header-actions .language-switch:hover,
+.header-actions .language-switch:focus-visible { border-color: var(--accent); color: var(--accent); }
+
 .theme-button {
   width: 34px;
   height: 34px;
@@ -490,7 +507,7 @@ body > footer p { margin: 0; }
     top: 14px;
     right: 62px;
   }
-  .header-actions > a { display: none; }
+  .header-actions > a:not(.language-switch) { display: none; }
 
   .menu-button {
     position: absolute;

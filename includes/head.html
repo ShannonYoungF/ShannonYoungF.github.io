@@ -3,6 +3,8 @@
 <meta name="description" content="{{page_description}}">
 <meta name="theme-color" content="#f4f1ea">
 <title>{{page_title}}</title>
+<link rel="canonical" href="{{canonical_url}}">
+{{alternate_links}}
 <script>
   (() => {
     const saved = localStorage.getItem("site-theme");
@@ -11,4 +13,4 @@
   })();
 </script>
 <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
-<link rel="stylesheet" href="{{root}}styles.css">
+<link rel="stylesheet" href="{{asset_root}}styles.css">
