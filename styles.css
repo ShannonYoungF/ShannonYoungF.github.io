@@ -822,6 +822,13 @@ body > footer p { margin: 0; }
 .post-body hr { height: 1px; margin: 3em 0; background: var(--line); border: 0; }
 .math-block { margin: 1.8em 0; overflow-x: auto; text-align: center; }
 
+.table-wrap { margin: 1.8em 0; overflow-x: auto; }
+.post-body table { width: 100%; min-width: 580px; border-collapse: collapse; font-size: 14px; line-height: 1.6; }
+.post-body th,
+.post-body td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.post-body th { color: var(--text); background: var(--surface); font-family: var(--sans); font-size: 12px; letter-spacing: .04em; }
+.post-body tbody tr:hover { background: var(--surface); }
+
 .post-footer {
   display: flex;
   align-items: end;

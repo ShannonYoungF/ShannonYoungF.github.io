@@ -69,6 +69,14 @@ def render_markdown(source: str) -> str:
     code_lines: list[str] = []
     in_math = False
     math_lines: list[str] = []
+    in_table = False
+
+    def table_cells(line: str) -> list[str]:
+        return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+    def is_table_separator(line: str) -> bool:
+        cells = table_cells(line)
+        return len(cells) > 1 and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
 
     def flush_paragraph() -> None:
         if paragraph:
@@ -80,6 +88,12 @@ def render_markdown(source: str) -> str:
         if list_type:
             output.append(f"</{list_type}>")
             list_type = None
+
+    def close_table() -> None:
+        nonlocal in_table
+        if in_table:
+            output.append("</tbody></table></div>")
+            in_table = False
 
     for raw_line in source.splitlines():
         line = raw_line.rstrip()
@@ -103,6 +117,13 @@ def render_markdown(source: str) -> str:
                 math_lines.append(line)
             continue
 
+        if in_table:
+            if line.strip().startswith("|") and line.count("|") >= 2:
+                cells = "".join(f"<td>{render_inline(cell)}</td>" for cell in table_cells(line))
+                output.append(f"<tr>{cells}</tr>")
+                continue
+            close_table()
+
         if line.strip().startswith("```"):
             flush_paragraph()
             close_list()
@@ -114,6 +135,15 @@ def render_markdown(source: str) -> str:
             flush_paragraph()
             close_list()
             in_math = True
+            continue
+
+        if is_table_separator(line) and paragraph and paragraph[-1].startswith("|"):
+            header = paragraph.pop()
+            flush_paragraph()
+            close_list()
+            cells = "".join(f"<th>{render_inline(cell)}</th>" for cell in table_cells(header))
+            output.append(f'<div class="table-wrap"><table><thead><tr>{cells}</tr></thead><tbody>')
+            in_table = True
             continue
 
         if not line.strip():
@@ -160,6 +190,7 @@ def render_markdown(source: str) -> str:
 
     flush_paragraph()
     close_list()
+    close_table()
     if in_code:
         raise ValueError("Unclosed fenced code block")
     if in_math:
