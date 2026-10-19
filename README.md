@@ -4,7 +4,11 @@
 
 ## 写一篇新文章
 
-在 `content/posts/` 新建 Markdown 文件：
+根据文章类型，在对应目录中新建 Markdown 文件：
+
+- `content/posts/tech/`：技术实践
+- `content/posts/theory/`：理论学习
+- `content/posts/thought/`：思考随笔
 
 ```markdown
 ---
@@ -41,7 +45,7 @@ python build.py
 - `blog.html`：可搜索、可分类筛选的文章归档
 - `posts/*.html`：独立文章页面
 
-这些是生成文件。日常写作应修改 `content/posts/*.md`，页面结构修改 `templates/` 和 `includes/`。
+这些是生成文件。日常写作应修改 `content/posts/<分类>/*.md`，页面结构修改 `templates/` 和 `includes/`。构建时会自动删除已不存在原稿所对应的旧文章页面。
 
 ## 修改个人资料
 
@@ -68,7 +72,10 @@ python -m http.server 8000
 
 ```text
 personal-site/
-├── content/posts/   # Markdown 原稿
+├── content/posts/             # Markdown 原稿
+│   ├── tech/                  # 技术实践
+│   ├── theory/                # 理论学习
+│   └── thought/               # 思考随笔
 ├── includes/        # 共享导航、页头和页脚
 ├── templates/       # 首页、归档页和文章页模板
 ├── posts/           # 自动生成的文章 HTML

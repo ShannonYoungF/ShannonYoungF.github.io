@@ -231,14 +231,24 @@ def render_template(template: str, context: dict[str, Any]) -> str:
 
 def load_posts() -> list[dict[str, Any]]:
     posts: list[dict[str, Any]] = []
+    seen_slugs: set[str] = set()
     required = {"title", "date", "category", "summary", "tags", "slug"}
-    for path in sorted(CONTENT_DIR.glob("*.md")):
+    for path in sorted(CONTENT_DIR.rglob("*.md")):
         metadata, markdown = parse_front_matter(path.read_text(encoding="utf-8"))
         missing = required - metadata.keys()
         if missing:
             raise ValueError(f"{path.name} is missing: {', '.join(sorted(missing))}")
         if metadata["category"] not in CATEGORIES:
             raise ValueError(f"Unknown category in {path.name}: {metadata['category']}")
+        category_dir = path.relative_to(CONTENT_DIR).parts[0]
+        if category_dir != metadata["category"]:
+            raise ValueError(
+                f"Category mismatch in {path.name}: move it to "
+                f"content/posts/{metadata['category']}/"
+            )
+        if metadata["slug"] in seen_slugs:
+            raise ValueError(f"Duplicate slug: {metadata['slug']}")
+        seen_slugs.add(metadata["slug"])
         published = parse_date(metadata["date"])
         updated = parse_date(metadata.get("updated", metadata["date"]))
         posts.append(
@@ -340,6 +350,11 @@ def build() -> None:
     (ROOT / "blog.html").write_text(blog_html, encoding="utf-8")
 
     POST_OUTPUT_DIR.mkdir(exist_ok=True)
+    expected_outputs = {f"{post['slug']}.html" for post in posts}
+    for path in POST_OUTPUT_DIR.glob("*.html"):
+        if path.name not in expected_outputs:
+            path.unlink()
+
     post_template = (TEMPLATE_DIR / "post.html").read_text(encoding="utf-8")
     for post in posts:
         post_context: dict[str, Any] = common_context(
