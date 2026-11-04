@@ -1,0 +1,1785 @@
+---
+title: 不确定性传播与量化：DeepONet–EKI 十讲
+date: 2026-11-01
+updated: 2026-11-04
+lang: zh
+translation_key: deeponet-eki-uncertainty
+summary: 从概率分布、协方差和贝叶斯推断出发，逐步读懂 DeepONet 与集合卡尔曼反演，并学会检验不确定性估计。包含十讲、手算示例、自测答案和五个附录。
+tags: 不确定性量化, DeepONet, EKI, 贝叶斯推断
+slug: deeponet-eki-uncertainty
+---
+
+<blockquote>
+<p>编写日期：2026-11-01。建议从 2026-11-02 开始学习。</p>
+<p>面向读者：了解基本代数，希望系统学习不确定性传播、贝叶斯推断和神经算子不确定性量化的初学者。</p>
+<p>学习目标：能够解释论文中的关键公式、独立梳理算法流程，并判断其不确定性估计的含义与适用边界。</p>
+</blockquote>
+<p>主要阅读对象：Andrew Pensoneault 与 Xueyu Zhu，<em>Uncertainty quantification for DeepONets with ensemble Kalman inversion</em>，Journal of Computational Physics，523（2025），113670。</p>
+<ul>
+<li>DOI：<a href="https://doi.org/10.1016/j.jcp.2024.113670">10.1016/j.jcp.2024.113670</a>。</li>
+<li>论文公开入口：<a href="https://doi.org/10.1016/j.jcp.2024.113670">DOI / 出版页面</a>。</li>
+<li>文中的“论文页码”指 PDF 中印出的页码；该文件共 18 页。</li>
+<li>航行器、速度、位移以及小规模手算数据属于本教程的教学例子；涉及论文的实验设置与结果会明确标注。</li>
+<li>这是完整的十讲学习稿。第一次按顺序学习；公式速查与术语表适合后续复习。</li>
+</ul>
+<h2>使用方法与学习路线</h2>
+<p>每讲依次完成：读直观例子 → 理解概念 → 尝试手算 → 回到论文 → 回答自测。建议先自己回答，再展开参考答案。</p>
+<p>第 1–3 讲每讲可安排约 30–45 分钟，第 4–7 讲约 45–60 分钟，第 8–10 讲约 60–90 分钟。这只是阅读与手算的参考时间，可把一讲拆成两次。代码实验为选做，不影响理解主线。</p>
+<table>
+<thead>
+<tr>
+<th>讲次</th>
+<th>核心问题</th>
+<th>重点内容</th>
+<th>论文对应位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#lecture-01">第 1 讲</a></td>
+<td>不确定性与误差有什么区别？</td>
+<td>UQ、传播、随机波动、知识不足、模型误差</td>
+<td>引言、§2.2</td>
+</tr>
+<tr>
+<td><a href="#lecture-02">第 2 讲</a></td>
+<td>怎样描述一个不确定的数？</td>
+<td>分布、均值、方差、标准差、分位数、区间</td>
+<td>式（2.2）–（2.4）、（2.21）–（2.22）</td>
+</tr>
+<tr>
+<td><a href="#lecture-03">第 3 讲</a></td>
+<td>怎样描述多个量与整条曲线？</td>
+<td>协方差、相关性、随机过程、高斯过程</td>
+<td>式（3.7）–（3.8）</td>
+</tr>
+<tr>
+<td><a href="#lecture-04">第 4 讲</a></td>
+<td>不确定性怎样经过模型传播？</td>
+<td>线性与非线性传播、蒙特卡洛、近似方法</td>
+<td>参数集合到预测集合</td>
+</tr>
+<tr>
+<td><a href="#lecture-05">第 5 讲</a></td>
+<td>怎样根据数据更新未知参数？</td>
+<td>正反问题、先验、似然、后验、MAP</td>
+<td>§2.2–2.3</td>
+</tr>
+<tr>
+<td><a href="#lecture-06">第 6 讲</a></td>
+<td>参数不确定与观测噪声怎样共同影响预测？</td>
+<td>后验预测、全方差公式、条件预测</td>
+<td>§2.4、式（2.21）–（2.22）</td>
+</tr>
+<tr>
+<td><a href="#lecture-07">第 7 讲</a></td>
+<td>DeepONet 为什么是函数到函数？</td>
+<td>算子、Branch、Trunk、贝叶斯网络参数</td>
+<td>§2.1–2.2、图 2.1–2.2</td>
+</tr>
+<tr>
+<td><a href="#lecture-08">第 8 讲</a></td>
+<td>卡尔曼方法如何利用观测纠正预测？</td>
+<td>增益、协方差、EnKF、集合更新</td>
+<td>§2.3</td>
+</tr>
+<tr>
+<td><a href="#lecture-09">第 9 讲</a></td>
+<td>本文如何训练一组 DeepONet？</td>
+<td>EKI、人工动力学、Q/R、小批量、提前停止</td>
+<td>§2.3–2.6、算法 1、附录 A</td>
+</tr>
+<tr>
+<td><a href="#lecture-10">第 10 讲</a></td>
+<td>怎样判断不确定性估计是否可信？</td>
+<td>误差、宽度、覆盖率、校准、三类算例、局限</td>
+<td>§3–4、表 3.2–3.7</td>
+</tr>
+</tbody>
+</table>
+<p>学习进度可直接勾选：</p>
+<ul>
+<li>[ ] 第 1 讲：建立概念。</li>
+<li>[ ] 第 2 讲：描述单个随机量。</li>
+<li>[ ] 第 3 讲：描述相关量与随机函数。</li>
+<li>[ ] 第 4 讲：理解不确定性传播。</li>
+<li>[ ] 第 5 讲：理解贝叶斯反演。</li>
+<li>[ ] 第 6 讲：理解预测分布。</li>
+<li>[ ] 第 7 讲：理解 DeepONet。</li>
+<li>[ ] 第 8 讲：理解卡尔曼与集合更新。</li>
+<li>[ ] 第 9 讲：读懂本文算法。</li>
+<li>[ ] 第 10 讲：读懂实验并进行批判性判断。</li>
+</ul>
+<h3>一条贯穿十讲的主线</h3>
+<pre><code class="language-text">现实中存在不确定性
+       ↓ 用概率描述
+输入、参数、噪声的概率模型
+       ↓ 用观测更新认识
+未知参数的后验分布或近似集合
+       ↓ 通过模型传播
+输出预测的分布或预测集合
+       ↓ 用独立数据检验
+误差、区间宽度、覆盖率与校准
+</code></pre>
+<p>本教程先用简单模型建立直觉，再把“模型”替换成 DeepONet，把“更新参数的方法”替换成 EKI。</p>
+<h3>先认识几个符号</h3>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>本教程中的含义</th>
+<th>初学时怎样读</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-368ced2695d50d20.svg" alt="X"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-541fa7b8c352bac9.svg" alt="x"></td>
+<td>随机变量及它的一个取值</td>
+<td>“还不确定的量”与“某次取到的数”</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-af8cdbe31663de20.svg" alt="\mathbb E[X]"></td>
+<td>期望</td>
+<td>按概率加权的平均值</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-dca96f08c40e230e.svg" alt="\operatorname{Var}(X)"></td>
+<td>方差</td>
+<td>围绕均值的平方偏离程度</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-0c28009cefa18f4b.svg" alt="\sigma_X"></td>
+<td>标准差</td>
+<td>方差的平方根，与原量同单位</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"></td>
+<td>待推断参数</td>
+<td>在本文中是网络权重和偏置</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-2b3c541de896d8bc.svg" alt="\mathcal D"> 或 <img class="math-inline" src="assets/deeponet-eki-math/inline-dfa045e01dc82287.svg" alt="d"></td>
+<td>观测数据</td>
+<td>用来约束模型的信息</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-0e9c03a37ec9a131.svg" alt="p(\theta\mid\mathcal D)"></td>
+<td>参数后验分布</td>
+<td>看过数据以后对参数的认识</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-2b18c673b964ce6f.svg" alt="u">、<img class="math-inline" src="assets/deeponet-eki-math/inline-b7c4deb092eb7e51.svg" alt="s"></td>
+<td>输入函数、输出函数</td>
+<td>一条曲线输入，对应一条曲线或一个场输出</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-188ecc011acc3a4d.svg" alt="\xi"></td>
+<td>输出查询位置</td>
+<td>想在什么时间或空间位置读取输出</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"></td>
+<td>集合成员数</td>
+<td>一共有多少组网络参数</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-3924da6c6c6887a6.svg" alt="i">、<img class="math-inline" src="assets/deeponet-eki-math/inline-68fa4ad2d7561e59.svg" alt="j"></td>
+<td>迭代编号、成员编号</td>
+<td>第几次更新、第几个网络</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R">、<img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"></td>
+<td>观测噪声协方差、人工参数扰动协方差</td>
+<td>两种不同来源的协方差</td>
+</tr>
+</tbody>
+</table>
+<p>本文同时使用 <img class="math-inline" src="assets/deeponet-eki-math/inline-4e543a79b2b8528f.svg" alt="y"> 表示查询位置与观测向量，具体含义随上下文变化。为方便学习，本教程主要用 <img class="math-inline" src="assets/deeponet-eki-math/inline-188ecc011acc3a4d.svg" alt="\xi"> 表示查询位置，用 <img class="math-inline" src="assets/deeponet-eki-math/inline-dfa045e01dc82287.svg" alt="d"> 表示观测向量。对照原文时要认清对象，不能只看字母。</p>
+<hr>
+<p><a id="lecture-01"></a></p>
+<h2>第 1 讲：不确定性、误差、量化与传播</h2>
+<h3>1.1 本讲要解决什么问题</h3>
+<p>学完后，你应当能够解释三组区别：不确定性与误差、量化与传播、输入不确定与模型参数不确定。</p>
+<h3>1.2 从 10 秒后的位移说起</h3>
+<p>先假设航行器做匀速直线运动：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5cbdcd9ceed61e78.svg" alt="S=VT,">
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-e9eb23551c724116.svg" alt="S"> 是位移，<img class="math-inline" src="assets/deeponet-eki-math/inline-d68f06261174f759.svg" alt="V"> 是速度，<img class="math-inline" src="assets/deeponet-eki-math/inline-55377ba0f33aa157.svg" alt="T"> 是时间。</p>
+<p>如果 <img class="math-inline" src="assets/deeponet-eki-math/inline-f127264e575c36cc.svg" alt="V=1\ \mathrm{m/s}">、<img class="math-inline" src="assets/deeponet-eki-math/inline-329212fa370ee11e.svg" alt="T=10\ \mathrm s">，则 <img class="math-inline" src="assets/deeponet-eki-math/inline-ab1dc900da24dc8b.svg" alt="S=10\ \mathrm m">。输入和模型都确定，结果就是一个数。</p>
+<p>现在假设速度只有三种可能，各自概率为 <img class="math-inline" src="assets/deeponet-eki-math/inline-8b525fde085816b7.svg" alt="1/3">：</p>
+<table>
+<thead>
+<tr>
+<th>速度</th>
+<th style="text-align:right">概率</th>
+<th style="text-align:right">10 秒后位移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-3b32668f23c8e078.svg" alt="0.9\ \mathrm{m/s}"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-8b525fde085816b7.svg" alt="1/3"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-813869760fb535b3.svg" alt="9\ \mathrm m"></td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-0eed65a963831df3.svg" alt="1.0\ \mathrm{m/s}"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-8b525fde085816b7.svg" alt="1/3"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-636b8c492717eff8.svg" alt="10\ \mathrm m"></td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-dc5ac673adab3996.svg" alt="1.1\ \mathrm{m/s}"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-8b525fde085816b7.svg" alt="1/3"></td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-d16425bf493856df.svg" alt="11\ \mathrm m"></td>
+</tr>
+</tbody>
+</table>
+<p>我们现在表达的是“一组可能结果及其可能性”。仅说“位移平均为 10 米”，会丢掉它还可能偏离 10 米的信息。</p>
+<h3>1.3 不确定性量化是什么</h3>
+<p>不确定性量化，Uncertainty Quantification，简称 UQ，是识别、描述、推断、传播并检验不确定性的研究框架。</p>
+<p>它不仅问“预测是多少”，还问：哪些因素拿不准？可能怎样变化？对结果有什么影响？这种判断是否可靠？</p>
+<p>概率是描述不确定性的常用工具。概率既可以描述重复实验中的随机波动，也可以描述我们对某个固定未知量的知识不足。</p>
+<p>例如网络参数可能在实际问题中被视为一个固定但未知的向量。贝叶斯方法给它一个概率分布，表达的是对它的认识，并不表示真实网络权重在物理世界中不断随机跳动。</p>
+<h3>1.4 不确定性传播是什么</h3>
+<p>不确定性传播，Uncertainty Propagation，是研究输入或参数的不确定性经过模型以后，输出如何变化。</p>
+<p>在刚才的例子中：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-36a3ed64fd7ec72f.svg" alt="\text{速度分布}\quad\xrightarrow{S=10V}\quad\text{位移分布}.">
+<p>如果时间变成 20 秒，相同的三种速度会产生 18、20、22 米三种位移。速度没有更不确定，但模型对它的累积作用更大了。</p>
+<p>传播对象也可以是参数：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-e098ae2d1234bc84.svg" alt="\text{参数分布}\quad\xrightarrow{\text{固定输入下的模型}}\quad\text{预测分布}.">
+<p>这条路径对理解本文尤其重要。</p>
+<h3>1.5 误差与不确定性为什么不同</h3>
+<p>如果预测为 10 米，真值为 12 米，绝对误差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-8a81e67061c835c9.svg" alt="e=|12-10|=2\ \mathrm m.">
+<p>误差比较预测与真值；预测时真值往往还不知道，不确定性估计则描述基于当前信息的把握程度。</p>
+<p>假设三个网络预测为 9.9、10.0、10.1 米，彼此差异很小，但真值仍然可能是 12 米。它们可能存在共同偏差。</p>
+<p>因此，集合分散程度小，只说明成员之间意见接近。它能否代表实际未知程度，需要检验。</p>
+<h3>1.6 不确定性来自哪里</h3>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>例子</th>
+<th>通常如何应对</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>偶然不确定性，aleatoric</td>
+<td>在给定建模条件下仍无法准确预知的观测噪声、扰动</td>
+<td>描述统计规律，并在预测与决策中考虑它</td>
+</tr>
+<tr>
+<td>认知不确定性，epistemic</td>
+<td>数据有限、参数认识不足、未见过某类工况</td>
+<td>补充有代表性的信息、改进推断</td>
+</tr>
+<tr>
+<td>模型差异或模型误差</td>
+<td>用匀速模型描述实际加速运动，遗漏阻力或耦合项</td>
+<td>改进模型，或显式描述模型差异</td>
+</tr>
+</tbody>
+</table>
+<p>模型差异常与认知不足有关，也可以单独建模；表格不是三类互不相交的严格分类。偶然与认知的划分同样依赖我们已有的信息和模型。</p>
+<p>例如把未测量的海流当成随机扰动；若以后能准确测量海流，其中一部分未知性就可能减少。不能简单断言“某种不确定性永远无法减少”。</p>
+<h3>1.7 对应到论文</h3>
+<p>本文 §2.2 假设输入函数已给定，训练输出受到独立零均值高斯噪声污染，而且噪声标准差已知。研究重点是有限、带噪声输出数据下的 DeepONet 推断与预测不确定性估计。</p>
+<p>对某一次预测，输入函数和查询位置相同，而各网络参数不同：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-89eda0aefe3de950.svg" alt="\theta^{(1)},\ldots,\theta^{(J)}
+\quad\longrightarrow\quad
+s^{(1)},\ldots,s^{(J)}.">
+<p>图 2.2 展示的就是这组网络及其输出统计量。数据集包含许多不同输入，并不意味着同一次条件预测也在对输入进行随机采样。</p>
+<h3>1.8 自测</h3>
+<ol>
+<li>一组模型预测非常集中，是否足以证明预测准确？</li>
+<li>速度分布通过运动模型变成位移分布，属于什么过程？</li>
+<li>同一个输入交给参数不同的网络，是在研究哪种传播？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>不足以证明。模型可能共同有偏差，或者共同遗漏了重要物理机制。</li>
+<li>不确定性传播；它属于 UQ 的重要环节。</li>
+<li>网络参数不确定性到输出预测不确定性的传播。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能用自己的话说明“误差需要真值作比较，不确定性是基于信息对未知程度的描述”。</p>
+<hr>
+<p><a id="lecture-02"></a></p>
+<h2>第 2 讲：怎样描述一个不确定的数</h2>
+<h3>2.1 随机变量与概率分布</h3>
+<p>随机变量可以先理解为“取值尚不确定、但可以描述其可能性的量”。随机变量用大写字母 <img class="math-inline" src="assets/deeponet-eki-math/inline-368ced2695d50d20.svg" alt="X"> 表示，某次具体取值用小写字母 <img class="math-inline" src="assets/deeponet-eki-math/inline-541fa7b8c352bac9.svg" alt="x"> 表示。</p>
+<p>离散分布给每一个可能值分配概率。例如：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-44b8357db2928f93.svg" alt="P(S=9)=P(S=10)=P(S=11)=\frac13.">
+<p>连续分布用概率密度 <img class="math-inline" src="assets/deeponet-eki-math/inline-754302292a7d4482.svg" alt="p(x)"> 描述：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-353cc580c62c56b9.svg" alt="P(a\leq X\leq b)=\int_a^b p(x)\,dx.">
+<p>区间下的面积才是概率。连续变量在某个单点上的概率通常为零；密度的数值可以大于 1，并不违反概率规则。</p>
+<h3>2.2 均值：分布的一个中心指标</h3>
+<p>离散情形：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-e8841b9b89f8a44c.svg" alt="\mu_X=\mathbb E[X]=\sum_k x_kP(X=x_k).">
+<p>连续情形：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-9f08a7c977db7ba9.svg" alt="\mu_X=\int x p(x)\,dx.">
+<p>位移例子的均值为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-07e0e1833366e205.svg" alt="\mathbb E[S]=\frac{9+10+11}{3}=10\ \mathrm m.">
+<p>均值是按概率加权的平均，不保证等于最可能值，也不一定是某次能实际取到的值。比如只能取 0 或 2、各占一半的变量，均值为 1，但它不会取到 1。</p>
+<h3>2.3 方差与标准差：有多分散</h3>
+<p>方差定义为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-4c9a0efb58cc2939.svg" alt="\operatorname{Var}(X)=\mathbb E[(X-\mu_X)^2].">
+<p>标准差是方差的平方根：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-4462238b038cf1d2.svg" alt="\sigma_X=\sqrt{\operatorname{Var}(X)}.">
+<p>位移例子的方差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-9dbee603fb3cf479.svg" alt="\operatorname{Var}(S)=\frac{(9-10)^2+0^2+(11-10)^2}{3}
+=\frac23\ \mathrm{m}^2.">
+<p>其标准差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-7d30ca3adc97ecee.svg" alt="\sqrt{2/3}\approx0.816\ \mathrm m">。方差的单位是原单位的平方，标准差与原量单位相同，所以标准差更容易直观解释。</p>
+<h3>2.4 已知分布的方差与样本方差不要混淆</h3>
+<p>如果只有 <img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"> 个样本 <img class="math-inline" src="assets/deeponet-eki-math/inline-e86c2dd3bda3ed26.svg" alt="x^{(1)},\ldots,x^{(J)}">，常使用：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-1a6173f129840899.svg" alt="\bar x=\frac1J\sum_{j=1}^Jx^{(j)},\qquad
+\widehat\sigma^2=\frac1{J-1}\sum_{j=1}^J(x^{(j)}-\bar x)^2.">
+<p>分母 <img class="math-inline" src="assets/deeponet-eki-math/inline-638f694acbdeb066.svg" alt="J-1"> 是常用的样本方差修正；在独立同分布且方差有限等条件下，它给出总体方差的无偏估计。</p>
+<p>同样的 9、10、11：若它们是已知的三个等概率可能值，方差是 <img class="math-inline" src="assets/deeponet-eki-math/inline-c28b9c349e0e556f.svg" alt="2/3">；若它们是用来估计未知分布的三个样本，样本方差是 <img class="math-inline" src="assets/deeponet-eki-math/inline-49ba56a09e06e4b7.svg" alt="2/(3-1)=1">。对象不同，答案不同。</p>
+<p>本文用 <img class="math-inline" src="assets/deeponet-eki-math/inline-638f694acbdeb066.svg" alt="J-1"> 计算集合样本方差。不过 EKI 成员通过更新相互关联，不能仅凭这个分母就断言它给出了严格无偏的贝叶斯后验方差。</p>
+<h3>2.5 高斯分布：常用但有条件的描述</h3>
+<p>正态分布，也叫高斯分布，记为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ae9aeaf698c81686.svg" alt="X\sim\mathcal N(\mu,\sigma^2).">
+<p>本教程统一把第二个参数写为方差。其密度为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-690ca1f1b19f4445.svg" alt="p(x)=\frac1{\sqrt{2\pi}\sigma}
+\exp\left[-\frac{(x-\mu)^2}{2\sigma^2}\right].">
+<p>例如 <img class="math-inline" src="assets/deeponet-eki-math/inline-59698c20b92b3102.svg" alt="V\sim\mathcal N(1,0.1^2)"> 表示平均速度为 1 m/s、速度标准差为 0.1 m/s。正态分布的特点是对称、单峰，由均值和方差完全确定。</p>
+<p>当变量确实服从该正态分布时：</p>
+<ul>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-082b32c6ff156a18.svg" alt="\mu\pm\sigma"> 包含约 68.27% 的概率质量。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-07695960950a36e0.svg" alt="\mu\pm1.96\sigma"> 包含约 95% 的概率质量。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-715b77c499cd8cee.svg" alt="\mu\pm2\sigma"> 包含约 95.45% 的概率质量。</li>
+</ul>
+<p>“均值 ± 两倍标准差”并非对任意分布都具有约 95% 的含义。非线性传播以后，输出也不一定继续服从高斯分布。</p>
+<h3>2.6 分位数与区间</h3>
+<p>累积分布函数是 <img class="math-inline" src="assets/deeponet-eki-math/inline-5ec8540990621eec.svg" alt="F(x)=P(X\leq x)">。连续且适当严格递增时，<img class="math-inline" src="assets/deeponet-eki-math/inline-43d78070f4152f28.svg" alt="q_p=F^{-1}(p)"> 是 <img class="math-inline" src="assets/deeponet-eki-math/inline-e4bd8005f58b3d95.svg" alt="p"> 分位数。</p>
+<p>等尾 95% 区间为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-d7e49a0ccfaffd48.svg" alt="[q_{0.025},q_{0.975}].">
+<p>对于偏斜分布，分位数区间可以不以均值为中心。它描述的是所采用分布的概率质量；这个分布是否符合真实问题，还要另行验证。</p>
+<p>三个常见区间术语需要区别：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>典型对象</th>
+<th>概率解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>频率学派置信区间</td>
+<td>固定未知参数</td>
+<td>重复抽取数据并构造区间时，区间程序以指定频率覆盖固定参数</td>
+</tr>
+<tr>
+<td>贝叶斯可信区间</td>
+<td>给定数据后的未知参数或潜在量</td>
+<td>在所采用的后验分布下，量落入区间的条件概率</td>
+</tr>
+<tr>
+<td>预测区间</td>
+<td>尚未观测的未来量</td>
+<td>描述未来量的分布，预测对象决定是否包括观测噪声</td>
+</tr>
+</tbody>
+</table>
+<p>本文将 <img class="math-inline" src="assets/deeponet-eki-math/inline-906052d876800c46.svg" alt="\text{mean}\pm2\text{std}"> 称为 confidence interval。阅读时先把它准确理解为“集合均值 ± 两倍集合标准差形成的点态带”，不要仅凭名称赋予它严格的 95% 置信保证。</p>
+<h3>2.7 标准差与均值估计的标准误差</h3>
+<p>假设你增加样本数，可能更准确地估计均值，但原分布不一定变得更窄。</p>
+<p>在独立同分布、方差有限等条件下，样本均值的标准误差约为 <img class="math-inline" src="assets/deeponet-eki-math/inline-60e093c2fd66ddbf.svg" alt="\sigma/\sqrt J">。它描述“均值估计有多不准确”；<img class="math-inline" src="assets/deeponet-eki-math/inline-4365a82b7f7c8055.svg" alt="\sigma"> 描述“分布本身有多分散”。</p>
+<p>因此，不能把神经网络集合预测的标准差除以 <img class="math-inline" src="assets/deeponet-eki-math/inline-b7f0c449460cff30.svg" alt="\sqrt J">，再称为目标输出的不确定性带。EKI 成员的相关性也使简单的独立样本标准误差公式需要额外审查。</p>
+<h3>2.8 对应论文与手算</h3>
+<p>读式（2.21）–（2.22）：对同一输入与查询位置，先收集 <img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"> 个输出，然后计算均值和样本标准差。式（2.2）–（2.3）则通过高斯噪声及似然描述输出观测的不可靠性。</p>
+<p>若三个网络输出 9、10、11 米，则集合均值为 10 米，样本标准差为 1 米，<img class="math-inline" src="assets/deeponet-eki-math/inline-263d16b2b3bc8b9f.svg" alt="\bar s\pm2\widehat\sigma_s=[8,12]"> 米。这是按该规则算出的区间，不是由这三个数自动证明的 95% 可靠区间。</p>
+<h3>2.9 自测</h3>
+<ol>
+<li>噪声标准差为 0.2 时，其方差是多少？</li>
+<li>分布的均值相同，是否意味着不确定性相同？</li>
+<li>1000 个网络变成 10000 个网络，输出分布的标准差是否必然降为原来的 <img class="math-inline" src="assets/deeponet-eki-math/inline-ab1bae3eb6ea6234.svg" alt="1/\sqrt{10}">？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>方差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-711a46521da1a680.svg" alt="0.2^2=0.04">。协方差矩阵对角线上通常放方差。</li>
+<li>否。例如 <img class="math-inline" src="assets/deeponet-eki-math/inline-277d2e82e69eadc5.svg" alt="\mathcal N(0,1)"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-2cbccc1678e9f6e3.svg" alt="\mathcal N(0,100)"> 的均值相同，分散程度很不一样。</li>
+<li>否。增加成员数可能改善分布统计量的近似，并不按该比例缩小目标分布。标准误差与分布标准差也不能混用。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能计算均值与样本标准差，能说明“±2 标准差”的解释依赖分布与验证。</p>
+<hr>
+<p><a id="lecture-03"></a></p>
+<h2>第 3 讲：协方差、相关性与随机函数</h2>
+<h3>3.1 只知道每个量的标准差够不够</h3>
+<p>假设连续两个时间段中的速度误差分别为 <img class="math-inline" src="assets/deeponet-eki-math/inline-a1c8d9a7f3fde49b.svg" alt="E_1,E_2">，每个时间段长度为 1 秒。累计位移误差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-97b9a058c2f18a73.svg" alt="S=E_1+E_2.">
+<p>即使两个误差的均值都为 0、方差都为 1，累计误差也取决于它们怎样共同变化。</p>
+<ul>
+<li>若 <img class="math-inline" src="assets/deeponet-eki-math/inline-00892ba099071d3f.svg" alt="E_2=E_1">，同向误差累积，<img class="math-inline" src="assets/deeponet-eki-math/inline-cfe5bc31fa037b2a.svg" alt="\operatorname{Var}(S)=4">。</li>
+<li>若二者独立，<img class="math-inline" src="assets/deeponet-eki-math/inline-6592425f5a8f396a.svg" alt="\operatorname{Var}(S)=2">。</li>
+<li>若 <img class="math-inline" src="assets/deeponet-eki-math/inline-b3ebe25021d30f17.svg" alt="E_2=-E_1">，完全抵消，<img class="math-inline" src="assets/deeponet-eki-math/inline-a21eda376a4c1ae4.svg" alt="\operatorname{Var}(S)=0">。</li>
+</ul>
+<p>每个时间点的均值和方差一样，最终传播结果却完全不同。缺少的信息就是相关结构。</p>
+<h3>3.2 协方差描述共同变化</h3>
+<img class="math-block" src="assets/deeponet-eki-math/block-62241c6b2473bd80.svg" alt="\operatorname{Cov}(X,Y)
+=\mathbb E[(X-\mu_X)(Y-\mu_Y)].">
+<p>正协方差表示倾向于同向偏离，负协方差表示倾向于反向偏离。并且：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-132f5cf2a4c7d113.svg" alt="\operatorname{Var}(X+Y)
+=\operatorname{Var}(X)+\operatorname{Var}(Y)+2\operatorname{Cov}(X,Y).">
+<p>相关系数把协方差除以各自标准差，在标准差非零时定义为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-9db5479bee647711.svg" alt="\rho_{XY}=\frac{\operatorname{Cov}(X,Y)}{\sigma_X\sigma_Y}.">
+<p>它位于 <img class="math-inline" src="assets/deeponet-eki-math/inline-cb642f09d7f5a13a.svg" alt="[-1,1]">，刻画线性相关程度。独立通常推出协方差为零（相关矩存在时）；反过来不成立。例如对称的 <img class="math-inline" src="assets/deeponet-eki-math/inline-a9e01c62ed640eb6.svg" alt="X\sim\mathcal N(0,1)"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-0231d0435467673c.svg" alt="Y=X^2"> 协方差为零，却明显不独立。</p>
+<h3>3.3 协方差矩阵</h3>
+<p>对随机向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-d3b04075bb9d17ef.svg" alt="\mathbf X=(X_1,\ldots,X_m)^T">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-3795e8fe6cf9fe66.svg" alt="\Sigma=\mathbb E[(\mathbf X-\boldsymbol\mu)
+(\mathbf X-\boldsymbol\mu)^T],\qquad
+\Sigma_{ab}=\operatorname{Cov}(X_a,X_b).">
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-55377ba0f33aa157.svg" alt="T"> 表示转置。对角线是各变量的方差，非对角线描述成对的共同变化。合法协方差矩阵对称、半正定；半正定意味着对任意向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-95f872342a07a61a.svg" alt="v">，都有 <img class="math-inline" src="assets/deeponet-eki-math/inline-e05c22307067afe1.svg" alt="v^T\Sigma v\geq0">。</p>
+<p>样本交叉协方差的形式为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-f546483fab231837.svg" alt="\widehat C^{XY}=\frac1{J-1}\sum_{j=1}^J
+(x^{(j)}-\bar x)(y^{(j)}-\bar y)^T.">
+<p>当 <img class="math-inline" src="assets/deeponet-eki-math/inline-541fa7b8c352bac9.svg" alt="x"> 是参数向量、<img class="math-inline" src="assets/deeponet-eki-math/inline-4e543a79b2b8528f.svg" alt="y"> 是预测观测向量时，这个矩阵就成为后续卡尔曼更新的核心：它记录“参数怎样变化时，预测通常怎样变化”。</p>
+<h3>3.4 随机过程：不确定对象从一个数变成一条函数</h3>
+<p>随机过程 <img class="math-inline" src="assets/deeponet-eki-math/inline-36c765c05394a4eb.svg" alt="U(t)"> 是按时间或空间索引的一组随机变量。</p>
+<ul>
+<li>固定时间 <img class="math-inline" src="assets/deeponet-eki-math/inline-b7a93ee24ce852c1.svg" alt="t">，<img class="math-inline" src="assets/deeponet-eki-math/inline-36c765c05394a4eb.svg" alt="U(t)"> 是一个随机变量。</li>
+<li>固定一次抽样结果，<img class="math-inline" src="assets/deeponet-eki-math/inline-484faace65b45144.svg" alt="u^{(j)}(t)"> 是一整条样本曲线。</li>
+</ul>
+<p>均值函数与协方差函数定义为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-e07e69ed48e20637.svg" alt="m(t)=\mathbb E[U(t)],\qquad
+C(t,t&#x27;)=\operatorname{Cov}(U(t),U(t&#x27;)).">
+<p>如果位移是速度随时间的积分，则在积分与期望等运算合法的条件下：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-7d74f2c291df6d8a.svg" alt="S(T)=\int_0^T U(t)\,dt,">
+<img class="math-block" src="assets/deeponet-eki-math/block-24387276f61b8f3e.svg" alt="\mathbb E[S(T)]=\int_0^T m(t)\,dt,
+\qquad
+\operatorname{Var}(S(T))=
+\int_0^T\int_0^T C(t,t&#x27;)\,dt\,dt&#x27;.">
+<p>第一遍先读出含义：累计输出的方差需要考虑所有时间对之间的协方差。只知道每个时间点的标准差，通常不足以确定整段轨迹的不确定性。</p>
+<h3>3.5 高斯过程是什么</h3>
+<p>高斯过程，Gaussian Process，简称 GP，记为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-e07178e3a7e2da68.svg" alt="U\sim\mathcal{GP}(m,C).">
+<p>它要求任意有限个位置处的函数值构成联合高斯向量：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-c0723856343a2d7e.svg" alt="[U(t_1),\ldots,U(t_m)]^T
+\sim\mathcal N(\mathbf m,K),\qquad K_{ab}=C(t_a,t_b).">
+<p>仅仅“每个时间点单独服从高斯分布”还不足以定义高斯过程，联合分布也必须满足上述性质。</p>
+<p>论文使用的平方指数核为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-f34d87e299e670af.svg" alt="C(t,t&#x27;)=a^2\exp\left[-\frac{(t-t&#x27;)^2}{2\ell^2}\right].">
+<ul>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-d0bb3b13ce91f251.svg" alt="a"> 控制函数波动的幅度，点态方差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-e9992ab886fe24f1.svg" alt="a^2">。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-baab6fa2f73009b0.svg" alt="\ell"> 是长度尺度，控制相关性随时间或空间间隔衰减的快慢。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-baab6fa2f73009b0.svg" alt="\ell"> 较大通常得到变化较慢的样本曲线；<img class="math-inline" src="assets/deeponet-eki-math/inline-baab6fa2f73009b0.svg" alt="\ell"> 较小通常变化较快。</li>
+</ul>
+<p>在相同点态方差下，改变长度尺度仍会改变积分后的方差，因为相关结构变了。</p>
+<h3>3.6 为什么不能在每个时间点独立抽样再拼成曲线</h3>
+<p>如果目标过程有平滑、相关的曲线结构，每个位置独立抽样会破坏这种结构。</p>
+<p>正确的有限网格做法是先建立联合协方差矩阵 <img class="math-inline" src="assets/deeponet-eki-math/inline-633c98d53797ecbc.svg" alt="K">，再联合采样。若 <img class="math-inline" src="assets/deeponet-eki-math/inline-f28345a7835f938b.svg" alt="K=LL^T">，取 <img class="math-inline" src="assets/deeponet-eki-math/inline-a053af6fb2cbd882.svg" alt="z\sim\mathcal N(0,I)">，则：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-e1e7195baf4ff2c7.svg" alt="\mathbf u=\mathbf m+Lz\sim\mathcal N(\mathbf m,K).">
+<p>这里 <img class="math-inline" src="assets/deeponet-eki-math/inline-7b308afe6a6ec797.svg" alt="L"> 可以通过 Cholesky 分解求得；数值实现有时会加很小的对角修正来改善矩阵稳定性，这个修正也会微调所采样的协方差。</p>
+<h3>3.7 对应到论文</h3>
+<p>论文 §3.1 式（3.7）–（3.8）用 GP 生成输入函数，其中反导数例子取 <img class="math-inline" src="assets/deeponet-eki-math/inline-396051f947b47a8e.svg" alt="a=1">、<img class="math-inline" src="assets/deeponet-eki-math/inline-28e9bccf0650b488.svg" alt="\ell=0.2">，并在 100 个传感器位置读取输入。</p>
+<p>这里 GP 首先承担的是“生成具有指定分布与相关结构的输入曲线”的角色。它不意味着论文用 GP 替代了 DeepONet，也不意味着 DeepONet 输出必定是高斯过程。</p>
+<p>区分两种问题：</p>
+<ol>
+<li>从 GP 生成许多输入函数来训练和测试算子。</li>
+<li>给定某一条输入函数，评估网络参数集合带来的预测分散。</li>
+</ol>
+<p>本文的集合预测统计量主要对应第二种。若要计算输入随机性与参数未知性共同导致的输出分布，还需要额外的联合传播。</p>
+<h3>3.8 自测</h3>
+<ol>
+<li>两个时间点标准差相同，是否足够决定累计位移的标准差？</li>
+<li>协方差为零是否意味着独立？</li>
+<li>GP 的一次抽样得到的是一个数还是一条函数？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>不够，还需要它们之间的协方差。</li>
+<li>一般不意味着。联合高斯等特殊条件下，不相关才可推出独立。</li>
+<li>理论上得到一条样本函数；有限网格计算得到这条函数在多个位置的联合取值。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能解释为什么同样的点态标准差，在不同相关结构下可以产生不同的轨迹不确定性。</p>
+<hr>
+<p><a id="lecture-04"></a></p>
+<h2>第 4 讲：不确定性怎样经过模型传播</h2>
+<h3>4.1 传播的对象是分布</h3>
+<p>设 <img class="math-inline" src="assets/deeponet-eki-math/inline-368ced2695d50d20.svg" alt="X"> 是不确定输入，模型为 <img class="math-inline" src="assets/deeponet-eki-math/inline-fe706f0650798f2b.svg" alt="Y=f(X)">。不确定性传播的目标是由 <img class="math-inline" src="assets/deeponet-eki-math/inline-368ced2695d50d20.svg" alt="X"> 的分布得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-c8ce7407b43abf85.svg" alt="Y"> 的分布，或至少得到输出的均值、方差、分位数与事件概率。</p>
+<p>例如我们可能关心：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-1bde807826ac9369.svg" alt="\mathbb E[Y],\quad \operatorname{Var}(Y),\quad P(Y&gt;y_{\mathrm{safe}}).">
+<p>知道输出平均值，并不等于知道越过安全阈值的概率。</p>
+<p>从分布的角度，输出分布是输入分布经过 <img class="math-inline" src="assets/deeponet-eki-math/inline-6aa44e9424fff9fa.svg" alt="f"> 的“推前”，也常称为 pushforward。对任意输出事件集合 <img class="math-inline" src="assets/deeponet-eki-math/inline-b4de6de21ccef181.svg" alt="A">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-7543d8298e49bbaf.svg" alt="P(Y\in A)=P(f(X)\in A).">
+<p>这个定义并不要求输出高斯，也不要求 <img class="math-inline" src="assets/deeponet-eki-math/inline-6aa44e9424fff9fa.svg" alt="f"> 可逆。</p>
+<h3>4.2 线性或仿射传播可以准确计算</h3>
+<p>若：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-8f35cdeb9dcfc88b.svg" alt="Y=aX+b,">
+<p>且相关矩存在，则：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-2e4c6c3e93397cdb.svg" alt="\mathbb E[Y]=a\mathbb E[X]+b,\qquad
+\operatorname{Var}(Y)=a^2\operatorname{Var}(X).">
+<p>方差乘 <img class="math-inline" src="assets/deeponet-eki-math/inline-e9992ab886fe24f1.svg" alt="a^2">，标准差乘 <img class="math-inline" src="assets/deeponet-eki-math/inline-67246d5af131c18d.svg" alt="|a|">。这些矩公式不要求输入高斯；若输入高斯，输出还可以确定为高斯。</p>
+<p>例如：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-0c106667a980f84a.svg" alt="V\sim\mathcal N(1,0.1^2),\qquad S=10V
+\quad\Longrightarrow\quad S\sim\mathcal N(10,1^2).">
+<p>向量版本为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-6f9b2ffa1089f843.svg" alt="\mathbf Y=A\mathbf X+b,\qquad
+\mu_Y=A\mu_X+b,\qquad
+\Sigma_Y=A\Sigma_XA^T.">
+<p>非对角协方差通过这个式子参与传播，不能随意删除。</p>
+<h3>4.3 非线性传播：平均输入的输出不等于平均输出</h3>
+<p>一般有：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-31aeacdbe2737f2b.svg" alt="\mathbb E[f(X)]\neq f(\mathbb E[X]).">
+<p>考虑 <img class="math-inline" src="assets/deeponet-eki-math/inline-a9e01c62ed640eb6.svg" alt="X\sim\mathcal N(0,1)">，<img class="math-inline" src="assets/deeponet-eki-math/inline-0231d0435467673c.svg" alt="Y=X^2">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-de859a5ac425a9e0.svg" alt="f(\mathbb E[X])=0^2=0,
+\qquad \mathbb E[Y]=\mathbb E[X^2]=1.">
+<p>进一步有 <img class="math-inline" src="assets/deeponet-eki-math/inline-04e577c79fda7596.svg" alt="\operatorname{Var}(Y)=2">。输出始终非负、向右偏斜，并不服从高斯分布。</p>
+<p>如果机械使用均值 ± 两倍标准差，会得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-ae1fcc91a5a120ef.svg" alt="1\pm2\sqrt2">，其下界小于零，而真实输出不可能为负。这说明均值和方差不能完整替代分布形状。</p>
+<p>对应神经网络时，同样通常有：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-a69d732ab1e2253c.svg" alt="\mathbb E_\theta[f_\theta(x)]\neq f_{\mathbb E[\theta]}(x).">
+<p>“先平均网络参数，再预测”和“先预测，再平均输出”一般不等价。本文采用后者。</p>
+<h3>4.4 蒙特卡洛传播：最直接的通用思路</h3>
+<p>蒙特卡洛方法的步骤是：</p>
+<ol>
+<li>从输入分布抽取 <img class="math-inline" src="assets/deeponet-eki-math/inline-7a994beaebf3f460.svg" alt="x^{(1)},\ldots,x^{(M)}">。</li>
+<li>逐个运行模型，得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-5a4564e01e60ea8c.svg" alt="y^{(m)}=f(x^{(m)})">。</li>
+<li>用输出样本估计均值、方差、分位数或事件概率。</li>
+</ol>
+<p>例如：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-451ea80029c9ff80.svg" alt="\widehat P(Y&gt;c)=\frac1M\sum_{m=1}^M
+\mathbf 1\{y^{(m)}&gt;c\},">
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-64e01a25403ad470.svg" alt="\mathbf 1\{\cdot\}"> 表示条件成立时取 1，否则取 0。</p>
+<p>优点是适用范围广，不要求模型线性。代价是需要多次模型运行；极小概率事件也可能很难被普通采样充分捕捉。</p>
+<p>对独立样本的均值估计，在有限方差等条件下，标准误差按 <img class="math-inline" src="assets/deeponet-eki-math/inline-58d46d87768e042f.svg" alt="M^{-1/2}"> 下降。想把该误差约减半，通常要约四倍样本。这个结论描述采样估计误差，不是物理不确定性被样本数消除了。</p>
+<p><strong>选做实验：以下代码是独立的小练习，不是论文的 DeepONet 代码。</strong></p>
+<pre><code class="language-python">import numpy as np
+
+rng = np.random.default_rng(42)
+sample_count = 100_000
+
+v = rng.normal(loc=1.0, scale=0.1, size=sample_count)
+s = 10.0 * v
+print(&quot;线性传播的样本均值、标准差：&quot;, s.mean(), s.std(ddof=1))
+print(&quot;线性传播的 2.5%、97.5% 分位数：&quot;, np.quantile(s, [0.025, 0.975]))
+
+x = rng.normal(size=sample_count)
+y = x ** 2
+print(&quot;平方后的样本均值、方差：&quot;, y.mean(), y.var(ddof=1))
+print(&quot;平方后的 2.5%、97.5% 分位数：&quot;, np.quantile(y, [0.025, 0.975]))
+</code></pre>
+<p>预期：第一组均值、标准差接近 10、1；第二组均值、方差接近 1、2。平方后的分位数区间明显不对称，且下界非负。</p>
+<h3>4.5 一阶线性化：用局部直线近似曲线</h3>
+<p>对光滑函数，在均值附近展开：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-b205cc9f5f21e7f6.svg" alt="f(X)\approx f(\mu_X)+f&#x27;(\mu_X)(X-\mu_X).">
+<p>于是得到近似：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-731e07d6f4a8b51c.svg" alt="\mathbb E[Y]\approx f(\mu_X),\qquad
+\operatorname{Var}(Y)\approx[f&#x27;(\mu_X)]^2\sigma_X^2.">
+<p>向量版本用雅可比矩阵 <img class="math-inline" src="assets/deeponet-eki-math/inline-8c721e78b3e148f1.svg" alt="J_f">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-53502265066c3403.svg" alt="\Sigma_Y\approx J_f\Sigma_XJ_f^T.">
+<p>这在不确定性较小、函数在相关区域较接近线性时可能有效。对 <img class="math-inline" src="assets/deeponet-eki-math/inline-12d0f49f43c25ccc.svg" alt="f(X)=X^2">、<img class="math-inline" src="assets/deeponet-eki-math/inline-c50603930f6a1b46.svg" alt="\mu_X=0">，一阶导数为零，这个近似错误地给出零方差，正好说明局部线性化可能失效。</p>
+<h3>4.6 其他方法先建立位置感</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>主要思路</th>
+<th>需要注意</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>解析传播</td>
+<td>直接推导输出分布或矩</td>
+<td>适用模型有限，但可作为基准</td>
+</tr>
+<tr>
+<td>蒙特卡洛</td>
+<td>大量输入采样并逐次求解</td>
+<td>求解器代价、稀有事件、采样误差</td>
+</tr>
+<tr>
+<td>一阶或高阶展开</td>
+<td>在局部近似模型</td>
+<td>强非线性、偏斜、多峰时可能失准</td>
+</tr>
+<tr>
+<td>无迹变换</td>
+<td>用少量有权重的代表点近似若干统计量</td>
+<td>不是完整分布的通用精确求解</td>
+</tr>
+<tr>
+<td>多项式混沌，PCE</td>
+<td>在随机变量的多项式基下展开输出</td>
+<td>维数、光滑性、输入分布与截断阶数影响效果</td>
+</tr>
+</tbody>
+</table>
+<p>理解本文时，先掌握集合传播即可；其他方法用于建立更完整的知识地图。</p>
+<h3>4.7 传播不一定越来越宽</h3>
+<p>累积误差可能扩大，但不是普遍定理。例如：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-13b8fb3d012908d6.svg" alt="Y(t)=e^{-t}X
+\quad\Longrightarrow\quad
+\operatorname{Var}(Y(t))=e^{-2t}\operatorname{Var}(X).">
+<p>这个收缩系统使初值不确定性随时间减小。动态系统中的输出分布取决于稳定性、外部扰动、非线性与相关结构。</p>
+<h3>4.8 对应到论文与自测</h3>
+<p>本文式（2.21）–（2.22）在给定输入 <img class="math-inline" src="assets/deeponet-eki-math/inline-850504838771d920.svg" alt="u^*"> 和位置 <img class="math-inline" src="assets/deeponet-eki-math/inline-ff8b917592b92266.svg" alt="\xi^*"> 下，把参数集合传播为输出集合。它与蒙特卡洛式的“多次前向计算再统计”有共同结构，但参数集合由 EKI 更新得到，不能未经论证就视为独立的精确后验样本。</p>
+<ol>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-a9e01c62ed640eb6.svg" alt="X\sim\mathcal N(0,1)">，<img class="math-inline" src="assets/deeponet-eki-math/inline-0231d0435467673c.svg" alt="Y=X^2">，输出均值是否为零？</li>
+<li>输入高斯、模型非线性，输出是否必定高斯？</li>
+<li>为什么平均参数的网络不一定等于网络预测的平均？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>否，输出均值为 1。</li>
+<li>否，平方变换就是反例。</li>
+<li>因为非线性函数一般不满足“函数与取期望交换”。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能手算线性传播，能解释非线性传播为什么通常需要采样或近似。</p>
+<hr>
+<p><a id="lecture-05"></a></p>
+<h2>第 5 讲：从正问题到贝叶斯反问题</h2>
+<h3>5.1 正问题与反问题</h3>
+<p>正问题：已知参数，计算观测或输出。反问题：已知观测，推断参数。</p>
+<p>例如阻力模型 <img class="math-inline" src="assets/deeponet-eki-math/inline-dfc52378ba639ab6.svg" alt="F=cv">：给定 <img class="math-inline" src="assets/deeponet-eki-math/inline-9bc7baa8bb0970f2.svg" alt="c"> 与速度 <img class="math-inline" src="assets/deeponet-eki-math/inline-95f872342a07a61a.svg" alt="v"> 求阻力是正问题；测到速度与阻力以后推断 <img class="math-inline" src="assets/deeponet-eki-math/inline-9bc7baa8bb0970f2.svg" alt="c"> 是反问题。</p>
+<p>统一写成：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-36f787bbaf457aab.svg" alt="d=\mathcal H(\theta)+\eta,\qquad
+\eta\sim\mathcal N(0,R).">
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-24b94d8ecd5f7c8c.svg" alt="\mathcal H"> 把参数映射成可与数据比较的模型预测，<img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 描述观测误差的协方差。</p>
+<p>在本文中，<img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"> 是全部 DeepONet 参数；<img class="math-inline" src="assets/deeponet-eki-math/inline-22badcac1dcf8b1e.svg" alt="\mathcal H(\theta)"> 是该网络对所有选定训练输入与查询位置的输出堆叠。神经网络训练因此可以表述成一个高维参数反问题。</p>
+<h3>5.2 为什么一个最优参数不够</h3>
+<p>数据有限且带噪声时，常有多组参数都能较好解释数据。如果只给一个最优解，就无法直接表达这种歧义。</p>
+<p>贝叶斯方法保留一组参数的相对合理程度，用后验分布表示。</p>
+<h3>5.3 先验、似然、后验</h3>
+<p><strong>先验 <img class="math-inline" src="assets/deeponet-eki-math/inline-79d796ab7b2169d7.svg" alt="p(\theta)">：</strong> 看这批数据以前，对参数的分布描述。它包含已有知识、约束或建模选择；不是看到当前结果后随意修改的理由。</p>
+<p><strong>似然 <img class="math-inline" src="assets/deeponet-eki-math/inline-d75249ee2827e161.svg" alt="p(d\mid\theta)">：</strong> 假设参数为 <img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta">，当前数据有多符合观测模型。它作为 <img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"> 的函数使用，不是参数本身的概率密度。</p>
+<p><strong>后验 <img class="math-inline" src="assets/deeponet-eki-math/inline-d49c4541aea43f7c.svg" alt="p(\theta\mid d)">：</strong> 看过数据以后，对参数的更新认识。</p>
+<p>贝叶斯公式为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-8123ce2c76d96c49.svg" alt="p(\theta\mid d)
+=\frac{p(d\mid\theta)p(\theta)}{p(d)}
+\propto p(d\mid\theta)p(\theta).">
+<p>符号 <img class="math-inline" src="assets/deeponet-eki-math/inline-4fff730dfcc67e2e.svg" alt="\propto"> 表示“差一个与 <img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"> 无关的归一化常数”。分母 <img class="math-inline" src="assets/deeponet-eki-math/inline-dad215295a63488c.svg" alt="p(d)"> 使后验积分为 1。</p>
+<h3>5.4 高斯似然怎样体现噪声大小</h3>
+<p>固定 <img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 时，高斯似然有：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-555326e4ebb4c812.svg" alt="p(d\mid\theta)\propto
+\exp\left[-\frac12
+(d-\mathcal H(\theta))^TR^{-1}
+(d-\mathcal H(\theta))\right].">
+<p>如果 <img class="math-inline" src="assets/deeponet-eki-math/inline-749e8b516a70cfbf.svg" alt="R=\sigma_{\mathrm{obs}}^2I">，就按 <img class="math-inline" src="assets/deeponet-eki-math/inline-e79a18e92a0c458d.svg" alt="1/\sigma_{\mathrm{obs}}^2"> 给残差平方加权。</p>
+<ul>
+<li>观测很准确，同样的残差会受到较强惩罚。</li>
+<li>观测噪声很大，同样的残差相对更可以容忍。</li>
+</ul>
+<p>因此，噪声水平不是无关紧要的设置。错误地把噪声设得很小，可能把模型推向拟合噪声，并产生不恰当的确定感。</p>
+<p>本文假设输出噪声标准差已知；它没有同时解决任意未知噪声模型的识别问题。</p>
+<h3>5.5 一个可以手算的后验</h3>
+<p>设未知量本身是一个标量：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-7866d7182a1fc105.svg" alt="\theta\sim\mathcal N(\mu_0,C_0),\qquad
+d=\theta+\eta,\qquad\eta\sim\mathcal N(0,R),">
+<p>且先验与观测噪声独立。后验仍是高斯：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-fb52a9c491255538.svg" alt="C_{\mathrm{post}}=(C_0^{-1}+R^{-1})^{-1},">
+<img class="math-block" src="assets/deeponet-eki-math/block-332aaaaddab6dde7.svg" alt="\mu_{\mathrm{post}}=C_{\mathrm{post}}
+(C_0^{-1}\mu_0+R^{-1}d).">
+<p>其中逆方差也叫精度：较小方差对应较大权重。</p>
+<p>取 <img class="math-inline" src="assets/deeponet-eki-math/inline-19e2d15355c1e92a.svg" alt="\mu_0=0">、<img class="math-inline" src="assets/deeponet-eki-math/inline-6c64c1d5b3b56298.svg" alt="C_0=1">、观测 <img class="math-inline" src="assets/deeponet-eki-math/inline-5adc796512e5fc78.svg" alt="d=1">、<img class="math-inline" src="assets/deeponet-eki-math/inline-b3ec91df14e57b66.svg" alt="R=0.25">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-f1088c9b0d1432c6.svg" alt="C_{\mathrm{post}}=\frac1{1+4}=0.2,
+\qquad \mu_{\mathrm{post}}=0.2(0+4)=0.8.">
+<p>后验标准差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-7413e2fe469a6f74.svg" alt="\sqrt{0.2}\approx0.447">。更新后的中心更接近较准确的观测，同时分布比原先集中。</p>
+<p>这也是下一阶段理解卡尔曼更新的最简单例子。</p>
+<h3>5.6 最大后验估计与优化的关系</h3>
+<p>若先验为 <img class="math-inline" src="assets/deeponet-eki-math/inline-439866c1795f67e1.svg" alt="\mathcal N(\mu_0,C_0)">，最大后验估计，Maximum A Posteriori，简称 MAP，对应最小化：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-2fc41fdefd1049ef.svg" alt="\Phi(\theta)=\frac12
+\|R^{-1/2}(d-\mathcal H(\theta))\|_2^2
++\frac12\|C_0^{-1/2}(\theta-\mu_0)\|_2^2.">
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-2bf0138cbdb15e9a.svg" alt="\|v\|_2=\sqrt{\sum_kv_k^2}">。第一项要求拟合数据，第二项约束偏离先验的程度。</p>
+<p>零均值、各向同性高斯参数先验与常见的二范数正则有联系，但一个最优点仍只是后验的一个摘要，不能完整代替后验分布。</p>
+<p>对神经网络，标准高斯权重先验也不等于“函数空间完全中立”。架构与权重分布共同决定了模型倾向于生成什么样的函数。</p>
+<h3>5.7 可辨识性：数据能否分清参数</h3>
+<p>若 <img class="math-inline" src="assets/deeponet-eki-math/inline-3c813ae49d179625.svg" alt="d=\theta_1+\theta_2+\eta">，观测可能较好确定总和，却无法唯一分清两者。不同参数组合都可能产生相似观测。</p>
+<p>这叫可辨识性问题。后验可以出现很强的参数相关性；非线性问题还可能多峰。更多重复的同类观测未必能解决所有歧义，可能需要不同类型的激励或观测。</p>
+<p>神经网络还存在参数置换等对称性：参数不同，不代表预测函数一定不同。对应用而言，预测空间的不确定性往往比逐个权重的区间更直接。</p>
+<h3>5.8 计算后验的几条路线</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>大致做什么</th>
+<th>主要取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>解析推导</td>
+<td>直接得到后验公式</td>
+<td>多用于结构简单或共轭问题</td>
+</tr>
+<tr>
+<td>MCMC，包括 HMC</td>
+<td>构造以目标后验为不变分布的采样过程</td>
+<td>混合、收敛诊断和计算代价重要</td>
+</tr>
+<tr>
+<td>变分推断，VI</td>
+<td>在选定分布族内优化近似后验</td>
+<td>分布族与优化可能限制近似质量</td>
+</tr>
+<tr>
+<td>集合方法，包括本文 EKI 变体</td>
+<td>用有限成员及协方差更新近似未知性</td>
+<td>高效性与近似质量都需要评估</td>
+</tr>
+</tbody>
+</table>
+<p>这些方法不具有完全相同的理论保证。尤其不能把“训练了一组参数”直接等同于“取得精确后验独立样本”。</p>
+<h3>5.9 对应论文与自测</h3>
+<p>对照式（2.3）似然、（2.4）贝叶斯公式、（2.5）观测模型、（2.6）–（2.7）后验表达式。</p>
+<ol>
+<li>似然 <img class="math-inline" src="assets/deeponet-eki-math/inline-d75249ee2827e161.svg" alt="p(d\mid\theta)"> 与后验 <img class="math-inline" src="assets/deeponet-eki-math/inline-d49c4541aea43f7c.svg" alt="p(\theta\mid d)"> 是否相同？</li>
+<li>手算例子中，为什么后验均值为 0.8，而不是先验与观测的简单平均 0.5？</li>
+<li>找到 MAP 后，是否已经知道后验方差？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>不同。后验还包含先验与归一化；二者的条件方向也不同。</li>
+<li>观测方差比先验方差小，因此观测精度更高、权重更大。</li>
+<li>没有。一个最优点不提供完整的分布形状与分散程度。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能指出先验、似然、后验各自表达什么，并手算标量高斯更新。</p>
+<hr>
+<p><a id="lecture-06"></a></p>
+<h2>第 6 讲：从参数分布到预测分布</h2>
+<h3>6.1 先分清预测对象</h3>
+<p>给定新输入 <img class="math-inline" src="assets/deeponet-eki-math/inline-98bbd44c871195e9.svg" alt="x^*">，至少有两种不同对象：</p>
+<ol>
+<li>不含新增测量噪声的模型输出 <img class="math-inline" src="assets/deeponet-eki-math/inline-bf96914c84e6bcdc.svg" alt="S^*=f_\theta(x^*)">。</li>
+<li>未来实际记录的观测 <img class="math-inline" src="assets/deeponet-eki-math/inline-effa24fea71e46f9.svg" alt="D^*=f_\theta(x^*)+\eta^*">。</li>
+</ol>
+<p>其中 <img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"> 根据已知训练数据推断，<img class="math-inline" src="assets/deeponet-eki-math/inline-ea0c56d9cac2e9e1.svg" alt="\eta^*"> 是未来测量噪声。即使两者的预测均值相同，预测方差也可能不同。</p>
+<p>例如你关心“航行器真实位移可能是多少”和“下一次传感器读数可能是多少”，就不应无条件使用同一种区间。</p>
+<h3>6.2 参数后验怎样变成输出分布</h3>
+<p>理论上，从后验抽参数并运行模型：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-980391e5ee9dbe1a.svg" alt="\theta^{(j)}\sim p(\theta\mid\mathcal D),\qquad
+s^{*(j)}=f_{\theta^{(j)}}(x^*).">
+<p>输出集合近似参数未知性引起的输出分布。它是第 4 讲传播的一个具体应用，只是传播起点从输入分布换成了参数后验。</p>
+<p>预测未来观测时，还需依照观测模型加入未来噪声。其分布为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5dd9e1a6df70aa10.svg" alt="p(d^*\mid\mathcal D,x^*)=
+\int p(d^*\mid\theta,x^*)p(\theta\mid\mathcal D)\,d\theta.">
+<p>“对参数积分”表示把所有可能参数的预测按其后验合理程度加权，而不是只选一组参数。</p>
+<h3>6.3 全方差公式：两层未知怎样组合</h3>
+<p>一般的全方差公式为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-a64891572a6ac644.svg" alt="\operatorname{Var}(Y)=
+\mathbb E[\operatorname{Var}(Y\mid Z)]
++\operatorname{Var}(\mathbb E[Y\mid Z]).">
+<p>可以把它读成：“每一类内部的平均波动”加上“各类均值之间的波动”。</p>
+<p>若未来噪声独立、零均值，且已知方差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-42002a45afd5243f.svg" alt="\sigma_{\mathrm{obs}}^2">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-bfd5eb9027c3f035.svg" alt="\operatorname{Var}(D^*\mid\mathcal D,x^*)=
+\underbrace{\operatorname{Var}_{\theta\mid\mathcal D}
+[f_\theta(x^*)]}_{\text{参数未知引起的预测分散}}
++\underbrace{\sigma_{\mathrm{obs}}^2}_{\text{未来测量噪声}}.">
+<p>若观测噪声方差还依赖输入或参数，则第一项之外的噪声贡献应写成相应条件方差的期望，不能机械加一个固定常数。</p>
+<p>这种分解依赖所采用的模型，不能自动包含所有结构误差、数据偏差与未建模物理。</p>
+<h3>6.4 延续上一讲的手算</h3>
+<p>上一讲得到：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-05cfd5fb71ca2273.svg" alt="\theta\mid d\sim\mathcal N(0.8,0.2).">
+<p>若新问题只是预测潜在量 <img class="math-inline" src="assets/deeponet-eki-math/inline-ff696fc1dbb76c61.svg" alt="S^*=\theta">，其均值为 0.8，方差为 0.2。</p>
+<p>若预测下一次独立带噪声观测，噪声方差仍为 0.25，则：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-a5ad827e615c8eaa.svg" alt="D^*\mid d\sim\mathcal N(0.8,0.2+0.25)
+=\mathcal N(0.8,0.45).">
+<p>潜在量的标准差约为 0.447，未来读数的标准差约为 0.671。未来读数更不确定，因为还包含一次新的测量噪声。</p>
+<h3>6.5 输入也不确定时怎么办</h3>
+<p>如果新输入 <img class="math-inline" src="assets/deeponet-eki-math/inline-ea8e4bc1dd9fe695.svg" alt="U"> 也只有一个分布，就应继续对输入传播。一般有：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-9225a98ebd08fb93.svg" alt="\operatorname{Var}(S\mid\mathcal D)
+=\mathbb E_{U\mid\mathcal D}
+[\operatorname{Var}(S\mid U,\mathcal D)]
++\operatorname{Var}_{U\mid\mathcal D}
+[\mathbb E(S\mid U,\mathcal D)].">
+<p>这里比较了“固定输入时的输出分散”与“不同输入引起的条件均值变化”。如果参数与输入相关，必须使用正确的条件联合分布，不能擅自分别独立抽样。</p>
+<p>一种常见数值实现是两层抽样：外层抽整条输入函数，内层对参数或条件输出抽样；如果输入和参数的独立性有合理依据，也可以按相应联合分布成对抽样。</p>
+<p>连续时间输入必须保留第 3 讲讨论的相关结构。</p>
+<h3>6.6 本文实际计算了什么</h3>
+<p>式（2.21）–（2.22）对给定 <img class="math-inline" src="assets/deeponet-eki-math/inline-e61bf7c07334637a.svg" alt="u^*,\xi^*"> 计算网络集合的输出均值和标准差：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-75409f13095d2f4a.svg" alt="s^{*(j)}=\mathcal G_{\theta^{(j)}}(u^*)(\xi^*).">
+<p>这些公式没有在输出层再独立叠加一次未来测量噪声。§3 的覆盖率比较对象是数值求解器生成的干净测试输出，而不是新增带噪传感器读数。</p>
+<p>另一方面，网络参数集合受到训练噪声模型、人工扰动 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 以及验证调节的共同影响。作者利用验证残差与集合分散程度的相对大小调节 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q">，因此不能简单宣称其集合标准差已经实现了严格、完整的偶然与认知不确定性分离。</p>
+<p>最准确的阅读方式是：它提供给定输入下、由所采用 EKI 推断与调节过程生成的输出集合分散估计，并通过测试数据考察其信息价值。</p>
+<h3>6.7 有哪些误差可能没被覆盖</h3>
+<p>可以在概念上写成：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-347b7e3b37be6119.svg" alt="s_{\mathrm{true}}=f_\theta(x)+\delta_{\mathrm{model}}(x),\qquad
+d=s_{\mathrm{true}}+\eta.">
+<p><img class="math-inline" src="assets/deeponet-eki-math/inline-d68bacec38f2f558.svg" alt="\delta_{\mathrm{model}}"> 表示模型差异。若建模时设它为零，参数分布可能无法充分解释其影响。</p>
+<p>所有网络使用相同错误物理假设，或都没有见过某类海况，即使成员很多也可能共同有偏差。这是“模型内不确定性”与“现实总未知性”之间的重要区别。</p>
+<h3>6.8 自测</h3>
+<ol>
+<li>预测真实位置与预测下一次传感器读数，区间为什么可能不同？</li>
+<li>已知网络输出方差为 1，未来独立零均值观测噪声方差为 4，未来观测方差是多少？</li>
+<li>对固定输入统计一组网络输出，是否已经包含该输入本身的随机变化？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>后者还包含未来测量噪声；前者是否包含其他物理随机性，取决于定义与模型。</li>
+<li>在上述独立加性设定下为 <img class="math-inline" src="assets/deeponet-eki-math/inline-ad2df609dc88269a.svg" alt="1+4=5">，标准差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-a45e6b78b44c9543.svg" alt="\sqrt5">。</li>
+<li>没有。要包括输入随机性，还需对输入分布进行传播。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 看到一条不确定性带时，会先确认“它针对潜在输出还是未来观测，条件于哪些已知量”。</p>
+<hr>
+<p><a id="lecture-07"></a></p>
+<h2>第 7 讲：从普通函数到 DeepONet</h2>
+<h3>7.1 普通回归与算子学习有什么区别</h3>
+<p>普通函数可以把一个数或向量映射成另一个数或向量。例如 <img class="math-inline" src="assets/deeponet-eki-math/inline-3a9b85daffa9fcff.svg" alt="y=2x">。</p>
+<p>算子把一整个函数映射成另一个函数。例如反导数算子：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-b7a6bced597de448.svg" alt="s(t)=\mathcal G(u)(t)=\int_0^t u(\tau)\,d\tau.">
+<p>输入 <img class="math-inline" src="assets/deeponet-eki-math/inline-2b18c673b964ce6f.svg" alt="u"> 是一条曲线，输出 <img class="math-inline" src="assets/deeponet-eki-math/inline-b7c4deb092eb7e51.svg" alt="s"> 是另一条曲线。不同输入曲线对应不同输出曲线。</p>
+<p>对于动力学，输入可以是整段外力历史，输出是响应轨迹。如果初始状态也会变化，则必须把初始状态作为额外条件编码，不能期待一个没有收到初始状态信息的模型自动区分所有初值问题。</p>
+<h3>7.2 一个反导数手算例子</h3>
+<p>若输入为 <img class="math-inline" src="assets/deeponet-eki-math/inline-108666cc2ba2e8d3.svg" alt="u(t)=2+t">，则：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-4708604758a5f775.svg" alt="s(t)=2t+\frac12t^2.">
+<p>在 <img class="math-inline" src="assets/deeponet-eki-math/inline-f469b7ccf3a21866.svg" alt="t=0.5"> 处，<img class="math-inline" src="assets/deeponet-eki-math/inline-9868b173769d815b.svg" alt="s(0.5)=1.125">。注意，这不是输入函数在该点的值 <img class="math-inline" src="assets/deeponet-eki-math/inline-181de3a84b9c8ef7.svg" alt="u(0.5)=2.5">。</p>
+<p>网络要学习的是“整条输入曲线怎样决定输出”，而不是把查询点代入输入函数就结束。</p>
+<h3>7.3 怎样把一条函数送进计算机</h3>
+<p>最常见的做法是选择固定传感器位置 <img class="math-inline" src="assets/deeponet-eki-math/inline-bb3e580acd4cea6b.svg" alt="x_1,\ldots,x_m">，读取：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-0e1673654852be79.svg" alt="\mathbf u=[u(x_1),\ldots,u(x_m)]^T.">
+<p>这是一条函数的有限采样表示。原始 DeepONet 通常要求这些传感器位置在不同样本之间保持一致。</p>
+<p>有限采样不等于知道任意函数的全部信息。如果传感器太稀疏，两条不同输入可能产生几乎相同的观测向量，算子学习也会受限。</p>
+<h3>7.4 Branch 与 Trunk 各做什么</h3>
+<p>DeepONet 的两部分为：</p>
+<ul>
+<li>Branch 网络：接收输入函数的采样值，输出 <img class="math-inline" src="assets/deeponet-eki-math/inline-640a535e9ee5fc23.svg" alt="r"> 个系数 <img class="math-inline" src="assets/deeponet-eki-math/inline-26158e72c28e6be6.svg" alt="b_1(\mathbf u),\ldots,b_r(\mathbf u)">。</li>
+<li>Trunk 网络：接收查询位置 <img class="math-inline" src="assets/deeponet-eki-math/inline-188ecc011acc3a4d.svg" alt="\xi">，输出 <img class="math-inline" src="assets/deeponet-eki-math/inline-640a535e9ee5fc23.svg" alt="r"> 个特征 <img class="math-inline" src="assets/deeponet-eki-math/inline-fbcd473cda263fe4.svg" alt="t_1(\xi),\ldots,t_r(\xi)">。</li>
+</ul>
+<p>标量输出情况下，二者通过点积组合：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-7dd21bc658464289.svg" alt="\mathcal G_\theta(u)(\xi)
+=\sum_{k=1}^{r}b_k(\mathbf u)t_k(\xi).">
+<p>这里 <img class="math-inline" src="assets/deeponet-eki-math/inline-640a535e9ee5fc23.svg" alt="r"> 是内部特征维数，不是查询位置数，也不是集合成员数。</p>
+<p>可以把它理解为：Trunk 提供一组可学习的“输出形状特征”；Branch 根据输入曲线，决定怎样组合这些特征。两部分共同训练，所以这些特征通常也不是事先固定的物理基函数。</p>
+<p>对时间轨迹，<img class="math-inline" src="assets/deeponet-eki-math/inline-8a1a99558c92c832.svg" alt="\xi=t">；对时空场，<img class="math-inline" src="assets/deeponet-eki-math/inline-d732d64783c8b42f.svg" alt="\xi=(x,t)">。改变查询位置，就能在不同位置读取输出，但读取更密集不代表预测精度自动提高。</p>
+<h3>7.5 训练数据长什么样</h3>
+<p>设有 <img class="math-inline" src="assets/deeponet-eki-math/inline-bac4923e26e1ce52.svg" alt="N"> 组输入与输出函数 <img class="math-inline" src="assets/deeponet-eki-math/inline-1af74b3f0060f82d.svg" alt="(u_l,s_l)">，每条输出在 <img class="math-inline" src="assets/deeponet-eki-math/inline-e508c02b0ef76771.svg" alt="P"> 个查询位置记录：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ea4a0e963b289783.svg" alt="\{(u_l,\xi_{lk},d_{lk}):l=1,\ldots,N;\ k=1,\ldots,P\}.">
+<p>确定性 DeepONet 常通过最小化均方误差训练：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-857b7006c7151209.svg" alt="\mathcal L(\theta)=\frac1{NP}\sum_{l=1}^{N}\sum_{k=1}^{P}
+\left[\mathcal G_\theta(u_l)(\xi_{lk})-d_{lk}\right]^2.">
+<p>需要区分“函数对数量 <img class="math-inline" src="assets/deeponet-eki-math/inline-bac4923e26e1ce52.svg" alt="N">”与“标量观测总数 <img class="math-inline" src="assets/deeponet-eki-math/inline-c50792427ea3a45a.svg" alt="NP">”。一条函数上密集采样得到很多点，这些点仍共享同一个输入函数，不能简单看成许多完全独立的新工况。</p>
+<p>因此，划分训练集与测试集时，按整条输入函数划分通常比把同一条曲线上的点随机混入两边，更能检验对新函数的泛化。本文按输入/输出函数对进行相应用途划分。</p>
+<h3>7.6 贝叶斯 DeepONet 改变了什么</h3>
+<p>网络结构可以保持一致，但参数 <img class="math-inline" src="assets/deeponet-eki-math/inline-75e51a37244b90e1.svg" alt="\theta"> 由一个点估计扩展为分布描述：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-0011c2f86e3e414a.svg" alt="p(\theta)\quad\xrightarrow{\mathcal D}\quad p(\theta\mid\mathcal D).">
+<p>若有多组合理参数，则固定同一个 <img class="math-inline" src="assets/deeponet-eki-math/inline-e61bf7c07334637a.svg" alt="u^*,\xi^*">，可以产生多种预测：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5ac460addf260b06.svg" alt="s^{*(j)}=\sum_{k=1}^{r}
+b_k(\mathbf u^*;\theta_b^{(j)})
+t_k(\xi^*;\theta_t^{(j)}).">
+<p>不同 <img class="math-inline" src="assets/deeponet-eki-math/inline-68fa4ad2d7561e59.svg" alt="j"> 对应不同网络参数组，包含 Branch 与 Trunk 的权重和偏置。不是把同一个确定性网络对完全相同的输入重复运行若干遍，就自动产生有效 UQ。</p>
+<p>本文各成员通过 EKI 中的集合协方差相互影响，属于联合更新；其机制不同于把许多网络彼此独立地训练完再汇总的普通深度集成。</p>
+<h3>7.7 本文的网络与数据规模</h3>
+<p>根据 §3 与表 3.1：</p>
+<ul>
+<li>Branch 和 Trunk 均使用 3 个隐藏层，每层 128 个单元，输出特征维数为 128。</li>
+<li>Branch 使用 ReLU，Trunk 使用 Tanh。</li>
+<li>反导数例子的参数数为 79,232；另外两个例子为 79,360。</li>
+<li>集合成员数 <img class="math-inline" src="assets/deeponet-eki-math/inline-88a4f01f34be76ba.svg" alt="J=5000">。</li>
+</ul>
+<p>这意味着每个成员都有约 8 万个参数，共有 5000 组参数。这里的“高维”主要指待推断网络参数维数，不是说物理空间一定有很高维。</p>
+<h3>7.8 对应论文与自测</h3>
+<p>阅读 §2.1、图 2.1，先说出每一根输入箭头传递的是什么，再读图 2.2，理解它为什么复制出多组网络。</p>
+<ol>
+<li>Branch 接收查询时间，还是输入函数采样值？</li>
+<li>查询 100 个位置，是否意味着要训练 100 个完全不同的 DeepONet？</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-88a4f01f34be76ba.svg" alt="J=5000"> 与特征维数 128 是否表达同一个规模？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>Branch 接收输入函数采样值；查询位置交给 Trunk。</li>
+<li>不需要。同一个网络可以对不同查询位置进行前向计算。</li>
+<li>不同。<img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"> 是参数集合成员数，128 是每个网络的内部输出特征维数。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能画出“输入函数采样值 → Branch；查询位置 → Trunk；点积 → 输出”的流程。</p>
+<hr>
+<p><a id="lecture-08"></a></p>
+<h2>第 8 讲：卡尔曼更新与集合卡尔曼方法</h2>
+<h3>8.1 两条都有误差的信息，应该更相信谁</h3>
+<p>你原先估计位置为 0，估计误差方差为 1；现在传感器读数为 1，观测噪声方差为 0.25。</p>
+<p>新估计应该向读数靠近，但传感器也不完全准确。第 5 讲已经算出新的均值为 0.8。它可以改写为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5d3f0ca22e9a3b27.svg" alt="\mu_{\mathrm{post}}
+=\mu_{\mathrm{prior}}+K(d-\mu_{\mathrm{prior}}),
+\qquad K=\frac{C_{\mathrm{prior}}}{C_{\mathrm{prior}}+R}.">
+<p>这里 <img class="math-inline" src="assets/deeponet-eki-math/inline-600401ed15eac4e9.svg" alt="K=1/(1+0.25)=0.8">。差值 <img class="math-inline" src="assets/deeponet-eki-math/inline-966c77583bcddc5f.svg" alt="d-\mu_{\mathrm{prior}}"> 称为创新或观测残差，<img class="math-inline" src="assets/deeponet-eki-math/inline-633c98d53797ecbc.svg" alt="K"> 称为卡尔曼增益。</p>
+<p>更新规则读起来就是：“旧估计，加上经过可靠性加权的观测差异”。</p>
+<h3>8.2 增益表达相对可靠性</h3>
+<ul>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 较小：传感器比较可靠，更新更多地朝观测靠近。</li>
+<li>先验方差较小：原估计比较集中，相同观测带来的修正较小。</li>
+<li>两者都不确定：不能只看均值，必须比较它们的误差结构。</li>
+</ul>
+<p>在这个标量模型中，后验方差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-f21f0943c63ada65.svg" alt="C_{\mathrm{post}}=(1-K)C_{\mathrm{prior}}=0.2.">
+<p>以上是独立噪声、线性观测及高斯先验下的精确贝叶斯更新。非线性情况下，类似公式往往变成近似。</p>
+<h3>8.3 向量版本：协方差怎样传递信息</h3>
+<p>设未知向量为 <img class="math-inline" src="assets/deeponet-eki-math/inline-40c3e2b505699b72.svg" alt="z">，预测均值为 <img class="math-inline" src="assets/deeponet-eki-math/inline-445aa3949d772c6d.svg" alt="m">、协方差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-e508c02b0ef76771.svg" alt="P">，线性观测模型为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-1170e0d31bbca752.svg" alt="d=Hz+\eta,\qquad\eta\sim\mathcal N(0,R).">
+<p>更新为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-f34e41303fa9719b.svg" alt="K=PH^T(HPH^T+R)^{-1},">
+<img class="math-block" src="assets/deeponet-eki-math/block-7ef3e8f11b7e9c2f.svg" alt="m^+=m+K(d-Hm),\qquad P^+=(I-KH)P.">
+<p>上标 <img class="math-inline" src="assets/deeponet-eki-math/inline-2b241dadc8d5653a.svg" alt="+"> 表示更新后。<img class="math-inline" src="assets/deeponet-eki-math/inline-7d6bfd68a96862ef.svg" alt="PH^T"> 是未知量与预测观测之间的交叉协方差，决定某个观测残差应当怎样修正不同未知量。</p>
+<p>例如只观测位置，但位置与速度在预测分布中相关，则位置读数也可能帮助修正速度。这种信息传递依靠联合分布，而不是凭空推断。</p>
+<p>实现中通常求解线性方程组，而不显式构造矩阵逆；公式中的逆主要用于表达数学关系。</p>
+<h3>8.4 从协方差矩阵到集合近似</h3>
+<p>集合卡尔曼滤波，Ensemble Kalman Filter，简称 EnKF，用一组成员表示未知状态或参数：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-fc97f243594c13fd.svg" alt="z^{(1)},\ldots,z^{(J)}.">
+<p>让每个成员经过观测模型 <img class="math-inline" src="assets/deeponet-eki-math/inline-05f96ad34ce6669d.svg" alt="h">，得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-c791a6a69ec5f0e7.svg" alt="h^{(j)}=h(z^{(j)})">，再计算样本交叉协方差与预测观测协方差：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-9c0356083c8a1c98.svg" alt="C^{zh}=\frac1{J-1}\sum_j(z^{(j)}-\bar z)(h^{(j)}-\bar h)^T,">
+<img class="math-block" src="assets/deeponet-eki-math/block-d40bc4ba387d5dd6.svg" alt="C^{hh}=\frac1{J-1}\sum_j(h^{(j)}-\bar h)(h^{(j)}-\bar h)^T.">
+<p>集合增益为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-c2c5e42d2efee08b.svg" alt="K=C^{zh}(C^{hh}+R)^{-1}.">
+<p>不需要直接求 <img class="math-inline" src="assets/deeponet-eki-math/inline-05f96ad34ce6669d.svg" alt="h"> 的导数；成员间的共同变化给出修正方向的信息。但如果集合规模不足，样本协方差可能包含明显误差或虚假相关。</p>
+<h3>8.5 一个三成员手算例子</h3>
+<p>设未知标量集合为 <img class="math-inline" src="assets/deeponet-eki-math/inline-4a902a4d483cd4cb.svg" alt="z=[0,1,2]">，观测模型 <img class="math-inline" src="assets/deeponet-eki-math/inline-cf025767e36c0cf7.svg" alt="h(z)=2z">，观测为 <img class="math-inline" src="assets/deeponet-eki-math/inline-e72af03f9d501026.svg" alt="d=3">，噪声方差 <img class="math-inline" src="assets/deeponet-eki-math/inline-2dcc0353e579df79.svg" alt="R=1">。</p>
+<p>预测观测为 <img class="math-inline" src="assets/deeponet-eki-math/inline-de85e1148fdf0da7.svg" alt="h=[0,2,4]">，均值分别为 <img class="math-inline" src="assets/deeponet-eki-math/inline-58446efb2d48c316.svg" alt="\bar z=1">、<img class="math-inline" src="assets/deeponet-eki-math/inline-480fbd785ba40e2a.svg" alt="\bar h=2">。样本协方差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-da2fd1d3273045d3.svg" alt="C^{zh}=\frac{(-1)(-2)+0+(1)(2)}2=2,
+\qquad C^{hh}=\frac{4+0+4}2=4.">
+<p>因此：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-a31e2a6cee3d5c10.svg" alt="K=\frac2{4+1}=0.4,
+\qquad \bar z^+=1+0.4(3-2)=1.4.">
+<p>预测偏小，需要增大 <img class="math-inline" src="assets/deeponet-eki-math/inline-40c3e2b505699b72.svg" alt="z">。交叉协方差是正数，更新方向与这个直觉一致。</p>
+<p>这个均值计算说明了增益的作用，不等于已经完整规定所有成员的正确更新方式。</p>
+<h3>8.6 为什么有的集合更新要扰动观测</h3>
+<p>一种随机 EnKF 更新为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-12768d81760b9668.svg" alt="z^{(j),+}=z^{(j)}+K[d+\eta^{(j)}-h^{(j)}],
+\qquad\eta^{(j)}\sim\mathcal N(0,R).">
+<p>每个成员使用独立的人工观测扰动。它帮助随机集合更新在适当条件下保持目标协方差结构，不是额外获得了 <img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"> 份真实观测。</p>
+<p>如果只把全部成员机械拉向完全同一个观测，且不采用合适的确定性集合变换，集合可能收缩过度。另有不扰动观测的平方根等确定性 EnKF 方法，因此“所有 EnKF 都必须加观测扰动”也是错误说法。</p>
+<p>有限样本下，扰动的样本均值与协方差仍有波动；集合方法是数值近似。</p>
+<h3>8.7 从滤波走向反演</h3>
+<p>传统滤波通常跟踪随真实时间变化的物理状态。EKI 借用类似机制，把待估计对象换成模型参数，并通过算法迭代不断修正参数集合。</p>
+<p>要分清：</p>
+<ul>
+<li>滤波中的时间可能是物理时间。</li>
+<li>本文 EKI 中 <img class="math-inline" src="assets/deeponet-eki-math/inline-3924da6c6c6887a6.svg" alt="i"> 主要是算法迭代编号。</li>
+<li>参数迭代中的随机扰动是人为构造的算法机制。</li>
+</ul>
+<h3>8.8 对应论文与自测</h3>
+<p>先读式（2.13）–（2.15）的样本协方差，再读（2.12）的更新。这样比从复杂的更新公式直接开始更容易理解。</p>
+<ol>
+<li>卡尔曼增益的作用是什么？</li>
+<li>手算例子中，如果 <img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 从 1 增大到 100，更新会更强还是更弱？</li>
+<li>“不用梯度”是否意味着无需模型前向计算？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>把观测残差转换为对未知量的修正，并考虑预测与观测误差结构。</li>
+<li>更弱，<img class="math-inline" src="assets/deeponet-eki-math/inline-d614bb2e81c87bbf.svg" alt="K=2/(4+100)"> 小于原来的 0.4。</li>
+<li>否。仍需计算各成员的模型输出，并据此构造样本协方差。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能把更新公式读成“旧估计 + 增益 × 残差”，并解释交叉协方差为什么重要。</p>
+<hr>
+<p><a id="lecture-09"></a></p>
+<h2>第 9 讲：逐步读懂本文的 EKI-Bayesian DeepONet</h2>
+<h3>9.1 先写出要反演的对象</h3>
+<p>设网络参数维数为 <img class="math-inline" src="assets/deeponet-eki-math/inline-e4bd8005f58b3d95.svg" alt="p">，当前选中的标量观测数为 <img class="math-inline" src="assets/deeponet-eki-math/inline-1af271f927f00e3d.svg" alt="n">。待求参数为 <img class="math-inline" src="assets/deeponet-eki-math/inline-b8bf8b7ee5f47cac.svg" alt="\theta\in\mathbb R^p">，观测向量为 <img class="math-inline" src="assets/deeponet-eki-math/inline-cc0a4788b38d12b5.svg" alt="d\in\mathbb R^n">：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-fdc10a7297f64608.svg" alt="d=\mathcal H(\theta)+\eta,\qquad\eta\sim\mathcal N(0,R).">
+<p><img class="math-inline" src="assets/deeponet-eki-math/inline-24b94d8ecd5f7c8c.svg" alt="\mathcal H"> 在一组已知的输入函数与查询位置上计算 DeepONet 输出，并把这些标量拼成向量。网络前向计算承担了反问题中的观测预测。</p>
+<h3>9.2 人工动力学：让参数在算法中移动</h3>
+<p>本文构造：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-2d1eacdfdb9432c1.svg" alt="\theta_i=\theta_{i-1}+\epsilon_i,\qquad
+\epsilon_i\sim\mathcal N(0,Q_i).">
+<p>这是人工状态空间模型。<img class="math-inline" src="assets/deeponet-eki-math/inline-3924da6c6c6887a6.svg" alt="i"> 是迭代编号；<img class="math-inline" src="assets/deeponet-eki-math/inline-edfe6871d9230d0e.svg" alt="Q_i"> 让参数集合在预测步获得扰动，帮助维持探索与分散。</p>
+<p>原始待估计网络参数可以是静态未知量，这个公式并不是说真实物理参数在按该随机游走规律演化。</p>
+<h3>9.3 一次 EKI 更新的完整顺序</h3>
+<p>初始化 <img class="math-inline" src="assets/deeponet-eki-math/inline-09543b7fc6c07e2d.svg" alt="J"> 组参数。本论文实验使用标准高斯初始化：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-2948fcbb0d93a4a5.svg" alt="\theta_0^{(j)}\sim\mathcal N(0,I_p),\qquad j=1,\ldots,J.">
+<p>第 <img class="math-inline" src="assets/deeponet-eki-math/inline-3924da6c6c6887a6.svg" alt="i"> 次迭代按以下顺序进行。</p>
+<p><strong>第一步：扰动参数集合。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ba20117bedbfcd87.svg" alt="\widehat\theta_i^{(j)}=\theta_{i-1}^{(j)}+\epsilon_i^{(j)},
+\qquad\epsilon_i^{(j)}\sim\mathcal N(0,Q_i).">
+<p><strong>第二步：计算各网络对当前观测位置的预测。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ec8974e12a21bab3.svg" alt="\widehat h_i^{(j)}=\mathcal H_i(\widehat\theta_i^{(j)}).">
+<p><strong>第三步：计算均值与协方差。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-0f4575a4d3c86f66.svg" alt="\bar\theta_i=\frac1J\sum_j\widehat\theta_i^{(j)},
+\qquad \bar h_i=\frac1J\sum_j\widehat h_i^{(j)},">
+<img class="math-block" src="assets/deeponet-eki-math/block-fa37e3e630b66118.svg" alt="C_i^{\theta h}=\frac1{J-1}\sum_j
+(\widehat\theta_i^{(j)}-\bar\theta_i)
+(\widehat h_i^{(j)}-\bar h_i)^T,">
+<img class="math-block" src="assets/deeponet-eki-math/block-6b6a820b3a8fde7d.svg" alt="C_i^{hh}=\frac1{J-1}\sum_j
+(\widehat h_i^{(j)}-\bar h_i)
+(\widehat h_i^{(j)}-\bar h_i)^T.">
+<p><strong>第四步：根据残差修正参数。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ac34fc7615b2f003.svg" alt="K_i=C_i^{\theta h}(C_i^{hh}+R_i)^{-1},">
+<img class="math-block" src="assets/deeponet-eki-math/block-c3d84f1486da2372.svg" alt="\theta_i^{(j)}=\widehat\theta_i^{(j)}
++K_i[d_i-\widehat h_i^{(j)}+\eta_i^{(j)}],
+\qquad\eta_i^{(j)}\sim\mathcal N(0,R_i).">
+<p>这里 <img class="math-inline" src="assets/deeponet-eki-math/inline-8fa3b2e26a200ea5.svg" alt="d_i,R_i,\mathcal H_i"> 都对应本轮选中的训练小批量。若使用完整观测集，则可去掉这几个下标。</p>
+<p>公式对应论文式（2.10）–（2.15）与算法 1。本教程统一了迭代下标和预测符号，便于区分“更新前”与“更新后”。</p>
+<h3>9.4 用矩阵尺寸检查公式</h3>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>尺寸</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-0e78e701197ed3c7.svg" alt="\theta^{(j)}"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-fcdd4caac71b8372.svg" alt="p\times1"></td>
+<td>一组网络参数</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-87c8f46605e6d148.svg" alt="h^{(j)},d"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-ffa362874f4262e5.svg" alt="n\times1"></td>
+<td>预测观测、实际观测</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-7fb879f69ac14ca0.svg" alt="C^{\theta h}"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-e417cb371cd83cc4.svg" alt="p\times n"></td>
+<td>参数与预测观测的交叉协方差</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-0fedb2da9be68d49.svg" alt="C^{hh},R"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-5dd3dcabfee74c43.svg" alt="n\times n"></td>
+<td>预测观测协方差、观测噪声协方差</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-633c98d53797ecbc.svg" alt="K"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-e417cb371cd83cc4.svg" alt="p\times n"></td>
+<td>把观测残差转成参数修正</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"></td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-06dd4e10d2fd12fd.svg" alt="p\times p"></td>
+<td>人工参数扰动协方差</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <img class="math-inline" src="assets/deeponet-eki-math/inline-809cf93e12278547.svg" alt="K(d-h)"> 的尺寸是 <img class="math-inline" src="assets/deeponet-eki-math/inline-fcdd4caac71b8372.svg" alt="p\times1">，可以加到参数向量上。</p>
+<p>本文利用集合异常矩阵的乘积表达协方差，不需要按稠密形式存储完整的 <img class="math-inline" src="assets/deeponet-eki-math/inline-06dd4e10d2fd12fd.svg" alt="p\times p"> 参数协方差。各向同性的 <img class="math-inline" src="assets/deeponet-eki-math/inline-fd8dd3ff01cc94c6.svg" alt="Q=\omega^2I_p"> 也可直接通过独立高斯扰动实现。</p>
+<h3>9.5 R 与 Q 必须分开理解</h3>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>所在空间</th>
+<th>来源</th>
+<th>在本文中的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"></td>
+<td>观测空间</td>
+<td>训练输出的观测噪声模型</td>
+<td>加权观测残差，决定更新对数据的信任程度</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"></td>
+<td>参数空间</td>
+<td>人工动力学中的算法扰动</td>
+<td>调整参数集合的探索与分散程度</td>
+</tr>
+</tbody>
+</table>
+<p>对第 <img class="math-inline" src="assets/deeponet-eki-math/inline-57fca070ea65ef56.svg" alt="l"> 条输入函数，论文使用 <img class="math-inline" src="assets/deeponet-eki-math/inline-f4a7055cfcf8cfd4.svg" alt="R_l=\sigma_l^2I_P">，并把它们组合为块对角矩阵。不同曲线的噪声标准差可以因输出尺度不同而不同。</p>
+<p>论文 §2.5 的英文标题把 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 写成 observation error covariance，但其正文及式（2.8）、（2.10）明确把 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 定义为人工动力学协方差；观测误差协方差是 <img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R">。阅读时应以模型定义为准，避免被这个标题混淆。</p>
+<h3>9.6 集合坍缩是什么，为什么需要调 Q</h3>
+<p>若各成员越来越相似，集合方差可能趋近于零。这叫集合坍缩。它可能导致算法缺少探索，也可能让输出带显得过于自信。</p>
+<p>没有人工扰动、采用典型线性组合更新时，成员常受初始集合仿射张成空间的限制。维数最多为 <img class="math-inline" src="assets/deeponet-eki-math/inline-638f694acbdeb066.svg" alt="J-1"> 的集合结构难以无条件表示所有高维不确定方向。加入扰动可以改变这一限制，但也会引入新的调节问题。</p>
+<ul>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 太小：可能维持不了合理分散，区间过窄。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 太大：参数持续受强扰动，均值预测可能变差，区间也可能过宽。</li>
+</ul>
+<p>附录 A 用不同固定 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 与自适应 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 的比较说明这种影响。</p>
+<h3>9.7 本文怎样自适应调节 Q</h3>
+<p>作者采用简化形式：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-399e17979d4b1a2e.svg" alt="Q_i=\omega_i^2I_p.">
+<p>这相当于为所有参数方向使用同一个扰动尺度，而不是学习任意完整协方差矩阵。</p>
+<p>在专门留出的验证子集上，定义预测均值向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-bdbd9cd1dcf884ea.svg" alt="\mu_i^q">、点态标准差向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-15c08e56e45ac007.svg" alt="s_i^q">，以及数据向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-542126e32f60802e.svg" alt="d_i^q">，然后计算：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-204b6de568babd5a.svg" alt="f_i=\frac{\kappa\|s_i^q\|_2-\|d_i^q-\mu_i^q\|_2}
+{\|d_i^q\|_2},\qquad\kappa=2.">
+<p>这是论文式（2.25）。其含义是比较“集合带的尺度”与“验证残差的尺度”。在分母非零时：</p>
+<ul>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-85b55833f31a404c.svg" alt="f_i"> 较负：集合分散相对残差偏小，增大 <img class="math-inline" src="assets/deeponet-eki-math/inline-265659e4933da0c2.svg" alt="\omega">。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-85b55833f31a404c.svg" alt="f_i"> 较正：集合分散相对残差偏大，减小 <img class="math-inline" src="assets/deeponet-eki-math/inline-265659e4933da0c2.svg" alt="\omega">。</li>
+</ul>
+<p>作者对最近一段迭代的 <img class="math-inline" src="assets/deeponet-eki-math/inline-85b55833f31a404c.svg" alt="f_i"> 进行窗口平均，设窗口平均为 <img class="math-inline" src="assets/deeponet-eki-math/inline-7537645d9340368f.svg" alt="\bar f_i">，按式（2.26）更新：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-06a43c8de994c35f.svg" alt="\omega_{i+1}=
+\begin{cases}
+(1+\alpha)\omega_i,&amp;\bar f_i&lt;-\tau,\\
+(1-\alpha)\omega_i,&amp;\bar f_i\geq\tau,\\
+\omega_i,&amp;\text{其他情况}.
+\end{cases}">
+<p>原文用 <img class="math-inline" src="assets/deeponet-eki-math/inline-6cb4603d3587b6b6.svg" alt="f_i,\ldots,f_{i-W_q}"> 表示该窗口；精确复现时需要核对窗口端点与实现。先理解调节方向即可。</p>
+<p>这里调的是标准差尺度 <img class="math-inline" src="assets/deeponet-eki-math/inline-265659e4933da0c2.svg" alt="\omega">，协方差为 <img class="math-inline" src="assets/deeponet-eki-math/inline-58de1481a93bbea3.svg" alt="\omega^2I">。例如 <img class="math-inline" src="assets/deeponet-eki-math/inline-265659e4933da0c2.svg" alt="\omega"> 乘以 1.01 后，协方差尺度乘以 <img class="math-inline" src="assets/deeponet-eki-math/inline-e3222b2a7bc19432.svg" alt="1.01^2">。</p>
+<p>这是一种利用验证数据的启发式调节：它力图让分散与残差在尺度上相称，并没有单凭该公式就证明后验正确或区间已严格校准。验证数据带噪声时，残差还会包含观测噪声贡献。</p>
+<h3>9.8 为什么采用小批量</h3>
+<p>如果有 <img class="math-inline" src="assets/deeponet-eki-math/inline-bac4923e26e1ce52.svg" alt="N"> 条输入曲线，每条有 <img class="math-inline" src="assets/deeponet-eki-math/inline-e508c02b0ef76771.svg" alt="P"> 个输出点，完整观测维数为 <img class="math-inline" src="assets/deeponet-eki-math/inline-c50792427ea3a45a.svg" alt="NP">。直接处理这个维度的稠密矩阵会很昂贵；通常的稠密分解开销随维度呈立方级增长。</p>
+<p>本文每轮抽取 <img class="math-inline" src="assets/deeponet-eki-math/inline-166090c6351543c1.svg" alt="m_t=500"> 个标量输出观测，并使用完全对应的 <img class="math-inline" src="assets/deeponet-eki-math/inline-a7c76616f5b1b146.svg" alt="\mathcal H_i"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-390939cef1bf6268.svg" alt="R_i">。这不是每轮抽 500 条完整函数，也不是集合成员数 500。</p>
+<p>训练、调节 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q">、提前停止分别使用不同的数据池，每轮各自抽取标量观测。文中说的“不放回”指相应本轮抽样，不表示所有训练观测一生只能用一次；迭代之间会重复利用数据。</p>
+<h3>9.9 为什么不能简单照搬“精确后验采样”的结论</h3>
+<p>单次、线性高斯、协方差精确的卡尔曼更新有明确的贝叶斯解释。但本文涉及非线性神经网络、有限集合、重复数据更新、人工动力学、小批量与自适应扰动。</p>
+<p>重复使用同一观测不是自动获得新的独立信息。未经相应设计和分析，反复套用更新也不保证始终保持原静态反问题的目标后验。</p>
+<p>因此，理解 EKI 时要区分：</p>
+<ol>
+<li>作为优化或参数拟合算法，能否得到好的预测均值？</li>
+<li>作为不确定性估计工具，集合分散是否提供有用信息？</li>
+<li>是否已经证明集合精确表示某个指定后验？</li>
+</ol>
+<p>前两项的经验有效性不自动推出第三项。本文主要通过数值实验展示前两项。</p>
+<h3>9.10 提前停止如何工作</h3>
+<p>小批量会使逐轮残差波动，作者另留一组数据监测停止条件。对相应噪声协方差加权的残差为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-b7b9a6dd18e9836a.svg" alt="D_i=(d_i^s-\mu_i^s)^T(R_i^s)^{-1}(d_i^s-\mu_i^s).">
+<p>将最近 <img class="math-inline" src="assets/deeponet-eki-math/inline-761280291df2b129.svg" alt="W"> 次残差进行平滑。如果历史最好的平滑值在连续 <img class="math-inline" src="assets/deeponet-eki-math/inline-633c98d53797ecbc.svg" alt="K"> 次迭代中没有改善，就停止训练。见 §2.6、式（2.28）–（2.29）。</p>
+<p>它同时考虑小批量的噪声波动与泛化表现，不是“训练残差必须降到零”。</p>
+<h3>9.11 本文实验的数据分工与关键超参数</h3>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th style="text-align:right">输入/输出函数对数量</th>
+<th style="text-align:right">每轮抽取的标量观测数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>更新网络参数</td>
+<td style="text-align:right">800</td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-166090c6351543c1.svg" alt="m_t=500"></td>
+</tr>
+<tr>
+<td>调节人工扰动 Q</td>
+<td style="text-align:right">100</td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-ee360af68450bb4e.svg" alt="m_q=500"></td>
+</tr>
+<tr>
+<td>提前停止</td>
+<td style="text-align:right">100</td>
+<td style="text-align:right"><img class="math-inline" src="assets/deeponet-eki-math/inline-93a74353af98aa13.svg" alt="m_s=500"></td>
+</tr>
+<tr>
+<td>独立测试</td>
+<td style="text-align:right">另生成 1000</td>
+<td style="text-align:right">用于最终评估</td>
+</tr>
+</tbody>
+</table>
+<p>§3 还给出 <img class="math-inline" src="assets/deeponet-eki-math/inline-88a4f01f34be76ba.svg" alt="J=5000">、<img class="math-inline" src="assets/deeponet-eki-math/inline-49b94f95c60bb9c0.svg" alt="\alpha=0.01">、调节阈值 <img class="math-inline" src="assets/deeponet-eki-math/inline-3ed2408270950af3.svg" alt="\tau=0">；提前停止使用 <img class="math-inline" src="assets/deeponet-eki-math/inline-a7ef9525fb18addc.svg" alt="W=10">、<img class="math-inline" src="assets/deeponet-eki-math/inline-5845f572068ed388.svg" alt="K=1000">。正文把人工扰动的初始标准差尺度写为 <img class="math-inline" src="assets/deeponet-eki-math/inline-32f4b818ab7af0fe.svg" alt="\omega_0=0.0001">。</p>
+<p>注意区分 <img class="math-inline" src="assets/deeponet-eki-math/inline-265659e4933da0c2.svg" alt="\omega"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-1fdbc2a0466ddff3.svg" alt="\omega^2">：附录图注按方差报告初始值，和正文标准差写法并非直接同一个量。精确复现应核对代码及所采用的设置，不能把两个数字不加区分地抄到同一个变量里。</p>
+<p>这些是作者在给定任务、架构和硬件下使用的设置，不是所有问题的通用最优选择。尤其 <img class="math-inline" src="assets/deeponet-eki-math/inline-88a4f01f34be76ba.svg" alt="J=5000"> 可能带来显著内存与前向计算开销。</p>
+<h3>9.12 将整套算法读成一段话</h3>
+<pre><code class="language-text">初始化多组 DeepONet 参数
+    ↓
+从训练数据池抽取一批输出观测
+    ↓
+给每组参数加入人工扰动
+    ↓
+所有网络预测这批观测
+    ↓
+用集合协方差和观测残差更新每组参数
+    ↓
+在另一数据池上调节 Q，在停止数据池上检查平滑残差
+    ↓ 未满足停止条件则继续
+保留最后的参数集合
+    ↓
+给定新输入，计算所有网络输出的均值、标准差与点态带
+</code></pre>
+<h3>9.13 自测</h3>
+<ol>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 和 <img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 分别在什么空间？</li>
+<li>为什么人工扰动越大不一定越好？</li>
+<li>为什么调 Q 的数据与最终测试数据要分开？</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-de741c920d85552e.svg" alt="p=80000,n=500"> 时，增益 <img class="math-inline" src="assets/deeponet-eki-math/inline-633c98d53797ecbc.svg" alt="K"> 是什么尺寸？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-b45559a58b73b5fa.svg" alt="R"> 在观测空间，<img class="math-inline" src="assets/deeponet-eki-math/inline-1dcf7c54563ddbb7.svg" alt="Q"> 在网络参数空间。</li>
+<li>过大扰动可能破坏拟合，使均值变差并产生过宽的带。</li>
+<li>调 Q 已经利用数据选择算法行为；最终测试需要保留独立证据，避免用同一批数据既调节又证明效果。</li>
+<li><img class="math-inline" src="assets/deeponet-eki-math/inline-7687abc938e889d6.svg" alt="80000\times500">，乘 <img class="math-inline" src="assets/deeponet-eki-math/inline-17ed3ca30a8574ae.svg" alt="500\times1"> 的残差得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-a8a477112885f4aa.svg" alt="80000\times1"> 的参数修正。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 不看原文也能写出一次迭代的四个步骤，并说明 R、Q、小批量和提前停止的作用。</p>
+<hr>
+<p><a id="lecture-10"></a></p>
+<h2>第 10 讲：检验不确定性估计，并完整阅读论文</h2>
+<h3>10.1 为什么画出阴影带还不够</h3>
+<p>可以把带画得极宽，使所有真值都落进去，但这种预测可能毫无决策价值。也可以把带画得极窄，看起来精确，却经常漏掉真值。</p>
+<p>好的 UQ 需要同时考虑预测准确性、分散程度与实际覆盖行为。更完整的评估还要考虑不同工况、名义概率水平与未来应用场景。</p>
+<h3>10.2 本文的三个核心指标</h3>
+<p>对第 <img class="math-inline" src="assets/deeponet-eki-math/inline-57fca070ea65ef56.svg" alt="l"> 个测试输入，设在 <img class="math-inline" src="assets/deeponet-eki-math/inline-e508c02b0ef76771.svg" alt="P"> 个查询位置的真值为向量 <img class="math-inline" src="assets/deeponet-eki-math/inline-1fc0470143915d68.svg" alt="s_l">，集合均值为 <img class="math-inline" src="assets/deeponet-eki-math/inline-ad903aca80ffea6a.svg" alt="\mu_l">，点态标准差向量为 <img class="math-inline" src="assets/deeponet-eki-math/inline-6a39271ec3593360.svg" alt="\sigma_l">。</p>
+<p><strong>相对误差，式（3.1）：</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5b7e8d479eb340dd.svg" alt="e_l=\frac{\|s_l-\mu_l\|_2}{\|s_l\|_2}.">
+<p>它度量平均预测曲线离真值曲线有多远。</p>
+<p><strong>不确定性指标，式（3.2）：</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-40a9f73bcd062143.svg" alt="q_l=\frac{\|\sigma_l\|_2}{\|s_l\|_2}.">
+<p>它度量点态标准差向量的整体大小，相对于真值曲线尺度进行了归一化。它不是严格意义上的“所有标准差的算术平均”，也不是误差本身。</p>
+<p><strong>两倍标准差带的点态覆盖率，式（3.3）：</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-0551988080fe84f0.svg" alt="c_l=\frac1P\sum_{k=1}^{P}
+\mathbf 1\{|s_{lk}-\mu_{lk}|\leq2\sigma_{lk}\}.">
+<p>最后对 <img class="math-inline" src="assets/deeponet-eki-math/inline-92d44e55a8a4bd5e.svg" alt="N_t"> 条测试曲线分别取平均，得到 <img class="math-inline" src="assets/deeponet-eki-math/inline-0d66f1a3f6130102.svg" alt="e_t,q_t,c_t">，见式（3.4）。</p>
+<p>若真值曲线范数接近零，相对指标可能很大或不稳定。实际应用应同时查看绝对误差与尺度分组，不能只看归一化后的一个数字。</p>
+<h3>10.3 四个查询点的手算练习</h3>
+<p>取：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-4060b0942271162b.svg" alt="s=[0,1,2,3],\qquad
+\mu=[0.1,0.8,2.2,2.5],\qquad
+\sigma=[0.1,0.1,0.2,0.1].">
+<p>逐点带为：</p>
+<table>
+<thead>
+<tr>
+<th>查询点</th>
+<th style="text-align:right">真值</th>
+<th>均值 ± 两倍标准差</th>
+<th>是否覆盖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td style="text-align:right">0</td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-399fcfe24cf961e9.svg" alt="[-0.1,0.3]"></td>
+<td>是</td>
+</tr>
+<tr>
+<td>2</td>
+<td style="text-align:right">1</td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-dd60d763df5f2936.svg" alt="[0.6,1.0]"></td>
+<td>是，位于边界</td>
+</tr>
+<tr>
+<td>3</td>
+<td style="text-align:right">2</td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-e5e030f4bac8c80c.svg" alt="[1.8,2.6]"></td>
+<td>是</td>
+</tr>
+<tr>
+<td>4</td>
+<td style="text-align:right">3</td>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-fa612b86931ab216.svg" alt="[2.3,2.7]"></td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>因此：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ea400c96aa3b5bb2.svg" alt="c=3/4=75\%,">
+<img class="math-block" src="assets/deeponet-eki-math/block-9064ddacac1c23c4.svg" alt="e=\frac{\sqrt{0.34}}{\sqrt{14}}\approx0.1558,
+\qquad
+q=\frac{\sqrt{0.07}}{\sqrt{14}}\approx0.0707.">
+<p>这个例子里集合整体分散小于均值误差，并且最后一个点的带明显过窄。但仅凭这四个点，不能推断整个方法在所有任务中的表现。</p>
+<h3>10.4 覆盖率为什么不是越高越好</h3>
+<p>如果把所有标准差乘以 100，覆盖率可能接近 100%，但区间宽到无法区分安全与危险。这叫过于保守，或分散过大。</p>
+<p>对于明确标定为 95% 的预测区间，通常希望在相应数据分布下覆盖率接近目标水平，同时区间尽可能有信息。低于目标很多可能过于自信，高于目标很多可能过于保守；还要考虑有限测试样本的统计波动。</p>
+<p>本文只报告 <img class="math-inline" src="assets/deeponet-eki-math/inline-715b77c499cd8cee.svg" alt="\mu\pm2\sigma"> 的一个主要水平，且输出分布未被严格保证为高斯，因此不能简单把 95.45% 当作其已经成立的理论覆盖率。</p>
+<h3>10.5 点态覆盖与整条曲线覆盖</h3>
+<p>本文的 <img class="math-inline" src="assets/deeponet-eki-math/inline-73be8e766f723490.svg" alt="c_l"> 是一条曲线上被覆盖的查询点比例，然后再对曲线平均。</p>
+<p>它不等于以下事件的概率：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-ea97cdd1b91a1e8e.svg" alt="P\{s(\xi)\text{ 在所有位置都位于带内}\}.">
+<p>仅作示例：若 100 个点的覆盖事件相互独立，每个点覆盖概率为 95%，全部覆盖的概率只有 <img class="math-inline" src="assets/deeponet-eki-math/inline-6c9bc7bb3b4b360c.svg" alt="0.95^{100}\approx0.006">。真实曲线通常存在相关性，不能直接套这个数字；它只是说明两个目标差别很大。</p>
+<p>离散查询点全部被覆盖，也不自动保证网格之间没有越界。</p>
+<p>因此，若应用关心“整条轨迹始终安全”，还需研究联合分布、同时置信带或路径事件概率。点态带不是轨迹安全证书。</p>
+<h3>10.6 校准：预测的概率与实际频率相称吗</h3>
+<p>校准可以先理解为：“模型声称的把握程度，在重复测试中是否与实际表现相称”。</p>
+<p>一个比单水平覆盖率更完整的流程是：</p>
+<ol>
+<li>在独立测试集上，构造多个名义水平的区间，例如 50%、80%、90%、95%。</li>
+<li>分别计算实际覆盖比例。</li>
+<li>比较名义水平与实际覆盖的关系。</li>
+<li>同时记录区间宽度、绝对误差与不同工况下的表现。</li>
+</ol>
+<p>即使总体覆盖接近目标，某些工况仍可能严重漏覆盖。比如低速覆盖很好，高速覆盖很差，混在一起的平均值可能掩盖问题。</p>
+<p>校准必须针对明确的预测对象。用未来带噪读数评估的区间，与用无噪声潜在输出评估的区间，目标不同。</p>
+<h3>10.7 误差与不确定性的正相关说明什么</h3>
+<p>论文多次绘制每条测试函数的 <img class="math-inline" src="assets/deeponet-eki-math/inline-c941a270ea2654c0.svg" alt="e_l"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-d25213776cc9d87d.svg" alt="q_l"> 散点图。若误差较大的样本往往伴随较大的不确定性，说明后者可能具有识别困难样本的价值。</p>
+<p>但正相关不能单独证明概率校准，也不能证明后验推断正确。</p>
+<p>此外，<img class="math-inline" src="assets/deeponet-eki-math/inline-c941a270ea2654c0.svg" alt="e_l"> 与 <img class="math-inline" src="assets/deeponet-eki-math/inline-d25213776cc9d87d.svg" alt="q_l"> 共用分母 <img class="math-inline" src="assets/deeponet-eki-math/inline-de8990294f50acc7.svg" alt="\|s_l\|_2">。真值尺度小可能使两个归一化指标都增大，解释相关性时还应查看绝对量、尺度分组与其他证据，而不能把所有相关性直接归因于方法识别了未知性。</p>
+<h3>10.8 可进一步使用的评分方法</h3>
+<p>若模型给出了明确的预测概率密度，可以使用对整个分布评分的规则。以高斯预测为例，单个真值 <img class="math-inline" src="assets/deeponet-eki-math/inline-b7c4deb092eb7e51.svg" alt="s"> 的负对数似然为：</p>
+<img class="math-block" src="assets/deeponet-eki-math/block-5048a5bbb74c8be8.svg" alt="\mathrm{NLL}=\frac12\log(2\pi\sigma^2)
++\frac{(s-\mu)^2}{2\sigma^2}.">
+<p>误差很大却声称极小方差，会受到较强惩罚；把方差任意放大也有代价。使用该式之前，需要有合理的高斯预测模型，不能把任意集合的两个矩直接当作已经验证的高斯密度。</p>
+<p>其他可拓展方向包括 CRPS、区间评分与事件概率的 Brier 评分。第一轮学习不必推导它们；先理解其目的：让“准确且诚实表达未知性”的预测获得更合理的评价。</p>
+<h3>10.9 本文三个算例分别学什么算子</h3>
+<p><strong>算例 3.1：反导数算子。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-55b3c10e6f8d3a75.svg" alt="\frac{ds}{dx}=u(x),\qquad s(0)=0,
+\qquad s(x)=\int_0^x u(\zeta)\,d\zeta.">
+<p>它适合先建立函数到函数的直觉。GP 生成输入，数值输出用于训练；研究带噪训练下预测与 UQ 的表现。</p>
+<p><strong>算例 3.2：反应扩散方程。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-a1e494852222fcfd.svg" alt="\frac{\partial s}{\partial t}
+=\nu\frac{\partial^2s}{\partial x^2}+ks^2+u(x),
+\qquad \nu=k=0.01,">
+<p>配合零初值与两端零边界。输入是空间函数 <img class="math-inline" src="assets/deeponet-eki-math/inline-df65af60f681b04c.svg" alt="u(x)">，输出是时空场 <img class="math-inline" src="assets/deeponet-eki-math/inline-f7f3b3ff959e4c5d.svg" alt="s(x,t)">，查询位置为 <img class="math-inline" src="assets/deeponet-eki-math/inline-9c07b1c7b939635e.svg" alt="(x,t)">。这是含空间耦合与非线性项的例子。</p>
+<p><strong>算例 3.3：重力摆。</strong></p>
+<img class="math-block" src="assets/deeponet-eki-math/block-dc42c63f49b44e59.svg" alt="\frac{d^2s}{dt^2}=-\sin(s)+u(t).">
+<p>在指定初值下，输入驱动函数 <img class="math-inline" src="assets/deeponet-eki-math/inline-ad5af68c158d03a9.svg" alt="u(t)"> 决定响应曲线 <img class="math-inline" src="assets/deeponet-eki-math/inline-6f497886cfa5f56a.svg" alt="s(t)">。这里 <img class="math-inline" src="assets/deeponet-eki-math/inline-3312398edd314620.svg" alt="\sin(s)"> 体现非线性。复现时还要核对求解器初值；仅有这条微分方程并不能唯一确定解。</p>
+<p>反导数例子输出在 100 个位置采样；反应扩散例子使用 <img class="math-inline" src="assets/deeponet-eki-math/inline-fb777074d7e2ee38.svg" alt="100\times100"> 时空网格；重力摆输出在 100 个时间位置采样。后两者与反导数的输入也采用相应 GP 方式生成。</p>
+<h3>10.10 用论文表格练习读结果</h3>
+<p>以下从表 3.2–3.7 摘录。噪声 1% 或 5% 指训练输出噪声标准差相对于对应输出函数最大绝对值的比例；相对误差、不确定性和覆盖率均为测试集平均指标。</p>
+<table>
+<thead>
+<tr>
+<th>算例</th>
+<th style="text-align:right">训练输出噪声</th>
+<th style="text-align:right">平均相对误差 <img class="math-inline" src="assets/deeponet-eki-math/inline-f5d3aaebfb32b16f.svg" alt="e_t"></th>
+<th style="text-align:right">平均不确定性 <img class="math-inline" src="assets/deeponet-eki-math/inline-369d987765e0d46b.svg" alt="q_t"></th>
+<th style="text-align:right">点态覆盖率 <img class="math-inline" src="assets/deeponet-eki-math/inline-92858658ad073c3f.svg" alt="c_t"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>反导数</td>
+<td style="text-align:right">1%</td>
+<td style="text-align:right">0.009</td>
+<td style="text-align:right">0.014</td>
+<td style="text-align:right">98.5%</td>
+</tr>
+<tr>
+<td>反导数</td>
+<td style="text-align:right">5%</td>
+<td style="text-align:right">0.027</td>
+<td style="text-align:right">0.070</td>
+<td style="text-align:right">99.7%</td>
+</tr>
+<tr>
+<td>反应扩散</td>
+<td style="text-align:right">1%</td>
+<td style="text-align:right">0.016</td>
+<td style="text-align:right">0.030</td>
+<td style="text-align:right">99.3%</td>
+</tr>
+<tr>
+<td>反应扩散</td>
+<td style="text-align:right">5%</td>
+<td style="text-align:right">0.051</td>
+<td style="text-align:right">0.084</td>
+<td style="text-align:right">99.3%</td>
+</tr>
+<tr>
+<td>重力摆</td>
+<td style="text-align:right">1%</td>
+<td style="text-align:right">0.008</td>
+<td style="text-align:right">0.025</td>
+<td style="text-align:right">99.9%</td>
+</tr>
+<tr>
+<td>重力摆</td>
+<td style="text-align:right">5%</td>
+<td style="text-align:right">0.019</td>
+<td style="text-align:right">0.036</td>
+<td style="text-align:right">96.8%</td>
+</tr>
+</tbody>
+</table>
+<p>可以作出的具体观察是：</p>
+<ul>
+<li>在这三个算例中，训练噪声增大时，平均预测误差和平均集合分散都增大。</li>
+<li>六种设置的平均点态覆盖率均较高，其中多种表现偏保守。</li>
+<li>不确定性指标与误差同量级并有正相关的实验现象，支持其作为误差提示的潜力。</li>
+</ul>
+<p>不能仅据此断言：</p>
+<ul>
+<li>输出集合就是严格的真实贝叶斯后验预测分布。</li>
+<li>在任意物理系统、未知噪声、噪声输入或分布外输入上都有同样结果。</li>
+<li>点态覆盖率高，就能保证整条轨迹或控制系统安全。</li>
+<li>本文已经证明相对于所有替代方法都具有最优的速度与校准表现。</li>
+</ul>
+<p>论文 §4 也指出，更大网络可能需要更大集合并带来内存问题，并讨论了降维与局部化等后续方向。</p>
+<h3>10.11 若把方法迁移到航行器预测，先确认哪些具体问题</h3>
+<table>
+<thead>
+<tr>
+<th>需要明确的问题</th>
+<th>为什么会影响结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>输入是外力、控制、海流，还是状态历史？</td>
+<td>决定算子在学习哪种映射</td>
+</tr>
+<tr>
+<td>初始状态、模型参数和输入各有什么未知性？</td>
+<td>决定要传播哪些分布</td>
+</tr>
+<tr>
+<td>误差带针对真实状态，还是带测量噪声的读数？</td>
+<td>决定验证对象与噪声处理</td>
+</tr>
+<tr>
+<td>外力的时间相关结构怎样建模？</td>
+<td>影响积分后的轨迹分散</td>
+</tr>
+<tr>
+<td>测试集是否包含新的整条工况或轨迹？</td>
+<td>决定是否在检验实际泛化</td>
+</tr>
+<tr>
+<td>关注单点误差还是整条路径的越界事件？</td>
+<td>决定点态带是否足够</td>
+</tr>
+<tr>
+<td>海况或控制策略改变后是否仍可靠？</td>
+<td>涉及分布外泛化与模型失配</td>
+</tr>
+</tbody>
+</table>
+<p>这张表帮助定义研究问题，不意味着本文已经回答了全部问题。</p>
+<h3>10.12 独立讲解论文的练习</h3>
+<p>尝试用五分钟、按照下面顺序讲一遍：</p>
+<ol>
+<li>问题：有限带噪输出数据下，DeepONet 如何给出预测及不确定性估计？</li>
+<li>建模：参数先验、高斯观测似然、由网络前向构成的观测算子。</li>
+<li>推断：参数集合、人工扰动、样本协方差与卡尔曼更新。</li>
+<li>实用改进：训练小批量、独立数据调 Q、平滑残差提前停止。</li>
+<li>预测：固定新输入，统计所有网络输出。</li>
+<li>验证：三个算例、两种训练噪声、误差/分散/覆盖率。</li>
+<li>判断：实验上有用的不确定性估计，与严格后验和安全保证之间仍有距离。</li>
+</ol>
+<h3>10.13 自测</h3>
+<ol>
+<li>将所有区间扩大十倍，覆盖率升高，是否能证明 UQ 更好？</li>
+<li>99% 的点态覆盖率是否等于 99% 的完整轨迹覆盖率？</li>
+<li>误差与标准差高度正相关，是否足够证明概率校准？</li>
+<li>本文最终测试主要比较干净求解器输出，还是新加噪的观测读数？</li>
+</ol>
+<details>
+<summary>参考答案</summary>
+<ol>
+<li>不能。还要考虑区间宽度、名义水平、实际用途及合适评分。</li>
+<li>不等于。完整轨迹覆盖是不同的联合事件。</li>
+<li>不够。排序或相关性与概率水平正确是不同问题，还可能受共同归一化影响。</li>
+<li>主要以数值求解器生成的干净测试输出为真值；训练输出受到噪声污染。</li>
+</ol>
+</details>
+<p><strong>本讲完成标准：</strong> 能准确复述论文的主张，并指出这些实验支持什么、尚未证明什么。</p>
+<hr>
+<h2>附录 A：常用术语速查</h2>
+<table>
+<thead>
+<tr>
+<th>英文/缩写</th>
+<th>中文</th>
+<th>一句话理解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UQ</td>
+<td>不确定性量化</td>
+<td>识别、描述、推断、传播并检验未知性</td>
+</tr>
+<tr>
+<td>Uncertainty propagation</td>
+<td>不确定性传播</td>
+<td>输入或参数分布经过模型变成输出分布</td>
+</tr>
+<tr>
+<td>Aleatoric uncertainty</td>
+<td>偶然不确定性</td>
+<td>给定建模信息下仍保留的随机波动</td>
+</tr>
+<tr>
+<td>Epistemic uncertainty</td>
+<td>认知不确定性</td>
+<td>由知识、数据或模型认识不足引起的未知性</td>
+</tr>
+<tr>
+<td>Model discrepancy</td>
+<td>模型差异</td>
+<td>所采用模型与真实规律之间的偏差</td>
+</tr>
+<tr>
+<td>Random variable</td>
+<td>随机变量</td>
+<td>取值不确定、可用概率描述的量</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>概率密度函数</td>
+<td>对区间积分得到概率的函数</td>
+</tr>
+<tr>
+<td>CDF</td>
+<td>累积分布函数</td>
+<td>不超过给定值的概率</td>
+</tr>
+<tr>
+<td>Quantile</td>
+<td>分位数</td>
+<td>累积概率达到某水平的位置</td>
+</tr>
+<tr>
+<td>Covariance</td>
+<td>协方差</td>
+<td>两个量的共同偏离结构</td>
+</tr>
+<tr>
+<td>GP</td>
+<td>高斯过程</td>
+<td>任意有限取值向量联合高斯的随机过程</td>
+</tr>
+<tr>
+<td>Kernel</td>
+<td>核函数</td>
+<td>在本文 GP 中描述不同位置间协方差</td>
+</tr>
+<tr>
+<td>Prior</td>
+<td>先验</td>
+<td>当前观测更新前的参数分布</td>
+</tr>
+<tr>
+<td>Likelihood</td>
+<td>似然</td>
+<td>参数给定时，观测数据对模型的支持程度</td>
+</tr>
+<tr>
+<td>Posterior</td>
+<td>后验</td>
+<td>条件于观测后的参数分布</td>
+</tr>
+<tr>
+<td>MAP</td>
+<td>最大后验估计</td>
+<td>后验密度最大的一个参数点</td>
+</tr>
+<tr>
+<td>Posterior predictive</td>
+<td>后验预测</td>
+<td>对参数后验加权得到的输出或观测分布</td>
+</tr>
+<tr>
+<td>Monte Carlo</td>
+<td>蒙特卡洛</td>
+<td>以随机样本近似积分和统计量</td>
+</tr>
+<tr>
+<td>Operator learning</td>
+<td>算子学习</td>
+<td>学习函数到函数的映射</td>
+</tr>
+<tr>
+<td>DeepONet</td>
+<td>深度算子网络</td>
+<td>用 Branch 与 Trunk 组合表示算子的网络</td>
+</tr>
+<tr>
+<td>Branch / Trunk</td>
+<td>分支网络 / 主干网络</td>
+<td>分别编码输入函数和查询位置</td>
+</tr>
+<tr>
+<td>Ensemble</td>
+<td>集合</td>
+<td>多个状态或参数成员构成的数值表示</td>
+</tr>
+<tr>
+<td>EnKF</td>
+<td>集合卡尔曼滤波</td>
+<td>用集合估计协方差并更新未知状态</td>
+</tr>
+<tr>
+<td>EKI</td>
+<td>集合卡尔曼反演</td>
+<td>借助集合卡尔曼思想迭代估计模型参数</td>
+</tr>
+<tr>
+<td>Innovation</td>
+<td>创新、观测残差</td>
+<td>实际观测与预测观测的差异</td>
+</tr>
+<tr>
+<td>Ensemble collapse</td>
+<td>集合坍缩</td>
+<td>成员过于接近、集合分散趋小的现象</td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>覆盖率</td>
+<td>验证目标实际落入预测区间的比例</td>
+</tr>
+<tr>
+<td>Calibration</td>
+<td>校准</td>
+<td>声称的概率水平与实际覆盖行为相称</td>
+</tr>
+<tr>
+<td>Sharpness</td>
+<td>集中程度</td>
+<td>在保持适当校准时，预测分布有多集中</td>
+</tr>
+<tr>
+<td>OOD</td>
+<td>分布外</td>
+<td>新输入或工况偏离训练/验证分布</td>
+</tr>
+<tr>
+<td>Minibatch</td>
+<td>小批量</td>
+<td>每次只使用部分训练观测</td>
+</tr>
+<tr>
+<td>Early stopping</td>
+<td>提前停止</td>
+<td>根据留出数据等指标及时终止迭代</td>
+</tr>
+</tbody>
+</table>
+<h2>附录 B：关键公式与论文位置</h2>
+<table>
+<thead>
+<tr>
+<th>公式或对象</th>
+<th>本教程位置</th>
+<th>原文位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-759967bb7b5b5aae.svg" alt="s=\mathcal G(u)"> 与 DeepONet 点积</td>
+<td>第 7 讲</td>
+<td>§2.1、式（2.1）、图 2.1</td>
+</tr>
+<tr>
+<td>输出加高斯噪声</td>
+<td>第 1、5 讲</td>
+<td>式（2.2）</td>
+</tr>
+<tr>
+<td>似然与贝叶斯后验</td>
+<td>第 5 讲</td>
+<td>式（2.3）–（2.4）</td>
+</tr>
+<tr>
+<td><img class="math-inline" src="assets/deeponet-eki-math/inline-6ea0a84cb6aa49b6.svg" alt="d=\mathcal H(\theta)+\eta"></td>
+<td>第 5、9 讲</td>
+<td>式（2.5）</td>
+</tr>
+<tr>
+<td>带高斯先验的后验表达</td>
+<td>第 5 讲</td>
+<td>式（2.6）–（2.7）</td>
+</tr>
+<tr>
+<td>人工参数动力学</td>
+<td>第 9 讲</td>
+<td>式（2.8）–（2.10）</td>
+</tr>
+<tr>
+<td>预测观测与集合更新</td>
+<td>第 8、9 讲</td>
+<td>式（2.11）–（2.15）、算法 1</td>
+</tr>
+<tr>
+<td>DeepONet 观测向量与噪声矩阵</td>
+<td>第 9 讲</td>
+<td>式（2.16）–（2.20）</td>
+</tr>
+<tr>
+<td>集合输出均值与标准差</td>
+<td>第 2、6 讲</td>
+<td>式（2.21）–（2.22）、图 2.2</td>
+</tr>
+<tr>
+<td>调节 Q 的验证统计量</td>
+<td>第 9 讲</td>
+<td>式（2.23）–（2.26）</td>
+</tr>
+<tr>
+<td>残差平滑与停止</td>
+<td>第 9 讲</td>
+<td>式（2.27）–（2.29）</td>
+</tr>
+<tr>
+<td>误差、分散与覆盖指标</td>
+<td>第 10 讲</td>
+<td>式（3.1）–（3.4）</td>
+</tr>
+<tr>
+<td>反导数与 GP 输入</td>
+<td>第 3、7、10 讲</td>
+<td>式（3.5）–（3.8）</td>
+</tr>
+<tr>
+<td>反应扩散方程</td>
+<td>第 10 讲</td>
+<td>式（3.9）–（3.12）</td>
+</tr>
+<tr>
+<td>重力摆方程</td>
+<td>第 10 讲</td>
+<td>式（3.13）</td>
+</tr>
+<tr>
+<td>Q 对带宽和均值的影响</td>
+<td>第 9 讲</td>
+<td>附录 A、图 A.1</td>
+</tr>
+</tbody>
+</table>
+<p>线性传播、全方差公式、标量高斯后验、置信/可信/预测区间的区分等，是为了理解论文补充的基础知识，不表示论文逐一推导了这些内容。</p>
+<h2>附录 C：十个常见误区</h2>
+<ol>
+<li><strong>“误差就是不确定性。”</strong> 误差比较预测与真值；不确定性描述在当前信息下的未知程度。</li>
+<li><strong>“高斯输入经过任何模型后还是高斯。”</strong> 非线性变换一般会改变分布形状。</li>
+<li><strong>“只需要每个时间点的标准差。”</strong> 轨迹传播通常还需要时间相关结构。</li>
+<li><strong>“更多成员会把物理不确定性按 <img class="math-inline" src="assets/deeponet-eki-math/inline-21645c13c86fa8f6.svg" alt="1/\sqrt J"> 缩小。”</strong> 这混淆了分布分散与均值估计误差。</li>
+<li><strong>“一组网络就等于精确贝叶斯采样。”</strong> 集合怎样构建、怎样更新及其理论条件都很重要。</li>
+<li><strong>“R 与 Q 都是噪声，换一个用也差不多。”</strong> 二者位于不同空间，物理含义和算法作用不同。</li>
+<li><strong>“Q 越大越能避免错误。”</strong> 强扰动可能破坏均值拟合并产生过宽的带。</li>
+<li><strong>“均值 ± 两倍标准差必然是 95% 区间。”</strong> 这依赖分布形状、估计质量与验证。</li>
+<li><strong>“覆盖率越高越好。”</strong> 极宽的带可以轻易获得高覆盖率，却缺少信息。</li>
+<li><strong>“点态带覆盖得好，就保证整条轨迹安全。”</strong> 路径事件需要联合分析，控制闭环还会引入额外问题。</li>
+</ol>
+<h2>附录 D：建议的论文阅读顺序</h2>
+<p>第一次读论文，不必按页面顺序逐行推进：</p>
+<ol>
+<li>先看摘要和图 2.2，知道它要解决什么、最终输出什么。</li>
+<li>完成第 1–3 讲，认识分布、标准差、协方差与 GP。</li>
+<li>完成第 4–6 讲，读 §2.2，区分后验与预测。</li>
+<li>完成第 7 讲，读 §2.1、图 2.1，理解输入与输出。</li>
+<li>完成第 8–9 讲，读 §2.3–2.6，手写一次 EKI 更新。</li>
+<li>完成第 10 讲，读 §3 的指标与三类实验。</li>
+<li>回看附录 A 与 §4，理解 Q 的敏感性以及扩展限制。</li>
+<li>最后再读引言的相关工作比较，区分 HMC、VI、深度集成与 EKI 的不同角色。</li>
+</ol>
+<h3>每讲学习笔记模板</h3>
+<pre><code class="language-text">学习日期：
+讲次：
+
+我能用自己的话解释的三个概念：
+1.
+2.
+3.
+
+我能独立算出的一个例子：
+
+这一讲怎样连接到论文：
+
+仍不明白的一个问题：
+
+下次开始前需要复习的内容：
+</code></pre>
+<h3>学完十讲后的综合检查</h3>
+<p>如果能够独立回答下面五问，就已经具备继续深入研究的基础：</p>
+<ol>
+<li>给定 <img class="math-inline" src="assets/deeponet-eki-math/inline-ea8e4bc1dd9fe695.svg" alt="U"> 的分布和动力学模型，怎样构造输出分布，为什么要保留输入相关性？</li>
+<li>给定有限带噪数据，怎样从先验和似然构造参数后验？</li>
+<li>潜在输出预测与未来带噪观测预测，方差为什么不同？</li>
+<li>EKI 怎样由集合协方差更新 DeepONet 参数，Q/R 分别起什么作用？</li>
+<li>如何用独立数据区分“均值准确”“误差提示有用”“概率校准良好”和“路径安全有保证”？</li>
+</ol>
+<h2>附录 E：后续阅读入口</h2>
+<p>建议先完成这份讲义，再按兴趣沿不同方向阅读：</p>
+<ul>
+<li><strong>概率与统计基础：</strong> Larry Wasserman，<em>All of Statistics</em>。用于补充分布、估计与推断的系统基础。</li>
+<li><strong>不确定性量化：</strong> Ralph C. Smith，<em>Uncertainty Quantification: Theory, Implementation, and Applications</em>。用于进一步了解传播、抽样和数值方法。</li>
+<li><strong>贝叶斯反问题：</strong> Andrew M. Stuart，<em>Inverse problems: A Bayesian perspective</em>（2010）。理论更深入，适合基础建立后阅读。</li>
+<li><strong>卡尔曼与滤波：</strong> Simo Särkkä 与 Lennart Svensson，<em>Bayesian Filtering and Smoothing</em>，第二版。用于理解滤波、近似更新和非线性处理。</li>
+<li><strong>EKI 原始研究：</strong> 本文参考文献 [15] Iglesias、Law 与 Stuart，<em>Ensemble Kalman methods for inverse problems</em>（2013）；[19] Kovachki 与 Stuart，<em>Ensemble Kalman inversion: a derivative-free technique for machine learning tasks</em>（2019）。</li>
+<li><strong>DeepONet：</strong> 本文参考文献 [25] Lu 等，<em>Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators</em>（2021）。</li>
+<li><strong>本文直接相关方法：</strong> 原文参考文献 [30] 的 EKI-B-PINN 工作，以及 [35] 的随机先验 DeepONet 不确定性量化工作。</li>
+</ul>
+<p>这些入口用于后续扩展，并不是完成第一轮十讲学习的前置要求。</p>

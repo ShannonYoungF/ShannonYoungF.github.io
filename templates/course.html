@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{html_lang}}">
+<head>
+  {{head}}
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["$$", "$$"], ["\\[", "\\]"]] },
+      options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <div id="reading-progress" class="reading-progress" aria-hidden="true"></div>
+  {{nav}}
+  <main class="course-shell">
+    <header class="post-header course-header">
+      <a class="back-link" href="../courses.html">← {{course_back}}</a>
+      <p class="post-category">{{nav_courses}} · {{course_chapters_label}}</p>
+      <h1>{{title}}</h1>
+      <p class="post-summary">{{summary}}</p>
+      <div class="post-meta"><span>{{updated_prefix}} <time datetime="{{updated}}">{{updated_display}}</time></span></div>
+      <div class="post-tags">{{tags_html}}</div>
+    </header>
+    <div class="course-layout">
+      <aside class="course-sidebar">
+        <details class="course-outline" open>
+          <summary>{{course_outline}}</summary>
+          <nav aria-label="{{course_outline}}">{{course_toc}}</nav>
+        </details>
+      </aside>
+      <article class="course-content">
+        <div class="reader-tools">
+          <button type="button" data-expand-answers>{{course_expand_answers}}</button>
+          <button type="button" data-print-course>{{course_print}}</button>
+        </div>
+        <div class="post-body course-body">{{body}}</div>
+        <footer class="post-footer"><a class="text-link" href="../courses.html">← {{course_back}}</a></footer>
+      </article>
+    </div>
+  </main>
+  {{footer}}
+  <script src="{{asset_root}}script.js"></script>
+</body>
+</html>

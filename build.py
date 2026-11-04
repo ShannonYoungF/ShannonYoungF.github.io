@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent
 CONTENT_DIR = ROOT / "content" / "posts"
+COURSE_CONTENT_DIR = ROOT / "content" / "courses"
 TEMPLATE_DIR = ROOT / "templates"
 INCLUDE_DIR = ROOT / "includes"
 POST_OUTPUT_DIR = ROOT / "posts"
@@ -37,6 +38,22 @@ UI = {
         "nav_tech": "技术",
         "nav_theory": "理论",
         "nav_thought": "思考",
+        "nav_courses": "课程",
+        "courses_title": "课程与系统学习",
+        "courses_description": "沿着章节逐步学习，将零散的知识整理成连贯的理解。",
+        "courses_intro": "把一个主题按章节展开，记录学习目标、关键概念与推导过程。",
+        "courses_kicker": "Courses / 课程",
+        "courses_entry_title": "沿着一条线，系统地学习",
+        "courses_entry_description": "在课程中按章节阅读，逐步建立完整的知识结构。",
+        "courses_browse": "浏览课程",
+        "courses_empty": "课程内容正在整理，欢迎稍后再来。",
+        "course_count_format": "{count} 门课程",
+        "course_chapters_format": "{count} 个章节",
+        "course_open": "开始学习",
+        "course_outline": "章节目录",
+        "course_back": "返回课程",
+        "course_expand_answers": "展开参考答案",
+        "course_print": "打印 / 保存为 PDF",
         "theme_label": "切换深浅色主题",
         "footer_tagline": "技术 · 理论 · 思考",
         "home_title_suffix": "技术、理论与思考",
@@ -91,6 +108,22 @@ UI = {
         "nav_tech": "Tech",
         "nav_theory": "Theory",
         "nav_thought": "Reflections",
+        "nav_courses": "Courses",
+        "courses_title": "Courses and Guided Learning",
+        "courses_description": "Follow a subject chapter by chapter and connect individual ideas into a coherent understanding.",
+        "courses_intro": "Explore a subject through its learning goals, key concepts, and derivations, one chapter at a time.",
+        "courses_kicker": "Courses / Guided learning",
+        "courses_entry_title": "Follow a subject from the foundations",
+        "courses_entry_description": "Read structured course notes chapter by chapter and build a connected understanding.",
+        "courses_browse": "Browse courses",
+        "courses_empty": "Course materials are being prepared. Check back soon.",
+        "course_count_format": "{count} course{plural}",
+        "course_chapters_format": "{count} chapters",
+        "course_open": "Start learning",
+        "course_outline": "Course outline",
+        "course_back": "Back to courses",
+        "course_expand_answers": "Expand reference answers",
+        "course_print": "Print / Save as PDF",
         "theme_label": "Toggle light and dark theme",
         "footer_tagline": "Technology · Theory · Reflection",
         "home_title_suffix": "Technology, Theory and Reflection",
@@ -160,6 +193,14 @@ def render_inline(text: str) -> str:
         return f"\x00CODE{len(placeholders) - 1}\x00"
 
     value = re.sub(r"`([^`]+)`", protect_code, value)
+
+    def protect_image(match: re.Match[str]) -> str:
+        alt = html.escape(html.unescape(match[1]), quote=True)
+        src = html.escape(html.unescape(match[2]), quote=True)
+        placeholders.append(f'<img src="{src}" alt="{alt}" loading="lazy">')
+        return f"\x00CODE{len(placeholders) - 1}\x00"
+
+    value = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", protect_image, value)
     value = re.sub(
         r"\[([^\]]+)\]\(([^)]+)\)",
         r'<a href="\2">\1</a>',
@@ -235,6 +276,18 @@ def render_markdown(source: str) -> str:
                 output.append(f"<tr>{cells}</tr>")
                 continue
             close_table()
+
+        if line.strip() == ":::answers":
+            flush_paragraph()
+            close_list()
+            output.append('<details class="reference-answers"><summary>Reference answers</summary>')
+            continue
+
+        if line.strip() == ":::endanswers":
+            flush_paragraph()
+            close_list()
+            output.append("</details>")
+            continue
 
         if line.strip().startswith("```"):
             flush_paragraph()
@@ -383,6 +436,108 @@ def load_posts() -> list[dict[str, Any]]:
     return sorted(posts, key=lambda item: item["date_obj"], reverse=True)
 
 
+def load_courses() -> list[dict[str, Any]]:
+    courses: list[dict[str, Any]] = []
+    seen_slugs: set[tuple[str, str]] = set()
+    required = {"title", "date", "lang", "translation_key", "summary", "tags", "slug"}
+    paths = [path for path in COURSE_CONTENT_DIR.rglob("*") if path.suffix in {".md", ".html"}]
+    for path in sorted(paths):
+        metadata, markdown = parse_front_matter(path.read_text(encoding="utf-8"))
+        missing = required - metadata.keys()
+        if missing:
+            raise ValueError(f"{path} is missing: {', '.join(sorted(missing))}")
+        if metadata["lang"] not in UI:
+            raise ValueError(f"Unknown course language in {path}: {metadata['lang']}")
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", metadata["slug"]):
+            raise ValueError(f"Invalid course slug in {path}: {metadata['slug']}")
+        if path.parent.name != metadata["slug"]:
+            raise ValueError(f"Move {path.name} to content/courses/{metadata['slug']}/")
+        slug_key = (metadata["lang"], metadata["slug"])
+        if slug_key in seen_slugs:
+            raise ValueError(f"Duplicate {metadata['lang']} course slug: {metadata['slug']}")
+        seen_slugs.add(slug_key)
+        published = parse_date(metadata["date"])
+        updated = parse_date(metadata.get("updated", metadata["date"]))
+        body = markdown if path.suffix == ".html" else render_markdown(markdown)
+        if path.suffix == ".md":
+            body = re.sub(r"<(\/?)h([2-6])\b", lambda match: f"<{match[1]}h{int(match[2]) - 1}", body)
+        if path.suffix == ".html":
+            body = re.sub(r"<table\b[^>]*>.*?</table>", lambda match: f'<div class="table-wrap">{match[0]}</div>', body, flags=re.S)
+        body, chapters = prepare_course_body(body)
+        courses.append({
+            **metadata,
+            "source_path": path,
+            "body": body,
+            "chapters": chapters,
+            "lecture_count": sum(anchor.startswith("lecture-") for anchor, _ in chapters),
+            "date_obj": published,
+            "updated_obj": updated,
+            "date_display": format_date(published),
+            "updated_display": format_date(updated),
+            "reading_time": reading_time(markdown),
+            "tags_list": [tag.strip() for tag in metadata["tags"].split(",") if tag.strip()],
+        })
+    return sorted(courses, key=lambda item: item["date_obj"], reverse=True)
+
+
+def prepare_course_body(body: str) -> tuple[str, list[tuple[str, str]]]:
+    chapters: list[tuple[str, str]] = []
+    body = re.sub(r'<p><a id="lecture-\d+"></a></p>\s*', "", body)
+
+    def size_formula(match: re.Match[str]) -> str:
+        tag, filename = match[0], match[1]
+        svg = (ROOT / "assets" / "courses" / "deeponet-eki" / filename).read_text(encoding="utf-8")
+        dimensions = re.match(r'<svg\b[^>]*\bwidth="(\d+)"\s+height="(\d+)"', svg)
+        if not dimensions:
+            raise ValueError(f"Missing formula dimensions: {filename}")
+        if not re.search(r"\bwidth=", tag):
+            tag = tag[:-1] + f' width="{dimensions[1]}" height="{dimensions[2]}">'
+        if not re.search(r"\bloading=", tag):
+            tag = tag[:-1] + ' loading="lazy">'
+        return tag
+
+    body = re.sub(r'<img\b[^>]*src="assets/deeponet-eki-math/([a-z0-9-]+\.svg)"[^>]*>', size_formula, body)
+
+    def add_heading(match: re.Match[str]) -> str:
+        heading = match[1]
+        plain = html.unescape(re.sub(r"<[^>]+>", "", heading))
+        lecture = re.match(r"(?:第\s*(\d+)\s*讲|Lecture\s+(\d+))", plain)
+        anchor = f"lecture-{int(lecture[1] or lecture[2]):02d}" if lecture else slugify(plain)
+        if any(existing == anchor for existing, _ in chapters):
+            raise ValueError(f"Duplicate course chapter: {plain}")
+        chapters.append((anchor, heading))
+        return f'<h2 id="{anchor}">{heading}</h2>'
+
+    body = re.sub(r"<h2(?:\s[^>]*)?>(.*?)</h2>", add_heading, body)
+    return body, chapters
+
+
+def translation_groups(items: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, Any]]]:
+    groups: dict[str, dict[str, dict[str, Any]]] = {}
+    for item in items:
+        group = groups.setdefault(item["translation_key"], {})
+        if item["lang"] in group:
+            raise ValueError(f"Duplicate {item['lang']} translation for {item['translation_key']}")
+        if group and any(other["slug"] != item["slug"] for other in group.values()):
+            raise ValueError(f"Course translations must share a slug: {item['translation_key']}")
+        group[item["lang"]] = item
+    return groups
+
+
+def course_card(course: dict[str, Any], lang: str) -> str:
+    ui = UI[lang]
+    tags = "".join(f"<span>{html.escape(tag)}</span>" for tag in course["tags_list"])
+    chapters_label = ui["course_chapters_format"].format(count=course["lecture_count"] or len(course["chapters"]))
+    duration = ui["reading_time_format"].format(minutes=course["reading_time"])
+    return f'''<article class="course-card">
+  <div class="course-card-meta"><span>{chapters_label}</span><span>{duration}</span></div>
+  <h2><a href="courses/{course['slug']}.html">{html.escape(course['title'])}</a></h2>
+  <p>{html.escape(course['summary'])}</p>
+  <div class="entry-tags">{tags}</div>
+  <a class="course-start" href="courses/{course['slug']}.html">{ui['course_open']} <span aria-hidden="true">↗</span></a>
+</article>'''
+
+
 def post_row(post: dict[str, Any], lang: str) -> str:
     category_label = CATEGORIES[post["category"]][lang]
     reading_time = UI[lang]["archive_time_format"].format(minutes=post["reading_time"])
@@ -455,8 +610,10 @@ def build_locale(
     all_posts: list[dict[str, Any]],
     translations: dict[str, dict[str, dict[str, Any]]],
     lang: str,
+    all_courses: list[dict[str, Any]],
 ) -> None:
     posts = [post for post in all_posts if post["lang"] == lang]
+    courses = [course for course in all_courses if course["lang"] == lang]
     counts = {key: sum(post["category"] == key for post in posts) for key in CATEGORIES}
     is_english = lang == "en"
     page_dir = EN_OUTPUT_DIR if is_english else ROOT
@@ -489,6 +646,7 @@ def build_locale(
             "tech_category_label": CATEGORIES["tech"][lang],
             "theory_category_label": CATEGORIES["theory"][lang],
             "thought_category_label": CATEGORIES["thought"][lang],
+            "course_count_label": UI[lang]["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s"),
         }
     )
     index_html = render_template((TEMPLATE_DIR / "index.html").read_text(encoding="utf-8"), index_context)
@@ -512,6 +670,7 @@ def build_locale(
             "tech_count": counts["tech"],
             "theory_count": counts["theory"],
             "thought_count": counts["thought"],
+            "course_count_label": UI[lang]["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s"),
         }
     )
     blog_html = render_template((TEMPLATE_DIR / "blog.html").read_text(encoding="utf-8"), blog_context)
@@ -572,9 +731,66 @@ def build_locale(
         (post_output_dir / f"{post['slug']}.html").write_text(rendered, encoding="utf-8")
 
 
+def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]], lang: str) -> None:
+    ui = UI[lang]
+    english = lang == "en"
+    page_dir = EN_OUTPUT_DIR if english else ROOT
+    output_dir = page_dir / "courses"
+    output_dir.mkdir(exist_ok=True)
+    courses = [course for course in all_courses if course["lang"] == lang]
+    groups = translation_groups(all_courses)
+    context = common_context(
+        site, lang, "../" if english else "", "",
+        f"{ui['courses_title']} — {site['name']}", ui["courses_description"],
+        "../courses.html" if english else "en/courses.html",
+        "en/courses.html" if english else "courses.html",
+        {"zh": "courses.html", "en": "en/courses.html"},
+    )
+    context["course_count_label"] = ui["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s")
+    context["course_cards"] = "\n".join(course_card(course, lang) for course in courses)
+    context["courses_empty_html"] = "" if courses else f'<p class="empty-state">{ui["courses_empty"]}</p>'
+    template = (TEMPLATE_DIR / "courses.html").read_text(encoding="utf-8")
+    (page_dir / "courses.html").write_text(render_template(template, context), encoding="utf-8")
+
+    template = (TEMPLATE_DIR / "course.html").read_text(encoding="utf-8")
+    for course in courses:
+        other_lang = "zh" if english else "en"
+        counterpart = groups[course["translation_key"]].get(other_lang)
+        if counterpart:
+            switch = ("../../courses/" if english else "../en/courses/") + counterpart["slug"] + ".html"
+        else:
+            switch = "../../courses.html" if english else "../en/courses.html"
+        alternates = {
+            language: ("en/" if language == "en" else "") + f"courses/{item['slug']}.html"
+            for language, item in groups[course["translation_key"]].items()
+        }
+        asset_root = "../../" if english else "../"
+        context = common_context(
+            site, lang, asset_root, "../", f"{course['title']} — {site['name']}",
+            course["summary"], switch,
+            ("en/" if english else "") + f"courses/{course['slug']}.html", alternates,
+        )
+        context.update(course)
+        context["body"] = course["body"].replace("assets/deeponet-eki-math/", asset_root + "assets/courses/deeponet-eki/")
+        context["course_toc"] = "\n".join(
+            f'<a href="#{anchor}">{heading}</a>' for anchor, heading in course["chapters"]
+        )
+        context["course_chapters_label"] = ui["course_chapters_format"].format(
+            count=course["lecture_count"] or len(course["chapters"])
+        )
+        context["tags_html"] = "".join(f"<span>{html.escape(tag)}</span>" for tag in course["tags_list"])
+        (output_dir / f"{course['slug']}.html").write_text(render_template(template, context), encoding="utf-8")
+
+    expected = {f"{course['slug']}.html" for course in courses}
+    for path in output_dir.glob("*.html"):
+        if path.name not in expected:
+            path.unlink()
+
+
 def build() -> None:
     site = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
     posts = load_posts()
+    courses = load_courses()
     translations: dict[str, dict[str, dict[str, Any]]] = {}
     for post in posts:
         group = translations.setdefault(post["translation_key"], {})
@@ -585,9 +801,10 @@ def build() -> None:
         group[post["lang"]] = post
 
     for lang in UI:
-        build_locale(site, posts, translations, lang)
+        build_locale(site, posts, translations, lang, courses)
+        build_courses_locale(site, courses, lang)
 
-    print(f"Built {len(posts)} localized posts and {len(UI)} site languages")
+    print(f"Built {len(posts)} localized posts, {len(courses)} localized courses, and {len(UI)} site languages")
 
 
 if __name__ == "__main__":

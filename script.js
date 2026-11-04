@@ -11,6 +11,43 @@ if (languageSwitch && window.location.pathname.endsWith("blog.html") && window.l
   languageSwitch.href = target.toString();
 }
 
+if (languageSwitch && document.querySelector(".course-body")) {
+  const translatedUrl = new URL(languageSwitch.href, window.location.href);
+  const updateChapterSwitch = () => {
+    translatedUrl.hash = /^#lecture-\d{2}$/.test(window.location.hash) ? window.location.hash : "";
+    languageSwitch.href = translatedUrl.toString();
+  };
+  updateChapterSwitch();
+  window.addEventListener("hashchange", updateChapterSwitch);
+}
+
+const courseOutline = document.querySelector(".course-outline");
+if (courseOutline && window.matchMedia("(max-width: 900px)").matches) courseOutline.open = false;
+if (courseOutline && window.location.hash) {
+  const requestedChapter = window.location.hash;
+  window.addEventListener("load", () => {
+    const alignChapter = () => {
+      if (window.location.hash !== requestedChapter) return;
+      document.getElementById(decodeURIComponent(requestedChapter.slice(1)))?.scrollIntoView({ behavior: "instant", block: "start" });
+    };
+    const typesetting = window.MathJax?.startup?.promise;
+    if (typesetting) typesetting.then(alignChapter);
+    else alignChapter();
+  }, { once: true });
+}
+document.querySelector("[data-expand-answers]")?.addEventListener("click", () => {
+  document.querySelectorAll(".course-body details").forEach((details) => { details.open = true; });
+});
+document.querySelector("[data-print-course]")?.addEventListener("click", () => window.print());
+let closedAnswersBeforePrint = [];
+window.addEventListener("beforeprint", () => {
+  closedAnswersBeforePrint = [...document.querySelectorAll(".course-body details:not([open])")];
+  closedAnswersBeforePrint.forEach((details) => { details.open = true; });
+});
+window.addEventListener("afterprint", () => {
+  closedAnswersBeforePrint.forEach((details) => { details.open = false; });
+});
+
 themeButton?.addEventListener("click", () => {
   const next = root.dataset.theme === "dark" ? "light" : "dark";
   root.dataset.theme = next;
@@ -85,7 +122,7 @@ const progress = document.querySelector("#reading-progress");
 const articleBody = document.querySelector(".post-body");
 if (progress && articleBody) {
   const updateProgress = () => {
-    const start = articleBody.offsetTop;
+    const start = articleBody.getBoundingClientRect().top + window.scrollY;
     const distance = articleBody.offsetHeight - window.innerHeight;
     const value = distance <= 0 ? 1 : Math.min(1, Math.max(0, (window.scrollY - start) / distance));
     progress.style.width = `${value * 100}%`;

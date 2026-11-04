@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{html_lang}}">
+<head>
+  {{head}}
+</head>
+<body>
+  {{nav}}
+  <main class="blog-shell">
+    <section class="page-intro">
+      <p class="section-kicker">{{courses_kicker}}</p>
+      <h1>{{courses_title}}</h1>
+      <p>{{courses_intro}}</p>
+    </section>
+    <section class="courses-section" aria-label="{{nav_courses}}">
+      <p class="section-kicker">{{course_count_label}}</p>
+      <div class="course-grid">{{course_cards}}</div>
+{{courses_empty_html}}
+    </section>
+  </main>
+  {{footer}}
+  <script src="{{asset_root}}script.js"></script>
+</body>
+</html>

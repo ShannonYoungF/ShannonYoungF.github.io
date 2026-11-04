@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="沿着章节逐步学习，将零散的知识整理成连贯的理解。">
+<meta name="theme-color" content="#f4f1ea">
+<title>课程与系统学习 — Shannon Young</title>
+<link rel="canonical" href="https://shannonyoungf.github.io/courses.html">
+<link rel="alternate" hreflang="zh-CN" href="https://shannonyoungf.github.io/courses.html">
+<link rel="alternate" hreflang="en" href="https://shannonyoungf.github.io/en/courses.html">
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+  <header class="site-header">
+  <a class="identity" href="index.html" aria-label="返回首页">
+    <span class="avatar" aria-hidden="true">SY</span>
+    <span>Shannon Young</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">打开导航</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="主导航">
+    <a href="index.html">首页</a>
+    <a href="blog.html?category=tech">技术</a>
+    <a href="blog.html?category=theory">理论</a>
+    <a href="blog.html?category=thought">思考</a>
+    <a href="courses.html">课程</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="language-switch" href="en/courses.html" hreflang="en" lang="en" aria-label="切换到英文">EN</a>
+    <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="切换深浅色主题">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+  <main class="blog-shell">
+    <section class="page-intro">
+      <p class="section-kicker">Courses / 课程</p>
+      <h1>课程与系统学习</h1>
+      <p>把一个主题按章节展开，记录学习目标、关键概念与推导过程。</p>
+    </section>
+    <section class="courses-section" aria-label="课程">
+      <p class="section-kicker">1 门课程</p>
+      <div class="course-grid"><article class="course-card">
+  <div class="course-card-meta"><span>10 个章节</span><span>104 分钟阅读</span></div>
+  <h2><a href="courses/deeponet-eki-uncertainty.html">不确定性传播与量化：DeepONet–EKI 十讲</a></h2>
+  <p>从概率分布、协方差和贝叶斯推断出发，逐步读懂 DeepONet 与集合卡尔曼反演，并学会检验不确定性估计。包含十讲、手算示例、自测答案和五个附录。</p>
+  <div class="entry-tags"><span>不确定性量化</span><span>DeepONet</span><span>EKI</span><span>贝叶斯推断</span></div>
+  <a class="course-start" href="courses/deeponet-eki-uncertainty.html">开始学习 <span aria-hidden="true">↗</span></a>
+</article></div>
+
+    </section>
+  </main>
+  <footer>
+  <p>© <span id="year"></span> Shannon Young</p>
+  <p>技术 · 理论 · 思考</p>
+</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

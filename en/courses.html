@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Follow a subject chapter by chapter and connect individual ideas into a coherent understanding.">
+<meta name="theme-color" content="#f4f1ea">
+<title>Courses and Guided Learning — Shannon Young</title>
+<link rel="canonical" href="https://shannonyoungf.github.io/en/courses.html">
+<link rel="alternate" hreflang="zh-CN" href="https://shannonyoungf.github.io/courses.html">
+<link rel="alternate" hreflang="en" href="https://shannonyoungf.github.io/en/courses.html">
+<script>
+  (() => {
+    const saved = localStorage.getItem("site-theme");
+    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || preferred;
+  })();
+</script>
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<link rel="stylesheet" href="../styles.css">
+
+</head>
+<body>
+  <header class="site-header">
+  <a class="identity" href="index.html" aria-label="Back to home">
+    <span class="avatar" aria-hidden="true">SY</span>
+    <span>Shannon Young</span>
+  </a>
+
+  <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+    <span></span><span></span><span></span>
+    <span class="sr-only">Open navigation</span>
+  </button>
+
+  <nav id="site-nav" class="site-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="blog.html?category=tech">Tech</a>
+    <a href="blog.html?category=theory">Theory</a>
+    <a href="blog.html?category=thought">Reflections</a>
+    <a href="courses.html">Courses</a>
+  </nav>
+
+  <div class="header-actions">
+    <a class="language-switch" href="../courses.html" hreflang="zh-CN" lang="zh-CN" aria-label="Switch to Chinese">中</a>
+    <a href="https://github.com/ShannonYoungF" target="_blank" rel="noreferrer" aria-label="GitHub">GH</a>
+    <button class="theme-button" type="button" aria-label="Toggle light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5a8.5 8.5 0 1 0 11.7 11.7Z"></path></svg>
+    </button>
+  </div>
+</header>
+
+  <main class="blog-shell">
+    <section class="page-intro">
+      <p class="section-kicker">Courses / Guided learning</p>
+      <h1>Courses and Guided Learning</h1>
+      <p>Explore a subject through its learning goals, key concepts, and derivations, one chapter at a time.</p>
+    </section>
+    <section class="courses-section" aria-label="Courses">
+      <p class="section-kicker">1 course</p>
+      <div class="course-grid"><article class="course-card">
+  <div class="course-card-meta"><span>10 chapters</span><span>53 min read</span></div>
+  <h2><a href="courses/deeponet-eki-uncertainty.html">Uncertainty Propagation and Quantification: Ten Lectures on DeepONet–EKI</a></h2>
+  <p>A guided course from probability distributions, covariance, and Bayesian inference to DeepONet and ensemble Kalman inversion. Ten lectures with worked examples, self-checks, reference answers, and five appendices.</p>
+  <div class="entry-tags"><span>Uncertainty Quantification</span><span>DeepONet</span><span>EKI</span><span>Bayesian Inference</span></div>
+  <a class="course-start" href="courses/deeponet-eki-uncertainty.html">Start learning <span aria-hidden="true">↗</span></a>
+</article></div>
+
+    </section>
+  </main>
+  <footer>
+  <p>© <span id="year"></span> Shannon Young</p>
+  <p>Technology · Theory · Reflection</p>
+</footer>
+
+  <script src="../script.js"></script>
+</body>
+</html>
