@@ -51,6 +51,8 @@ UI = {
         "course_chapters_format": "{count} 个章节",
         "course_open": "开始学习",
         "course_outline": "章节目录",
+        "course_hide_outline": "收起章节目录",
+        "course_show_outline": "展开章节目录",
         "course_back": "返回课程",
         "course_expand_answers": "展开参考答案",
         "course_print": "打印 / 保存为 PDF",
@@ -121,6 +123,8 @@ UI = {
         "course_chapters_format": "{count} chapters",
         "course_open": "Start learning",
         "course_outline": "Course outline",
+        "course_hide_outline": "Collapse course outline",
+        "course_show_outline": "Expand course outline",
         "course_back": "Back to courses",
         "course_expand_answers": "Expand reference answers",
         "course_print": "Print / Save as PDF",
@@ -670,6 +674,7 @@ def build_locale(
             "tech_count": counts["tech"],
             "theory_count": counts["theory"],
             "thought_count": counts["thought"],
+            "course_count": len(courses),
             "course_count_label": UI[lang]["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s"),
         }
     )
@@ -731,13 +736,14 @@ def build_locale(
         (post_output_dir / f"{post['slug']}.html").write_text(rendered, encoding="utf-8")
 
 
-def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]], lang: str) -> None:
+def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]], lang: str, all_posts: list[dict[str, Any]]) -> None:
     ui = UI[lang]
     english = lang == "en"
     page_dir = EN_OUTPUT_DIR if english else ROOT
     output_dir = page_dir / "courses"
     output_dir.mkdir(exist_ok=True)
     courses = [course for course in all_courses if course["lang"] == lang]
+    posts = [post for post in all_posts if post["lang"] == lang]
     groups = translation_groups(all_courses)
     context = common_context(
         site, lang, "../" if english else "", "",
@@ -747,6 +753,11 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
         {"zh": "courses.html", "en": "en/courses.html"},
     )
     context["course_count_label"] = ui["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s")
+    context.update({
+        "total_count": len(posts),
+        "course_count": len(courses),
+        **{f"{key}_count": sum(post["category"] == key for post in posts) for key in CATEGORIES},
+    })
     context["course_cards"] = "\n".join(course_card(course, lang) for course in courses)
     context["courses_empty_html"] = "" if courses else f'<p class="empty-state">{ui["courses_empty"]}</p>'
     template = (TEMPLATE_DIR / "courses.html").read_text(encoding="utf-8")
@@ -802,7 +813,7 @@ def build() -> None:
 
     for lang in UI:
         build_locale(site, posts, translations, lang, courses)
-        build_courses_locale(site, courses, lang)
+        build_courses_locale(site, courses, lang, posts)
 
     print(f"Built {len(posts)} localized posts, {len(courses)} localized courses, and {len(UI)} site languages")
 

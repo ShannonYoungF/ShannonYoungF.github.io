@@ -70,8 +70,11 @@
     <div class="course-layout">
       <aside class="course-sidebar">
         <details class="course-outline" open>
-          <summary>Course outline</summary>
-          <nav aria-label="Course outline"><a href="#how-to-use-this-course">How to use this course</a>
+          <summary aria-controls="course-outline-nav" aria-label="Collapse course outline" title="Collapse course outline" data-collapse-label="Collapse course outline" data-expand-label="Expand course outline">
+            <span class="course-outline-label">Course outline</span>
+            <svg class="course-outline-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
+          </summary>
+          <nav id="course-outline-nav" aria-label="Course outline"><a href="#how-to-use-this-course">How to use this course</a>
 <a href="#lecture-01">Lecture 1: Uncertainty, error, quantification, and propagation</a>
 <a href="#lecture-02">Lecture 2: Describing an uncertain number</a>
 <a href="#lecture-03">Lecture 3: Covariance, correlation, and random functions</a>

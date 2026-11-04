@@ -22,7 +22,47 @@ if (languageSwitch && document.querySelector(".course-body")) {
 }
 
 const courseOutline = document.querySelector(".course-outline");
-if (courseOutline && window.matchMedia("(max-width: 900px)").matches) courseOutline.open = false;
+if (courseOutline) {
+  const layout = document.querySelector(".course-layout");
+  const summary = courseOutline.querySelector("summary");
+  const body = document.querySelector(".course-body");
+  const compactViewport = window.matchMedia("(max-width: 900px)");
+  let rememberedState = localStorage.getItem("site-course-outline");
+  let readingPosition = null;
+
+  const syncOutline = () => {
+    layout.classList.toggle("is-outline-collapsed", !courseOutline.open);
+    const label = courseOutline.open ? summary.dataset.collapseLabel : summary.dataset.expandLabel;
+    summary.setAttribute("aria-label", label);
+    summary.title = label;
+  };
+  const applyViewport = () => {
+    courseOutline.open = !compactViewport.matches && rememberedState !== "collapsed";
+    syncOutline();
+  };
+  summary.addEventListener("click", () => {
+    const readingTop = header.getBoundingClientRect().bottom + 24;
+    if (body.getBoundingClientRect().top >= readingTop) return;
+    const element = [...body.children].find((child) => child.getBoundingClientRect().bottom > readingTop);
+    if (element) readingPosition = { element, top: element.getBoundingClientRect().top };
+  });
+  courseOutline.addEventListener("toggle", () => {
+    syncOutline();
+    if (!compactViewport.matches) {
+      rememberedState = courseOutline.open ? "expanded" : "collapsed";
+      localStorage.setItem("site-course-outline", rememberedState);
+    }
+    if (readingPosition) {
+      const { element, top } = readingPosition;
+      readingPosition = null;
+      requestAnimationFrame(() => {
+        window.scrollBy({ top: element.getBoundingClientRect().top - top, behavior: "instant" });
+      });
+    }
+  });
+  compactViewport.addEventListener("change", applyViewport);
+  applyViewport();
+}
 if (courseOutline && window.location.hash) {
   const requestedChapter = window.location.hash;
   window.addEventListener("load", () => {
@@ -83,7 +123,7 @@ const observer = new IntersectionObserver((entries) => {
 document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
 document.querySelector("#year").textContent = new Date().getFullYear();
 
-const filterButtons = [...document.querySelectorAll(".filter-button")];
+const filterButtons = [...document.querySelectorAll(".filter-button[data-filter]")];
 const entryCards = [...document.querySelectorAll(".entry-card")];
 const searchInput = document.querySelector("#post-search");
 const emptyState = document.querySelector("#empty-state");

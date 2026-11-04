@@ -70,8 +70,11 @@
     <div class="course-layout">
       <aside class="course-sidebar">
         <details class="course-outline" open>
-          <summary>章节目录</summary>
-          <nav aria-label="章节目录"><a href="#使用方法与学习路线">使用方法与学习路线</a>
+          <summary aria-controls="course-outline-nav" aria-label="收起章节目录" title="收起章节目录" data-collapse-label="收起章节目录" data-expand-label="展开章节目录">
+            <span class="course-outline-label">章节目录</span>
+            <svg class="course-outline-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
+          </summary>
+          <nav id="course-outline-nav" aria-label="章节目录"><a href="#使用方法与学习路线">使用方法与学习路线</a>
 <a href="#lecture-01">第 1 讲：不确定性、误差、量化与传播</a>
 <a href="#lecture-02">第 2 讲：怎样描述一个不确定的数</a>
 <a href="#lecture-03">第 3 讲：协方差、相关性与随机函数</a>

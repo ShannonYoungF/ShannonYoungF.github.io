@@ -14,15 +14,6 @@
       <p>{{blog_intro}}</p>
     </section>
 
-    <section class="course-entry" aria-label="{{nav_courses}}">
-      <div>
-        <p class="section-kicker">{{courses_kicker}} · {{course_count_label}}</p>
-        <h2>{{courses_entry_title}}</h2>
-        <p>{{courses_entry_description}}</p>
-      </div>
-      <a class="course-start" href="courses.html">{{courses_browse}} <span aria-hidden="true">↗</span></a>
-    </section>
-
     <section class="archive-section reveal" aria-label="{{archive_aria}}">
       <div class="filter-toolbar">
         <div class="filter-group" aria-label="{{filter_aria}}">
@@ -30,6 +21,7 @@
           <button class="filter-button" type="button" data-filter="tech">{{filter_tech}} <span>{{tech_count}}</span></button>
           <button class="filter-button" type="button" data-filter="theory">{{filter_theory}} <span>{{theory_count}}</span></button>
           <button class="filter-button" type="button" data-filter="thought">{{filter_thought}} <span>{{thought_count}}</span></button>
+          <a class="filter-button" href="courses.html">{{nav_courses}} <span>{{course_count}}</span></a>
         </div>
         <label class="search-box">
           <span class="sr-only">{{search_label}}</span>

@@ -12,6 +12,13 @@
       <p>{{courses_intro}}</p>
     </section>
     <section class="courses-section" aria-label="{{nav_courses}}">
+      <nav class="filter-group course-categories" aria-label="{{filter_aria}}">
+        <a class="filter-button" href="blog.html">{{filter_all}} <span>{{total_count}}</span></a>
+        <a class="filter-button" href="blog.html?category=tech">{{filter_tech}} <span>{{tech_count}}</span></a>
+        <a class="filter-button" href="blog.html?category=theory">{{filter_theory}} <span>{{theory_count}}</span></a>
+        <a class="filter-button" href="blog.html?category=thought">{{filter_thought}} <span>{{thought_count}}</span></a>
+        <a class="filter-button is-active" href="courses.html" aria-current="page">{{nav_courses}} <span>{{course_count}}</span></a>
+      </nav>
       <p class="section-kicker">{{course_count_label}}</p>
       <div class="course-grid">{{course_cards}}</div>
 {{courses_empty_html}}

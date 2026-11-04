@@ -25,8 +25,11 @@
     <div class="course-layout">
       <aside class="course-sidebar">
         <details class="course-outline" open>
-          <summary>{{course_outline}}</summary>
-          <nav aria-label="{{course_outline}}">{{course_toc}}</nav>
+          <summary aria-controls="course-outline-nav" aria-label="{{course_hide_outline}}" title="{{course_hide_outline}}" data-collapse-label="{{course_hide_outline}}" data-expand-label="{{course_show_outline}}">
+            <span class="course-outline-label">{{course_outline}}</span>
+            <svg class="course-outline-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
+          </summary>
+          <nav id="course-outline-nav" aria-label="{{course_outline}}">{{course_toc}}</nav>
         </details>
       </aside>
       <article class="course-content">
