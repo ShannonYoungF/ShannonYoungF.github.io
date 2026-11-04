@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import quote
 
 from scripts.course_labs import enrich_course
+from scripts.formula_figures import enrich_formulas
 
 
 ROOT = Path(__file__).resolve().parent
@@ -473,6 +474,7 @@ def load_courses() -> list[dict[str, Any]]:
         body, chapters = prepare_course_body(body)
         if metadata["slug"] == "deeponet-eki-uncertainty":
             body = enrich_course(body, metadata["lang"])
+            body = enrich_formulas(body, metadata["lang"])
         courses.append({
             **metadata,
             "source_path": path,
@@ -788,7 +790,7 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
         )
         context.update(course)
         context["course_script_version"] = sha256((ROOT / "script.js").read_bytes()).hexdigest()[:10]
-        lab_assets = ["assets/course-labs.css", "assets/course-labs.js"] if course["slug"] == "deeponet-eki-uncertainty" else []
+        lab_assets = ["assets/course-labs.css", "assets/course-labs.js", "assets/formula-figures.css", "assets/formula-figures.js"] if course["slug"] == "deeponet-eki-uncertainty" else []
         context["course_lab_assets"] = "\n".join(
             (f'<link rel="stylesheet" href="{asset_root}{path}?v={sha256((ROOT / path).read_bytes()).hexdigest()[:10]}">'
              if path.endswith(".css") else

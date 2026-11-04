@@ -82,6 +82,10 @@ DeepONet–EKI 课程的十讲各有一个中英文互动实验，用小车、�
 
 实验文案和章节插入逻辑在 `scripts/course_labs.py`，图形与计算在 `assets/course-labs.js`，样式在 `assets/course-labs.css`。修改后运行 `python build.py`；资源地址自动带内容指纹以更新缓存。重新导入中文阅读版不会覆盖这些实验。EKI 使用固定随机种子的一维教学模型，方便重复对比 Q；进水示例用解析积分作为算子映射的正确答案，均不代表已训练的 DeepONet。
 
+各讲正文另有 26 处中英文公式图解，放在对应数字小节的公式与说明之后，覆盖期望、方差、核函数、贝叶斯更新、积分、Branch/Trunk 点积、EKI 与覆盖率等。默认显示完整静态 SVG、公式和三步解读；可播放、暂停、单步阅读或恢复全图。播放一轮即停止，离开视口和切到后台会暂停；减少动态效果模式改用手动步进。打印显示完整图，即使禁用 JavaScript 也能阅读。
+
+图解数据与服务端 SVG 生成在 `scripts/formula_figures.py`，交互与样式在 `assets/formula-figures.js`、`assets/formula-figures.css`。以 `1.2` 等小节编号插入，构建会检查每处恰好插入一次；不要直接改生成的课程页面。中英文使用相同的 `formula-02-03` 等锚点，切换语言会保留当前图解位置。所有手算示例都标明简化条件，构造曲线不代表论文实验数据。
+
 ## 生成网站
 
 ```powershell

@@ -14,7 +14,7 @@ if (languageSwitch && window.location.pathname.endsWith("blog.html") && window.l
 if (languageSwitch && document.querySelector(".course-body")) {
   const translatedUrl = new URL(languageSwitch.href, window.location.href);
   const updateChapterSwitch = () => {
-    translatedUrl.hash = /^#(?:lecture|lab)-\d{2}$/.test(window.location.hash) ? window.location.hash : "";
+    translatedUrl.hash = /^#(?:(?:lecture|lab)-\d{2}|formula-\d{2}-\d{2})$/.test(window.location.hash) ? window.location.hash : "";
     languageSwitch.href = translatedUrl.toString();
   };
   updateChapterSwitch();
