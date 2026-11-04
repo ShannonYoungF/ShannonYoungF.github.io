@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="A guided course from probability distributions, covariance, and Bayesian inference to DeepONet and ensemble Kalman inversion. Ten lectures with worked examples, self-checks, reference answers, and five appendices.">
+<meta name="description" content="Start with ten interactive experiments about little cars, bags of sweets, and treasure clues. Build intuition for uncertainty propagation, Bayesian inference, DeepONet, and ensemble Kalman inversion, then connect it to equations, worked examples, and the paper.">
 <meta name="theme-color" content="#f4f1ea">
 <title>Uncertainty Propagation and Quantification: Ten Lectures on DeepONet–EKI — Shannon Young</title>
 <link rel="canonical" href="https://shannonyoungf.github.io/en/courses/deeponet-eki-uncertainty.html">
@@ -19,6 +19,8 @@
 <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
 <link rel="stylesheet" href="../../styles.css">
 
+  <link rel="stylesheet" href="../../assets/course-labs.css?v=3aa2e9dcf0">
+<script defer src="../../assets/course-labs.js?v=5203e43531"></script>
   <script>
     window.MathJax = {
       tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["$$", "$$"], ["\\[", "\\]"]] },
@@ -63,7 +65,7 @@
       <a class="back-link" href="../courses.html">← Back to courses</a>
       <p class="post-category">Courses · 10 chapters</p>
       <h1>Uncertainty Propagation and Quantification: Ten Lectures on DeepONet–EKI</h1>
-      <p class="post-summary">A guided course from probability distributions, covariance, and Bayesian inference to DeepONet and ensemble Kalman inversion. Ten lectures with worked examples, self-checks, reference answers, and five appendices.</p>
+      <p class="post-summary">Start with ten interactive experiments about little cars, bags of sweets, and treasure clues. Build intuition for uncertainty propagation, Bayesian inference, DeepONet, and ensemble Kalman inversion, then connect it to equations, worked examples, and the paper.</p>
       <div class="post-meta"><span>Last updated <time datetime="2026-11-04">2026.11.04</time></span></div>
       <div class="post-tags"><span>Uncertainty Quantification</span><span>DeepONet</span><span>EKI</span><span>Bayesian Inference</span></div>
     </header>
@@ -97,7 +99,12 @@
           <button type="button" data-expand-answers>Expand reference answers</button>
           <button type="button" data-print-course>Print / Save as PDF</button>
         </div>
-        <div class="post-body course-body"><blockquote><p>Written on November 1, 2026. Intended for readers with basic algebra who want a systematic introduction to uncertainty propagation, Bayesian inference, and uncertainty quantification for neural operators.</p></blockquote>
+        <div class="post-body course-body"><aside class="lab-guide" id="course-lab-path" aria-label="Animated learning path">
+  <p class="lab-eyebrow">See it move. Then read the mathematics.</p>
+  <p>Each lecture opens with an experiment you can adjust and play. Make a guess, watch what changes, and grasp the main idea before tackling the symbols.</p>
+  <p>On a first visit, follow “Next” beneath each experiment through all ten everyday examples. When you want the mathematics, open the theory connection or continue into the lecture.</p>
+  <a href="#lab-01">Start with the little cars →</a>
+</aside><blockquote><p>Written on November 1, 2026. Intended for readers with basic algebra who want a systematic introduction to uncertainty propagation, Bayesian inference, and uncertainty quantification for neural operators.</p></blockquote>
 <p><strong>Learning goal:</strong> explain the paper's key equations, reconstruct its algorithm independently, and assess what its uncertainty estimates mean and where their interpretation stops.</p>
 <p>The main reading is Andrew Pensoneault and Xueyu Zhu, <em>Uncertainty quantification for DeepONets with ensemble Kalman inversion</em>, Journal of Computational Physics 523 (2025), 113670. <a href="https://doi.org/10.1016/j.jcp.2024.113670">Read the paper via DOI</a>.</p>
 <p>Page references mean the printed pages of the 18-page paper. Vehicle motion and small numerical examples are teaching examples introduced in these notes. Settings and results taken from the paper are identified explicitly. This English edition follows the complete Chinese course, including all ten lectures and five appendices.</p>
@@ -141,6 +148,20 @@
 </tbody></table></div>
 <p>The paper uses $y$ for both query locations and observations in different contexts. These notes use $\xi$ for queries and $d$ for observed vectors to keep the objects distinct.</p>
 <h2 id="lecture-01">Lecture 1: Uncertainty, error, quantification, and propagation</h2>
+<section class="intuition-lab" id="lab-01" data-lab="cars" aria-labelledby="lab-01-title">
+  <p class="lab-eyebrow">A one-minute experiment · 01 / 10</p>
+  <h3 id="lab-01-title">Where will the three little cars finish?</h3>
+  <p class="lab-story">One car might travel at 0.9, 1.0, or 1.1 metres per second, with equal chances. Three little cars act out these possibilities.</p>
+  <p class="lab-question">Guess first: if they run for twice as long, will the first and last cars be farther apart?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-01-time"><span>Travel time (s) <output for="lab-01-time" data-value="time">10</output></span><input id="lab-01-time" data-key="time" type="range" min="2" max="20" step="1" value="10"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Where will the three little cars finish?"><title>Where will the three little cars finish?</title><desc>One car might travel at 0.9, 1.0, or 1.1 metres per second, with equal chances. Three little cars act out these possibilities.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">Different possible speeds become different possible positions. That is uncertainty propagation. These are three possibilities for one car, rather than three simultaneous locations.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>Different possible speeds become different possible positions. That is uncertainty propagation. These are three possibilities for one car, rather than three simultaneous locations.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>S = V × T: displacement = speed × time. No true position is supplied here, so the gap between cars is not prediction error.</p></details>
+  <a class="lab-next" href="#lab-02">Next: The average is five sweets. Is that the whole story? →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="11-what-you-should-be-able-to-explain">1.1 What you should be able to explain</h3>
 <p>Distinguish uncertainty from error, quantification from propagation, and uncertain inputs from uncertain model parameters.</p>
 <h3 id="12-start-with-displacement-after-ten-seconds">1.2 Start with displacement after ten seconds</h3>
@@ -192,6 +213,20 @@ Parameter distribution → model at a fixed input → predictive output distribu
 </details>
 <p><strong>Completion criterion:</strong> explain in your own words why error requires a comparison with truth, while uncertainty describes what is unknown given available information.</p>
 <h2 id="lecture-02">Lecture 2: Describing an uncertain number</h2>
+<section class="intuition-lab" id="lab-02" data-lab="spread" aria-labelledby="lab-02-title">
+  <p class="lab-eyebrow">A one-minute experiment · 02 / 10</p>
+  <h3 id="lab-02-title">The average is five sweets. Is that the whole story?</h3>
+  <p class="lab-story">Each dot is a bag of sweets. Three possible counts have equal chances. Move them apart and watch the average.</p>
+  <p class="lab-question">Guess first: is a bag with 1, 5, or 9 sweets harder to predict than one with 4, 5, or 6?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-02-spread"><span>Distance from the mean (sweets) <output for="lab-02-spread" data-value="spread">2</output></span><input id="lab-02-spread" data-key="spread" type="range" min="1" max="4" step="1" value="2"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="The average is five sweets. Is that the whole story?"><title>The average is five sweets. Is that the whole story?</title><desc>Each dot is a bag of sweets. Three possible counts have equal chances. Move them apart and watch the average.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">The average gives the centre; spread tells us how far outcomes can be from it. Reporting only the average leaves out the second part.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>The average gives the centre; spread tells us how far outcomes can be from it. Reporting only the average leaves out the second part.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>The equally likely counts are 5−d, 5, and 5+d. Mean = 5; standard deviation = d × √(2/3). This is the known distribution&#x27;s standard deviation.</p></details>
+  <a class="lab-next" href="#lab-03">Next: Two steps: add up or cancel out? →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="21-random-variables-and-distributions">2.1 Random variables and distributions</h3>
 <p>A random variable has a value not yet specified, with possibilities described probabilistically. Uppercase $X$ denotes the variable; lowercase $x$ denotes a realization. A discrete distribution assigns probability to each possible value. A continuous density $p(x)$ instead gives probabilities through integration:</p>
 <p><img src="../../assets/courses/deeponet-eki/block-353cc580c62c56b9.svg" alt="Probability over an interval is the integral of the density" loading="lazy" width="307" height="65"></p>
@@ -252,6 +287,20 @@ Parameter distribution → model at a fixed input → predictive output distribu
 </details>
 <p><strong>Completion criterion:</strong> compute a mean and sample standard deviation, and explain why interpreting a two-standard-deviation band depends on distributional assumptions and evaluation.</p>
 <h2 id="lecture-03">Lecture 3: Covariance, correlation, and random functions</h2>
+<section class="intuition-lab" id="lab-03" data-lab="correlation" aria-labelledby="lab-03-title">
+  <p class="lab-eyebrow">A one-minute experiment · 03 / 10</p>
+  <h3 id="lab-03-title">Two steps: add up or cancel out?</h3>
+  <p class="lab-story">Each step can be off by one metre left or right. Separately, the steps look identical. Their combined error depends on how they move together. Dashed: first step; solid: second step.</p>
+  <p class="lab-question">Guess first: if a left error is always followed by a right error, will the final position miss the start?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-03-relation"><span>How the steps are related</span><select id="lab-03-relation" data-key="relation"><option value="same">Always the same way</option><option value="independent">Independent steps</option><option value="opposite">Always opposite ways</option></select></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Two steps: add up or cancel out?"><title>Two steps: add up or cancel out?</title><desc>Each step can be off by one metre left or right. Separately, the steps look identical. Their combined error depends on how they move together. Dashed: first step; solid: second step.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">We need both the size of each error and how the errors vary together. Each row shows one equally likely case.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>We need both the size of each error and how the errors vary together. Each row shows one equally likely case.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>Var(X+Y) = Var(X) + Var(Y) + 2Cov(X,Y). Same-direction, independent, and opposite errors give total variances of 4, 2, and 0 square metres.</p></details>
+  <a class="lab-next" href="#lab-04">Next: Number beads go through a little machine →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="31-are-separate-standard-deviations-enough">3.1 Are separate standard deviations enough?</h3>
 <p>Let $E_1,E_2$ be speed errors over two consecutive one-second intervals, so accumulated displacement error is $S=E_1+E_2$. Both errors have mean zero and variance one.</p>
 <ul>
@@ -311,6 +360,20 @@ Parameter distribution → model at a fixed input → predictive output distribu
 </details>
 <p><strong>Completion criterion:</strong> explain how different correlation structures produce different trajectory uncertainty even when all pointwise standard deviations match.</p>
 <h2 id="lecture-04">Lecture 4: Propagating uncertainty through a model</h2>
+<section class="intuition-lab" id="lab-04" data-lab="machine" aria-labelledby="lab-04-title">
+  <p class="lab-eyebrow">A one-minute experiment · 04 / 10</p>
+  <h3 id="lab-04-title">Number beads go through a little machine</h3>
+  <p class="lab-story">Five equally likely beads carry −2, −1, 0, 1, and 2. The machine can double or square each number.</p>
+  <p class="lab-question">Guess first: where do negative numbers go when squared? Is squaring the average the same as averaging the squares?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-04-rule"><span>Machine rule</span><select id="lab-04-rule" data-key="rule"><option value="double">Double: number × 2</option><option value="square">Square: number × itself</option></select></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Number beads go through a little machine"><title>Number beads go through a little machine</title><desc>Five equally likely beads carry −2, −1, 0, 1, and 2. The machine can double or square each number.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">The machine maps each possible input to an output. Squaring sends positive and negative inputs to the same nonnegative value and changes the distribution&#x27;s shape.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>The machine maps each possible input to an output. Squaring sends positive and negative inputs to the same nonnegative value and changes the distribution&#x27;s shape.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>In general E[f(X)] ≠ f(E[X]). Here the input mean is 0, the mean squared output is 2, and the square of the input mean is 0.</p></details>
+  <a class="lab-next" href="#lab-05">Next: Find the treasure: learn from a new clue →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="41-the-object-being-propagated-is-a-distribution">4.1 The object being propagated is a distribution</h3>
 <p>For uncertain input $X$ and model $Y=f(X)$, propagation seeks the distribution of $Y$, or at least its moments, quantiles, and event probabilities. Knowing a mean does not tell us the probability of exceeding a safety threshold, such as $P(S&gt;S_{\mathrm{safe}})$.</p>
 <p>The output distribution is the <strong>pushforward</strong> of the input distribution. For any output event set $A$:</p>
@@ -388,6 +451,20 @@ print(&quot;Equal-tail 95% interval =&quot;, np.quantile(y, [0.025, 0.975]))</co
 </details>
 <p><strong>Completion criterion:</strong> calculate affine propagation by hand and explain why nonlinear propagation usually needs sampling or approximation.</p>
 <h2 id="lecture-05">Lecture 5: From forward problems to Bayesian inverse problems</h2>
+<section class="intuition-lab" id="lab-05" data-lab="bayes" aria-labelledby="lab-05-title">
+  <p class="lab-eyebrow">A one-minute experiment · 05 / 10</p>
+  <h3 id="lab-05-title">Find the treasure: learn from a new clue</h3>
+  <p class="lab-story">You initially place the treasure near 4 m with a standard deviation of 2 m. A detector supplies a new reading. Taller curves support a location more; narrower curves describe a more concentrated guess.</p>
+  <p class="lab-question">Guess first: should a blurry new clue make us throw away everything we already thought?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-05-reading"><span>Detector reading (m) <output for="lab-05-reading" data-value="reading">8</output></span><input id="lab-05-reading" data-key="reading" type="range" min="0" max="10" step="0.5" value="8"></label><label class="lab-control" for="lab-05-noise"><span>Clue uncertainty (standard deviation, m) <output for="lab-05-noise" data-value="noise">1</output></span><input id="lab-05-noise" data-key="noise" type="range" min="0.5" max="3" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Find the treasure: learn from a new clue"><title>Find the treasure: learn from a new clue</title><desc>You initially place the treasure near 4 m with a standard deviation of 2 m. A detector supplies a new reading. Taller curves support a location more; narrower curves describe a more concentrated guess.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">Combine the original guess with the clue to make an updated guess. A clearer clue usually pulls the result closer and makes it narrower.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>Combine the original guess with the clue to make an updated guess. A clearer clue usually pulls the result closer and makes it narrower.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>For independent Gaussian models, posterior precision = prior precision + observation precision; precision is inverse variance. The dashed likelihood describes support for the reading, which is not assumed to be exact truth.</p></details>
+  <a class="lab-next" href="#lab-06">Next: An uncertain position and a wobbly ruler →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="51-forward-and-inverse-problems">5.1 Forward and inverse problems</h3>
 <p>A forward problem computes outputs from parameters. An inverse problem infers parameters from observations. In a drag model $F=cv$, computing force from $c$ and speed is forward modelling; inferring $c$ from measured speed and force is inversion.</p>
 <p><img src="../../assets/courses/deeponet-eki/block-36f787bbaf457aab.svg" alt="Noisy observation model for a parameter inverse problem" loading="lazy" width="341" height="30"></p>
@@ -446,6 +523,20 @@ print(&quot;Equal-tail 95% interval =&quot;, np.quantile(y, [0.025, 0.975]))</co
 </details>
 <p><strong>Completion criterion:</strong> distinguish prior, likelihood, and posterior, and carry out the scalar Gaussian update independently.</p>
 <h2 id="lecture-06">Lecture 6: From parameter distributions to predictive distributions</h2>
+<section class="intuition-lab" id="lab-06" data-lab="noise" aria-labelledby="lab-06-title">
+  <p class="lab-eyebrow">A one-minute experiment · 06 / 10</p>
+  <h3 id="lab-06-title">An uncertain position and a wobbly ruler</h3>
+  <p class="lab-story">Two diamonds show equally likely guesses about position. The ruler can wobble left or right independently, giving four equally likely possible readings, shown as circles.</p>
+  <p class="lab-question">Guess first: would a perfectly steady ruler remove all uncertainty about the position?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-06-model"><span>Position offset a (m) <output for="lab-06-model" data-value="model">1</output></span><input id="lab-06-model" data-key="model" type="range" min="0" max="2" step="0.5" value="1"></label><label class="lab-control" for="lab-06-noise"><span>Ruler wobble b (m) <output for="lab-06-noise" data-value="noise">1</output></span><input id="lab-06-noise" data-key="noise" type="range" min="0" max="2" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="An uncertain position and a wobbly ruler"><title>An uncertain position and a wobbly ruler</title><desc>Two diamonds show equally likely guesses about position. The ruler can wobble left or right independently, giving four equally likely possible readings, shown as circles.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">Uncertainty about position and fresh measurement wobble are separate. Predicting a true position and predicting a future reading can require different ranges.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>Uncertainty about position and fresh measurement wobble are separate. Predicting a true position and predicting a future reading can require different ranges.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>In this two-point example the independent errors have zero means: reading variance = position variance a² + measurement-noise variance b².</p></details>
+  <a class="lab-next" href="#lab-07">Next: Turn a tap&#x27;s curve into a bucket&#x27;s curve →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="61-define-the-prediction-target-first">6.1 Define the prediction target first</h3>
 <p>At a new input $x^\star$, distinguish the latent model output $S^\star=f_\theta(x^\star)$ from a future observation $D^\star=f_\theta(x^\star)+\eta^\star$. Parameters are inferred from existing data; $\eta^\star$ is a new measurement error.</p>
 <p>Their means may match while their variances differ. “Where is the vehicle really located?” and “What will the next sensor reading be?” therefore need not use the same interval.</p>
@@ -496,6 +587,20 @@ print(&quot;Equal-tail 95% interval =&quot;, np.quantile(y, [0.025, 0.975]))</co
 </details>
 <p><strong>Completion criterion:</strong> on seeing an uncertainty band, first ask whether it concerns a latent output or a future observation and which quantities are held fixed.</p>
 <h2 id="lecture-07">Lecture 7: From ordinary functions to DeepONet</h2>
+<section class="intuition-lab" id="lab-07" data-lab="operator" aria-labelledby="lab-07-title">
+  <p class="lab-eyebrow">A one-minute experiment · 07 / 10</p>
+  <h3 id="lab-07-title">Turn a tap&#x27;s curve into a bucket&#x27;s curve</h3>
+  <p class="lab-story">The top graph shows water entering each second. The bottom shows water collected so far. Change the flow pattern, then ask how much water is in the bucket at a chosen time.</p>
+  <p class="lab-question">Guess first: does a tap opening wider make the collected-water curve steeper? Is the final flow rate alone enough to know the total water?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-07-shape"><span>Tap pattern</span><select id="lab-07-shape" data-key="shape"><option value="steady">Steady flow</option><option value="rising">Gradually opening</option><option value="wave">Varying flow</option></select></label><label class="lab-control" for="lab-07-query"><span>Query time (s) <output for="lab-07-query" data-value="query">2</output></span><input id="lab-07-query" data-key="query" type="range" min="0" max="4" step="0.1" value="2"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Turn a tap&#x27;s curve into a bucket&#x27;s curve"><title>Turn a tap&#x27;s curve into a bucket&#x27;s curve</title><desc>The top graph shows water entering each second. The bottom shows water collected so far. Change the flow pattern, then ask how much water is in the bucket at a chosen time.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">A whole input process determines a whole output process: an operator. Branch reads the flow curve; Trunk receives the query time; together they predict the water collected.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>A whole input process determines a whole output process: an operator. Branch reads the flow curve; Trunk receives the query time; together they predict the water collected.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>This animation directly integrates s(t)=∫₀ᵗu(τ)dτ to provide the correct answer. DeepONet learns an approximation to such curve-to-curve mappings; no trained network runs here.</p></details>
+  <a class="lab-next" href="#lab-08">Next: Two reports: which should we trust more? →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="71-regression-versus-operator-learning">7.1 Regression versus operator learning</h3>
 <p>An ordinary function maps a number or vector to another number or vector, for example $y=2x$. An <strong>operator</strong> maps an entire function to another function. Consider the antiderivative:</p>
 <p><img src="../../assets/courses/deeponet-eki/block-b7a6bced597de448.svg" alt="Antiderivative as a function-to-function operator" loading="lazy" width="305" height="64"></p>
@@ -555,6 +660,20 @@ print(&quot;Equal-tail 95% interval =&quot;, np.quantile(y, [0.025, 0.975]))</co
 </details>
 <p><strong>Completion criterion:</strong> sketch sampled input function → Branch, query location → Trunk, then dot product → output.</p>
 <h2 id="lecture-08">Lecture 8: Kalman updates and ensemble Kalman methods</h2>
+<section class="intuition-lab" id="lab-08" data-lab="kalman" aria-labelledby="lab-08-title">
+  <p class="lab-eyebrow">A one-minute experiment · 08 / 10</p>
+  <h3 id="lab-08-title">Two reports: which should we trust more?</h3>
+  <p class="lab-story">Your original estimate is 4 m with a standard deviation of 2 m. A sensor reports 8 m. Change the sensor&#x27;s uncertainty and watch the updated estimate. Bars show one standard deviation on either side of each mean.</p>
+  <p class="lab-question">Guess first: as the sensor becomes less reliable, will the new estimate move toward 4 m or 8 m?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-08-noise"><span>Sensor uncertainty (standard deviation, m) <output for="lab-08-noise" data-value="noise">1</output></span><input id="lab-08-noise" data-key="noise" type="range" min="0.5" max="4" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="Two reports: which should we trust more?"><title>Two reports: which should we trust more?</title><desc>Your original estimate is 4 m with a standard deviation of 2 m. A sensor reports 8 m. Change the sensor&#x27;s uncertainty and watch the updated estimate. Bars show one standard deviation on either side of each mean.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">The update is a reasoned compromise: more reliable information receives more weight. It is not an unweighted average.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>The update is a reasoned compromise: more reliable information receives more weight. It is not an unweighted average.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>K = 4/(4+R); updated mean = 4 + K×(8−4), where R is the sensor-noise variance. Independent Gaussian errors and linear observations make this the same posterior calculation as Lecture 5.</p></details>
+  <a class="lab-next" href="#lab-09">Next: A team of little models revises its guesses →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="81-combining-two-imperfect-sources">8.1 Combining two imperfect sources</h3>
 <p>Your prior position estimate is zero with error variance one. A sensor reads one with noise variance 0.25. Lecture 5 gave an updated mean of 0.8:</p>
 <p><img src="../../assets/courses/deeponet-eki/block-5d3f0ca22e9a3b27.svg" alt="Scalar Kalman mean update" loading="lazy" width="544" height="64"></p>
@@ -608,6 +727,20 @@ print(&quot;Equal-tail 95% interval =&quot;, np.quantile(y, [0.025, 0.975]))</co
 </details>
 <p><strong>Completion criterion:</strong> read the update as old estimate + gain × residual, and explain the role of cross-covariance.</p>
 <h2 id="lecture-09">Lecture 9: Understanding the paper's EKI–Bayesian DeepONet</h2>
+<section class="intuition-lab" id="lab-09" data-lab="eki" aria-labelledby="lab-09-title">
+  <p class="lab-eyebrow">A one-minute experiment · 09 / 10</p>
+  <h3 id="lab-09-title">A team of little models revises its guesses</h3>
+  <p class="lab-story">Each dot is one model&#x27;s parameter guess. Let them explore a little, make predictions, compare them with the same observation, then update together.</p>
+  <p class="lab-question">Guess first: if everyone agrees closely, does that prove they are right? Set exploration to zero and run several rounds.</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-09-explore"><span>Exploration q (parameter standard deviation) <output for="lab-09-explore" data-value="explore">0.15</output></span><input id="lab-09-explore" data-key="explore" type="range" min="0" max="0.6" step="0.05" value="0.15"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="A team of little models revises its guesses"><title>A team of little models revises its guesses</title><desc>Each dot is one model&#x27;s parameter guess. Let them explore a little, make predictions, compare them with the same observation, then update together.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play one update</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">One round: perturb parameters → predict → compare with data → update members. Each play runs one round; play again for the next.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>One round: perturb parameters → predict → compare with data → update members. Each play runs one round; play again for the next.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>This toy stochastic EKI uses h(θ)=2θ, observation d=6, and R=1. Q=q² is artificial parameter-perturbation variance. The paper replaces this simple model with DeepONet. A finite ensemble is not automatically an exact posterior sample.</p></details>
+  <a class="lab-next" href="#lab-10">Next: An uncertainty band is like an umbrella →</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="91-identify-the-inverse-problem">9.1 Identify the inverse problem</h3>
 <p>Let $p$ denote parameter dimension and $n$ the number of selected scalar observations. Then $\theta\in\mathbb R^p$ and $d\in\mathbb R^n$:</p>
 <p><img src="../../assets/courses/deeponet-eki/block-fdc10a7297f64608.svg" alt="DeepONet parameter inverse problem" loading="lazy" width="341" height="30"></p>
@@ -717,6 +850,20 @@ Retain the final ensemble
 </details>
 <p><strong>Completion criterion:</strong> reconstruct the four update steps without consulting the paper and explain $R$, $Q$, minibatches, and early stopping.</p>
 <h2 id="lecture-10">Lecture 10: Evaluating uncertainty and reading the complete paper</h2>
+<section class="intuition-lab" id="lab-10" data-lab="coverage" aria-labelledby="lab-10-title">
+  <p class="lab-eyebrow">A one-minute experiment · 10 / 10</p>
+  <h3 id="lab-10-title">An uncertainty band is like an umbrella</h3>
+  <p class="lab-story">Each point is the true error of one prediction; the horizontal order represents 12 different cases. The green band is the allowed error range. Crosses mark points outside it.</p>
+  <p class="lab-question">Guess first: could a very wide umbrella catch every point? Why not always draw the widest possible band?</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-10-width"><span>Umbrella half-width (m) <output for="lab-10-width" data-value="width">1</output></span><input id="lab-10-width" data-key="width" type="range" min="0.3" max="3" step="0.1" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="An uncertainty band is like an umbrella"><title>An uncertainty band is like an umbrella</title><desc>Each point is the true error of one prediction; the horizontal order represents 12 different cases. The green band is the allowed error range. Crosses mark points outside it.</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>Play experiment</button><button type="button" data-lab-reset>Reset</button><span class="lab-motion-note">Play to animate; pause any time</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">A narrow range misses outcomes; an enormous one says little about where they will be. Assess coverage, width, and prediction error together.</p>
+  <p class="lab-takeaway"><strong>Take this with you: </strong>A narrow range misses outcomes; an enormous one says little about where they will be. Assess coverage, width, and prediction error together.</p>
+  <details class="lab-bridge"><summary>Connect the intuition to the theory</summary><p>Coverage = points inside / total points. These 12 fixed examples illustrate a tradeoff. Real evaluation requires data not used for tuning and checks at multiple nominal levels; this picture does not establish a 95% guarantee.</p></details>
+  <a class="lab-next" href="#course-lab-path">Ten experiments complete. Return to the learning path ↑</a>
+  <noscript><p>Enable JavaScript to interact and animate. The everyday explanation and full theory remain readable.</p></noscript>
+</section>
 <h3 id="101-why-a-shaded-band-is-insufficient">10.1 Why a shaded band is insufficient</h3>
 <p>An extremely wide band can contain every true value yet offer little decision value. A narrow band can look precise while regularly missing truth. UQ evaluation therefore needs predictive accuracy, spread, and observed coverage, together with operating conditions, nominal probability levels, and intended use.</p>
 <h3 id="102-the-papers-three-main-metrics">10.2 The paper's three main metrics</h3>
@@ -954,6 +1101,6 @@ What to review before the next session:</code></pre>
   <p>Technology · Theory · Reflection</p>
 </footer>
 
-  <script src="../../script.js"></script>
+  <script src="../../script.js?v=cafe166f25"></script>
 </body>
 </html>

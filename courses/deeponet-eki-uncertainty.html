@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="从概率分布、协方差和贝叶斯推断出发，逐步读懂 DeepONet 与集合卡尔曼反演，并学会检验不确定性估计。包含十讲、手算示例、自测答案和五个附录。">
+<meta name="description" content="从小车、糖果袋和找宝藏等十个互动小实验出发，逐步读懂不确定性传播、贝叶斯推断、DeepONet 与集合卡尔曼反演，再连接公式、手算、自测和论文阅读。">
 <meta name="theme-color" content="#f4f1ea">
 <title>不确定性传播与量化：DeepONet–EKI 十讲 — Shannon Young</title>
 <link rel="canonical" href="https://shannonyoungf.github.io/courses/deeponet-eki-uncertainty.html">
@@ -19,6 +19,8 @@
 <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
 <link rel="stylesheet" href="../styles.css">
 
+  <link rel="stylesheet" href="../assets/course-labs.css?v=3aa2e9dcf0">
+<script defer src="../assets/course-labs.js?v=5203e43531"></script>
   <script>
     window.MathJax = {
       tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["$$", "$$"], ["\\[", "\\]"]] },
@@ -63,7 +65,7 @@
       <a class="back-link" href="../courses.html">← 返回课程</a>
       <p class="post-category">课程 · 10 个章节</p>
       <h1>不确定性传播与量化：DeepONet–EKI 十讲</h1>
-      <p class="post-summary">从概率分布、协方差和贝叶斯推断出发，逐步读懂 DeepONet 与集合卡尔曼反演，并学会检验不确定性估计。包含十讲、手算示例、自测答案和五个附录。</p>
+      <p class="post-summary">从小车、糖果袋和找宝藏等十个互动小实验出发，逐步读懂不确定性传播、贝叶斯推断、DeepONet 与集合卡尔曼反演，再连接公式、手算、自测和论文阅读。</p>
       <div class="post-meta"><span>最后更新于 <time datetime="2026-11-04">2026.11.04</time></span></div>
       <div class="post-tags"><span>不确定性量化</span><span>DeepONet</span><span>EKI</span><span>贝叶斯推断</span></div>
     </header>
@@ -97,7 +99,12 @@
           <button type="button" data-expand-answers>展开参考答案</button>
           <button type="button" data-print-course>打印 / 保存为 PDF</button>
         </div>
-        <div class="post-body course-body"><blockquote>
+        <div class="post-body course-body"><aside class="lab-guide" id="course-lab-path" aria-label="动画学习路线">
+  <p class="lab-eyebrow">先看会动的，再读公式</p>
+  <p>每讲开头都有一个可以拖动、播放的小实验。先用生活经验猜一猜，再看结果；不懂符号也能先抓住一个核心想法。</p>
+  <p>第一次来，可以沿着每个实验底部的“下一站”走完十个生活例子。想知道为什么，再展开“把直觉接回理论”，或接着读本讲正文。</p>
+  <a href="#lab-01">从小车比赛开始 →</a>
+</aside><blockquote>
 <p>编写日期：2026-11-01。建议从 2026-11-02 开始学习。</p>
 <p>面向读者：了解基本代数，希望系统学习不确定性传播、贝叶斯推断和神经算子不确定性量化的初学者。</p>
 <p>学习目标：能够解释论文中的关键公式、独立梳理算法流程，并判断其不确定性估计的含义与适用边界。</p>
@@ -285,6 +292,20 @@
 <p>本文同时使用 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-4e543a79b2b8528f.svg" alt="y" width="17" height="19" loading="lazy"> 表示查询位置与观测向量，具体含义随上下文变化。为方便学习，本教程主要用 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-188ecc011acc3a4d.svg" alt="\xi" width="16" height="24" loading="lazy"> 表示查询位置，用 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-dfa045e01dc82287.svg" alt="d" width="18" height="20" loading="lazy"> 表示观测向量。对照原文时要认清对象，不能只看字母。</p>
 <hr>
 <h2 id="lecture-01">第 1 讲：不确定性、误差、量化与传播</h2>
+<section class="intuition-lab" id="lab-01" data-lab="cars" aria-labelledby="lab-01-title">
+  <p class="lab-eyebrow">先玩一分钟 · 01 / 10</p>
+  <h3 id="lab-01-title">三辆小车，跑到哪里？</h3>
+  <p class="lab-story">同一辆小车可能每秒跑 0.9、1.0 或 1.1 米，三种情况机会相同。让三辆小车分别替它演一遍。</p>
+  <p class="lab-question">先猜：跑的时间变成两倍，最前面和最后面的小车会离得更远吗？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-01-time"><span>跑多久（秒） <output for="lab-01-time" data-value="time">10</output></span><input id="lab-01-time" data-key="time" type="range" min="2" max="20" step="1" value="10"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="三辆小车，跑到哪里？"><title>三辆小车，跑到哪里？</title><desc>同一辆小车可能每秒跑 0.9、1.0 或 1.1 米，三种情况机会相同。让三辆小车分别替它演一遍。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">时间相同，速度的不同变成位置的不同。这就是不确定性传播。三辆车是三种可能情况，不是同一辆车同时出现在三个地方。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>时间相同，速度的不同变成位置的不同。这就是不确定性传播。三辆车是三种可能情况，不是同一辆车同时出现在三个地方。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>S = V × T：位置 = 速度 × 时间。这里还没有给出真值，因此车之间的距离不是预测误差。</p></details>
+  <a class="lab-next" href="#lab-02">下一站：平均都是 5 颗糖，就一样了吗？ →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>1.1 本讲要解决什么问题</h3>
 <p>学完后，你应当能够解释三组区别：不确定性与误差、量化与传播、输入不确定与模型参数不确定。</p>
 <h3>1.2 从 10 秒后的位移说起</h3>
@@ -392,6 +413,20 @@ s^{(1)},\ldots,s^{(J)}." width="372" height="32" loading="lazy">
 <p><strong>本讲完成标准：</strong> 能用自己的话说明“误差需要真值作比较，不确定性是基于信息对未知程度的描述”。</p>
 <hr>
 <h2 id="lecture-02">第 2 讲：怎样描述一个不确定的数</h2>
+<section class="intuition-lab" id="lab-02" data-lab="spread" aria-labelledby="lab-02-title">
+  <p class="lab-eyebrow">先玩一分钟 · 02 / 10</p>
+  <h3 id="lab-02-title">平均都是 5 颗糖，就一样了吗？</h3>
+  <p class="lab-story">每个圆点是一袋糖。三种糖果数量各占三分之一；把它们拉开，看看平均数是否会动。</p>
+  <p class="lab-question">先猜：一袋有 1、5、9 颗，和一袋有 4、5、6 颗，哪组更难猜中？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-02-spread"><span>离平均数多远（颗） <output for="lab-02-spread" data-value="spread">2</output></span><input id="lab-02-spread" data-key="spread" type="range" min="1" max="4" step="1" value="2"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="平均都是 5 颗糖，就一样了吗？"><title>平均都是 5 颗糖，就一样了吗？</title><desc>每个圆点是一袋糖。三种糖果数量各占三分之一；把它们拉开，看看平均数是否会动。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">平均数告诉你中心在哪，分散程度告诉你可能离中心多远。只报平均数，会漏掉后半个故事。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>平均数告诉你中心在哪，分散程度告诉你可能离中心多远。只报平均数，会漏掉后半个故事。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>三种等可能数量是 5−d、5、5+d。均值为 5，标准差为 d × √(2/3)；这里算的是已知分布的标准差。</p></details>
+  <a class="lab-next" href="#lab-03">下一站：走两步：一起偏，还是互相抵消？ →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>2.1 随机变量与概率分布</h3>
 <p>随机变量可以先理解为“取值尚不确定、但可以描述其可能性的量”。随机变量用大写字母 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-368ced2695d50d20.svg" alt="X" width="25" height="20" loading="lazy"> 表示，某次具体取值用小写字母 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-541fa7b8c352bac9.svg" alt="x" width="19" height="14" loading="lazy"> 表示。</p>
 <p>离散分布给每一个可能值分配概率。例如：</p>
@@ -494,6 +529,20 @@ s^{(1)},\ldots,s^{(J)}." width="372" height="32" loading="lazy">
 <p><strong>本讲完成标准：</strong> 能计算均值与样本标准差，能说明“±2 标准差”的解释依赖分布与验证。</p>
 <hr>
 <h2 id="lecture-03">第 3 讲：协方差、相关性与随机函数</h2>
+<section class="intuition-lab" id="lab-03" data-lab="correlation" aria-labelledby="lab-03-title">
+  <p class="lab-eyebrow">先玩一分钟 · 03 / 10</p>
+  <h3 id="lab-03-title">走两步：一起偏，还是互相抵消？</h3>
+  <p class="lab-story">每一步都可能向左或向右偏 1 米。每一步单独看完全一样，合起来却可能很不一样。虚线是第一步，实线是第二步。</p>
+  <p class="lab-question">先猜：如果第一步向左，第二步总向右，最后还会偏离起点吗？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-03-relation"><span>两步的关系</span><select id="lab-03-relation" data-key="relation"><option value="same">一起向同一边偏</option><option value="independent">各走各的，互不影响</option><option value="opposite">总是向相反方向偏</option></select></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="走两步：一起偏，还是互相抵消？"><title>走两步：一起偏，还是互相抵消？</title><desc>每一步都可能向左或向右偏 1 米。每一步单独看完全一样，合起来却可能很不一样。虚线是第一步，实线是第二步。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">除了知道每一步有多不准，还要知道它们怎样一起变化。这种关系会影响最后的总偏差。每一行是一种等可能情况。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>除了知道每一步有多不准，还要知道它们怎样一起变化。这种关系会影响最后的总偏差。每一行是一种等可能情况。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>Var(X+Y) = Var(X) + Var(Y) + 2Cov(X,Y)。同向、独立、反向时，两步之和的方差分别为 4、2、0 平方米。</p></details>
+  <a class="lab-next" href="#lab-04">下一站：数字珠子，穿过一台小机器 →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>3.1 只知道每个量的标准差够不够</h3>
 <p>假设连续两个时间段中的速度误差分别为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-a1c8d9a7f3fde49b.svg" alt="E_1,E_2" width="68" height="24" loading="lazy">，每个时间段长度为 1 秒。累计位移误差为：</p>
 <img class="math-block" src="../assets/courses/deeponet-eki/block-97b9a058c2f18a73.svg" alt="S=E_1+E_2." width="149" height="25" loading="lazy">
@@ -585,6 +634,20 @@ C(t,t&#x27;)=\operatorname{Cov}(U(t),U(t&#x27;))." width="509" height="30" loadi
 <p><strong>本讲完成标准：</strong> 能解释为什么同样的点态标准差，在不同相关结构下可以产生不同的轨迹不确定性。</p>
 <hr>
 <h2 id="lecture-04">第 4 讲：不确定性怎样经过模型传播</h2>
+<section class="intuition-lab" id="lab-04" data-lab="machine" aria-labelledby="lab-04-title">
+  <p class="lab-eyebrow">先玩一分钟 · 04 / 10</p>
+  <h3 id="lab-04-title">数字珠子，穿过一台小机器</h3>
+  <p class="lab-story">五颗珠子分别写着 −2、−1、0、1、2，机会相同。机器可以把数字翻倍，也可以把数字平方。</p>
+  <p class="lab-question">先猜：负数平方会去哪里？先求平均再平方，和先平方再求平均，一样吗？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-04-rule"><span>机器的规则</span><select id="lab-04-rule" data-key="rule"><option value="double">翻倍：数字 × 2</option><option value="square">平方：数字 × 自己</option></select></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="数字珠子，穿过一台小机器"><title>数字珠子，穿过一台小机器</title><desc>五颗珠子分别写着 −2、−1、0、1、2，机会相同。机器可以把数字翻倍，也可以把数字平方。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">机器把输入的每一种可能变成输出的一种可能。平方会把正负数送到同一个非负位置，输出的形状也跟着改变。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>机器把输入的每一种可能变成输出的一种可能。平方会把正负数送到同一个非负位置，输出的形状也跟着改变。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>一般 E[f(X)] ≠ f(E[X])。本例输入均值为 0；平方后输出均值为 2，而平均输入的平方为 0。</p></details>
+  <a class="lab-next" href="#lab-05">下一站：找宝藏：新线索怎样改变猜测？ →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>4.1 传播的对象是分布</h3>
 <p>设 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-368ced2695d50d20.svg" alt="X" width="25" height="20" loading="lazy"> 是不确定输入，模型为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-fe706f0650798f2b.svg" alt="Y=f(X)" width="101" height="26" loading="lazy">。不确定性传播的目标是由 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-368ced2695d50d20.svg" alt="X" width="25" height="20" loading="lazy"> 的分布得到 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-c8ce7407b43abf85.svg" alt="Y" width="23" height="20" loading="lazy"> 的分布，或至少得到输出的均值、方差、分位数与事件概率。</p>
 <p>例如我们可能关心：</p>
@@ -720,6 +783,20 @@ print(&quot;平方后的 2.5%、97.5% 分位数：&quot;, np.quantile(y, [0.025,
 <p><strong>本讲完成标准：</strong> 能手算线性传播，能解释非线性传播为什么通常需要采样或近似。</p>
 <hr>
 <h2 id="lecture-05">第 5 讲：从正问题到贝叶斯反问题</h2>
+<section class="intuition-lab" id="lab-05" data-lab="bayes" aria-labelledby="lab-05-title">
+  <p class="lab-eyebrow">先玩一分钟 · 05 / 10</p>
+  <h3 id="lab-05-title">找宝藏：新线索怎样改变猜测？</h3>
+  <p class="lab-story">你原先猜宝藏在 4 米附近，标准差是 2 米。探测器带来一个新读数。曲线越高，表示那个位置越受支持；越窄，表示猜测越集中。</p>
+  <p class="lab-question">先猜：新线索很模糊时，要不要完全丢掉原来的猜测？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-05-reading"><span>探测器读数（米） <output for="lab-05-reading" data-value="reading">8</output></span><input id="lab-05-reading" data-key="reading" type="range" min="0" max="10" step="0.5" value="8"></label><label class="lab-control" for="lab-05-noise"><span>线索有多模糊（标准差，米） <output for="lab-05-noise" data-value="noise">1</output></span><input id="lab-05-noise" data-key="noise" type="range" min="0.5" max="3" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="找宝藏：新线索怎样改变猜测？"><title>找宝藏：新线索怎样改变猜测？</title><desc>你原先猜宝藏在 4 米附近，标准差是 2 米。探测器带来一个新读数。曲线越高，表示那个位置越受支持；越窄，表示猜测越集中。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">把原来的猜测和新线索合起来，就得到更新后的猜测。更清楚的线索通常能把猜测拉得更近、收得更窄。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>把原来的猜测和新线索合起来，就得到更新后的猜测。更清楚的线索通常能把猜测拉得更近、收得更窄。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>在独立高斯模型中，后验精度 = 先验精度 + 观测精度；精度是方差的倒数。虚线表示各位置对读数的支持程度（似然），不把读数当成绝对真值。</p></details>
+  <a class="lab-next" href="#lab-06">下一站：位置猜得不准，尺子也会抖 →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>5.1 正问题与反问题</h3>
 <p>正问题：已知参数，计算观测或输出。反问题：已知观测，推断参数。</p>
 <p>例如阻力模型 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-dfc52378ba639ab6.svg" alt="F=cv" width="72" height="21" loading="lazy">：给定 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-9bc7baa8bb0970f2.svg" alt="c" width="16" height="14" loading="lazy"> 与速度 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-95f872342a07a61a.svg" alt="v" width="17" height="14" loading="lazy"> 求阻力是正问题；测到速度与阻力以后推断 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-9bc7baa8bb0970f2.svg" alt="c" width="16" height="14" loading="lazy"> 是反问题。</p>
@@ -830,6 +907,20 @@ d=\theta+\eta,\qquad\eta\sim\mathcal N(0,R)," width="512" height="30" loading="l
 <p><strong>本讲完成标准：</strong> 能指出先验、似然、后验各自表达什么，并手算标量高斯更新。</p>
 <hr>
 <h2 id="lecture-06">第 6 讲：从参数分布到预测分布</h2>
+<section class="intuition-lab" id="lab-06" data-lab="noise" aria-labelledby="lab-06-title">
+  <p class="lab-eyebrow">先玩一分钟 · 06 / 10</p>
+  <h3 id="lab-06-title">位置猜得不准，尺子也会抖</h3>
+  <p class="lab-story">我们给位置保留两种等可能猜测（菱形）。测量时，尺子还可能向左或向右抖一下，于是读数有四种等可能情况（圆点）。</p>
+  <p class="lab-question">先猜：把尺子换成完全不抖的，所有位置上的不确定性都会消失吗？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-06-model"><span>位置猜测的偏移 a（米） <output for="lab-06-model" data-value="model">1</output></span><input id="lab-06-model" data-key="model" type="range" min="0" max="2" step="0.5" value="1"></label><label class="lab-control" for="lab-06-noise"><span>尺子抖动的幅度 b（米） <output for="lab-06-noise" data-value="noise">1</output></span><input id="lab-06-noise" data-key="noise" type="range" min="0" max="2" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="位置猜得不准，尺子也会抖"><title>位置猜得不准，尺子也会抖</title><desc>我们给位置保留两种等可能猜测（菱形）。测量时，尺子还可能向左或向右抖一下，于是读数有四种等可能情况（圆点）。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">关于位置的未知，和测量时新加的抖动，是两件事。预测真实位置与预测下一次读数，需要的范围可能不同。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>关于位置的未知，和测量时新加的抖动，是两件事。预测真实位置与预测下一次读数，需要的范围可能不同。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>这个两点分布例子中，两种误差独立且均值为零：读数方差 = 位置方差 a² + 测量噪声方差 b²。</p></details>
+  <a class="lab-next" href="#lab-07">下一站：水龙头的曲线，变成水桶的曲线 →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>6.1 先分清预测对象</h3>
 <p>给定新输入 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-98bbd44c871195e9.svg" alt="x^*" width="29" height="20" loading="lazy">，至少有两种不同对象：</p>
 <ol>
@@ -907,6 +998,20 @@ d=s_{\mathrm{true}}+\eta." width="457" height="29" loading="lazy">
 <p><strong>本讲完成标准：</strong> 看到一条不确定性带时，会先确认“它针对潜在输出还是未来观测，条件于哪些已知量”。</p>
 <hr>
 <h2 id="lecture-07">第 7 讲：从普通函数到 DeepONet</h2>
+<section class="intuition-lab" id="lab-07" data-lab="operator" aria-labelledby="lab-07-title">
+  <p class="lab-eyebrow">先玩一分钟 · 07 / 10</p>
+  <h3 id="lab-07-title">水龙头的曲线，变成水桶的曲线</h3>
+  <p class="lab-story">上图记录每秒流进多少水，下图记录桶里已经积了多少水。改变开水方式，再问“第几秒，桶里有多少水”。</p>
+  <p class="lab-question">先猜：越开越大的水龙头，积水曲线会越走越陡吗？关心水量时，能只看最后一秒的流速吗？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-07-shape"><span>怎么开水龙头</span><select id="lab-07-shape" data-key="shape"><option value="steady">一直开一样大</option><option value="rising">越开越大</option><option value="wave">一会儿大，一会儿小</option></select></label><label class="lab-control" for="lab-07-query"><span>想问第几秒 <output for="lab-07-query" data-value="query">2</output></span><input id="lab-07-query" data-key="query" type="range" min="0" max="4" step="0.1" value="2"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="水龙头的曲线，变成水桶的曲线"><title>水龙头的曲线，变成水桶的曲线</title><desc>上图记录每秒流进多少水，下图记录桶里已经积了多少水。改变开水方式，再问“第几秒，桶里有多少水”。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">一个完整的输入过程，决定另一个完整的输出过程，这叫算子。Branch 读取进水曲线，Trunk 接收想查询的时间，再一起给出水量。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>一个完整的输入过程，决定另一个完整的输出过程，这叫算子。Branch 读取进水曲线，Trunk 接收想查询的时间，再一起给出水量。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>本动画用积分直接计算 s(t)=∫₀ᵗu(τ)dτ，作为正确答案。DeepONet 学的是这种曲线到曲线的对应关系；这里没有运行已训练的神经网络。</p></details>
+  <a class="lab-next" href="#lab-08">下一站：两个人报位置，该更相信谁？ →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>7.1 普通回归与算子学习有什么区别</h3>
 <p>普通函数可以把一个数或向量映射成另一个数或向量。例如 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-3a9b85daffa9fcff.svg" alt="y=2x" width="70" height="24" loading="lazy">。</p>
 <p>算子把一整个函数映射成另一个函数。例如反导数算子：</p>
@@ -979,6 +1084,20 @@ t_k(\xi^*;\theta_t^{(j)})." width="345" height="74" loading="lazy">
 <p><strong>本讲完成标准：</strong> 能画出“输入函数采样值 → Branch；查询位置 → Trunk；点积 → 输出”的流程。</p>
 <hr>
 <h2 id="lecture-08">第 8 讲：卡尔曼更新与集合卡尔曼方法</h2>
+<section class="intuition-lab" id="lab-08" data-lab="kalman" aria-labelledby="lab-08-title">
+  <p class="lab-eyebrow">先玩一分钟 · 08 / 10</p>
+  <h3 id="lab-08-title">两个人报位置，该更相信谁？</h3>
+  <p class="lab-story">你原先估计在 4 米处，标准差为 2 米；传感器说在 8 米处。调一调传感器有多准，看看新估计往哪边走。横线标出均值两侧一个标准差。</p>
+  <p class="lab-question">先猜：传感器越来越不准时，新估计会更靠近 4 米，还是 8 米？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-08-noise"><span>传感器有多不准（标准差，米） <output for="lab-08-noise" data-value="noise">1</output></span><input id="lab-08-noise" data-key="noise" type="range" min="0.5" max="4" step="0.5" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="两个人报位置，该更相信谁？"><title>两个人报位置，该更相信谁？</title><desc>你原先估计在 4 米处，标准差为 2 米；传感器说在 8 米处。调一调传感器有多准，看看新估计往哪边走。横线标出均值两侧一个标准差。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">更新像一场有根据的折中：谁的信息更可靠，谁的权重就更大。不是把两个数字不加区别地平均。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>更新像一场有根据的折中：谁的信息更可靠，谁的权重就更大。不是把两个数字不加区别地平均。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>K = 4/(4+R)，更新均值 = 4 + K×(8−4)，其中 R 是传感器噪声方差。本例满足独立高斯、线性观测条件，与第 5 讲的后验计算一致。</p></details>
+  <a class="lab-next" href="#lab-09">下一站：一队小模型，一起修正猜测 →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>8.1 两条都有误差的信息，应该更相信谁</h3>
 <p>你原先估计位置为 0，估计误差方差为 1；现在传感器读数为 1，观测噪声方差为 0.25。</p>
 <p>新估计应该向读数靠近，但传感器也不完全准确。第 5 讲已经算出新的均值为 0.8。它可以改写为：</p>
@@ -1057,6 +1176,20 @@ t_k(\xi^*;\theta_t^{(j)})." width="345" height="74" loading="lazy">
 <p><strong>本讲完成标准：</strong> 能把更新公式读成“旧估计 + 增益 × 残差”，并解释交叉协方差为什么重要。</p>
 <hr>
 <h2 id="lecture-09">第 9 讲：逐步读懂本文的 EKI-Bayesian DeepONet</h2>
+<section class="intuition-lab" id="lab-09" data-lab="eki" aria-labelledby="lab-09-title">
+  <p class="lab-eyebrow">先玩一分钟 · 09 / 10</p>
+  <h3 id="lab-09-title">一队小模型，一起修正猜测</h3>
+  <p class="lab-story">每个圆点是一个小模型的参数猜测。先让它们稍微探索，再各自给出预测，最后根据同一条观测一起修正。点之间的位置变化，就是一轮学习。</p>
+  <p class="lab-question">先猜：如果大家都挤在一起，没有分歧，就一定猜对了吗？把探索幅度设成 0，再连续更新几次看看。</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-09-explore"><span>探索幅度 q（参数标准差） <output for="lab-09-explore" data-value="explore">0.15</output></span><input id="lab-09-explore" data-key="explore" type="range" min="0" max="0.6" step="0.05" value="0.15"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="一队小模型，一起修正猜测"><title>一队小模型，一起修正猜测</title><desc>每个圆点是一个小模型的参数猜测。先让它们稍微探索，再各自给出预测，最后根据同一条观测一起修正。点之间的位置变化，就是一轮学习。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放一轮更新</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">每轮依次经过：扰动参数 → 计算预测 → 比较观测 → 更新成员。点击一次播放一轮，可以接着播放下一轮。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>每轮依次经过：扰动参数 → 计算预测 → 比较观测 → 更新成员。点击一次播放一轮，可以接着播放下一轮。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>这里只用 h(θ)=2θ 和观测 d=6 演示随机 EKI 更新，R=1；Q=q² 是人为加入的参数扰动方差。论文把这个玩具模型换成 DeepONet。有限集合不会自动成为精确后验样本。</p></details>
+  <a class="lab-next" href="#lab-10">下一站：范围像一把伞，能接住多少小点？ →</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>9.1 先写出要反演的对象</h3>
 <p>设网络参数维数为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-e4bd8005f58b3d95.svg" alt="p" width="18" height="18" loading="lazy">，当前选中的标量观测数为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-1af271f927f00e3d.svg" alt="n" width="20" height="14" loading="lazy">。待求参数为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-b8bf8b7ee5f47cac.svg" alt="\theta\in\mathbb R^p" width="69" height="21" loading="lazy">，观测向量为 <img class="math-inline" src="../assets/courses/deeponet-eki/inline-cc0a4788b38d12b5.svg" alt="d\in\mathbb R^n" width="72" height="21" loading="lazy">：</p>
 <img class="math-block" src="../assets/courses/deeponet-eki/block-fdc10a7297f64608.svg" alt="d=\mathcal H(\theta)+\eta,\qquad\eta\sim\mathcal N(0,R)." width="341" height="30" loading="lazy">
@@ -1283,6 +1416,20 @@ t_k(\xi^*;\theta_t^{(j)})." width="345" height="74" loading="lazy">
 <p><strong>本讲完成标准：</strong> 不看原文也能写出一次迭代的四个步骤，并说明 R、Q、小批量和提前停止的作用。</p>
 <hr>
 <h2 id="lecture-10">第 10 讲：检验不确定性估计，并完整阅读论文</h2>
+<section class="intuition-lab" id="lab-10" data-lab="coverage" aria-labelledby="lab-10-title">
+  <p class="lab-eyebrow">先玩一分钟 · 10 / 10</p>
+  <h3 id="lab-10-title">范围像一把伞，能接住多少小点？</h3>
+  <p class="lab-story">每个点是一回预测的真实误差，横着排的是 12 回不同预测。绿带表示愿意给出的误差范围；落在外面的点用叉号标记。</p>
+  <p class="lab-question">先猜：把范围画得特别宽，是不是就能接住所有点？那为什么不永远画得越宽越好？</p>
+  <div class="lab-controls" hidden><label class="lab-control" for="lab-10-width"><span>伞向两侧张多宽（半宽，米） <output for="lab-10-width" data-value="width">1</output></span><input id="lab-10-width" data-key="width" type="range" min="0.3" max="3" step="0.1" value="1"></label></div>
+  <div class="lab-stage"><svg role="img" aria-label="范围像一把伞，能接住多少小点？"><title>范围像一把伞，能接住多少小点？</title><desc>每个点是一回预测的真实误差，横着排的是 12 回不同预测。绿带表示愿意给出的误差范围；落在外面的点用叉号标记。</desc></svg></div>
+  <div class="lab-actions" hidden><button type="button" data-lab-play>播放小实验</button><button type="button" data-lab-reset>重新开始</button><span class="lab-motion-note">按播放才会动，随时可暂停</span></div>
+  <p class="lab-result" role="status" aria-live="polite" aria-atomic="true">范围太窄会漏掉真实结果，太宽又说不清结果在哪里。看不确定性，要一起看覆盖率、宽度和预测误差。</p>
+  <p class="lab-takeaway"><strong>记住这一点：</strong>范围太窄会漏掉真实结果，太宽又说不清结果在哪里。看不确定性，要一起看覆盖率、宽度和预测误差。</p>
+  <details class="lab-bridge"><summary>把直觉接回理论</summary><p>覆盖率 = 范围内的点数 / 总点数。这里的 12 个固定例子只用于观察权衡；正式评估要用未参与调参的数据，并比较多个名义覆盖水平，不能由这幅图宣称 95% 保证。</p></details>
+  <a class="lab-next" href="#course-lab-path">十个实验完成，回到学习路线 ↑</a>
+  <noscript><p>开启 JavaScript 可拖动和播放实验；上面的生活例子与下方理论仍可直接阅读。</p></noscript>
+</section>
 <h3>10.1 为什么画出阴影带还不够</h3>
 <p>可以把带画得极宽，使所有真值都落进去，但这种预测可能毫无决策价值。也可以把带画得极窄，看起来精确，却经常漏掉真值。</p>
 <p>好的 UQ 需要同时考虑预测准确性、分散程度与实际覆盖行为。更完整的评估还要考虑不同工况、名义概率水平与未来应用场景。</p>
@@ -1870,6 +2017,6 @@ q=\frac{\sqrt{0.07}}{\sqrt{14}}\approx0.0707." width="512" height="69" loading="
   <p>技术 · 理论 · 思考</p>
 </footer>
 
-  <script src="../script.js"></script>
+  <script src="../script.js?v=cafe166f25"></script>
 </body>
 </html>

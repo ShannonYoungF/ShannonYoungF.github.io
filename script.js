@@ -14,7 +14,7 @@ if (languageSwitch && window.location.pathname.endsWith("blog.html") && window.l
 if (languageSwitch && document.querySelector(".course-body")) {
   const translatedUrl = new URL(languageSwitch.href, window.location.href);
   const updateChapterSwitch = () => {
-    translatedUrl.hash = /^#lecture-\d{2}$/.test(window.location.hash) ? window.location.hash : "";
+    translatedUrl.hash = /^#(?:lecture|lab)-\d{2}$/.test(window.location.hash) ? window.location.hash : "";
     languageSwitch.href = translatedUrl.toString();
   };
   updateChapterSwitch();
@@ -66,17 +66,21 @@ if (courseOutline) {
 if (courseOutline && window.location.hash) {
   const requestedChapter = window.location.hash;
   window.addEventListener("load", () => {
+    let readerMoved = false;
+    ["wheel", "touchstart", "pointerdown", "keydown"].forEach((event) => {
+      window.addEventListener(event, () => { readerMoved = true; }, { once: true, passive: true });
+    });
     const alignChapter = () => {
-      if (window.location.hash !== requestedChapter) return;
+      if (window.location.hash !== requestedChapter || readerMoved) return;
       document.getElementById(decodeURIComponent(requestedChapter.slice(1)))?.scrollIntoView({ behavior: "instant", block: "start" });
     };
+    requestAnimationFrame(alignChapter);
     const typesetting = window.MathJax?.startup?.promise;
-    if (typesetting) typesetting.then(alignChapter);
-    else alignChapter();
+    if (typesetting) typesetting.then(() => requestAnimationFrame(alignChapter), () => {});
   }, { once: true });
 }
 document.querySelector("[data-expand-answers]")?.addEventListener("click", () => {
-  document.querySelectorAll(".course-body details").forEach((details) => { details.open = true; });
+  document.querySelectorAll(".course-body details:not(.lab-bridge)").forEach((details) => { details.open = true; });
 });
 document.querySelector("[data-print-course]")?.addEventListener("click", () => window.print());
 let closedAnswersBeforePrint = [];

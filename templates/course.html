@@ -2,6 +2,7 @@
 <html lang="{{html_lang}}">
 <head>
   {{head}}
+  {{course_lab_assets}}
   <script>
     window.MathJax = {
       tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]], displayMath: [["$$", "$$"], ["\\[", "\\]"]] },
@@ -43,6 +44,6 @@
     </div>
   </main>
   {{footer}}
-  <script src="{{asset_root}}script.js"></script>
+  <script src="{{asset_root}}script.js?v={{course_script_version}}"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@ date: 2026-11-01
 updated: 2026-11-04
 lang: en
 translation_key: deeponet-eki-uncertainty
-summary: A guided course from probability distributions, covariance, and Bayesian inference to DeepONet and ensemble Kalman inversion. Ten lectures with worked examples, self-checks, reference answers, and five appendices.
+summary: Start with ten interactive experiments about little cars, bags of sweets, and treasure clues. Build intuition for uncertainty propagation, Bayesian inference, DeepONet, and ensemble Kalman inversion, then connect it to equations, worked examples, and the paper.
 tags: Uncertainty Quantification, DeepONet, EKI, Bayesian Inference
 slug: deeponet-eki-uncertainty
 ---

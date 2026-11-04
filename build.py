@@ -5,10 +5,13 @@ from __future__ import annotations
 import html
 import json
 import re
+from hashlib import sha256
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
+
+from scripts.course_labs import enrich_course
 
 
 ROOT = Path(__file__).resolve().parent
@@ -468,6 +471,8 @@ def load_courses() -> list[dict[str, Any]]:
         if path.suffix == ".html":
             body = re.sub(r"<table\b[^>]*>.*?</table>", lambda match: f'<div class="table-wrap">{match[0]}</div>', body, flags=re.S)
         body, chapters = prepare_course_body(body)
+        if metadata["slug"] == "deeponet-eki-uncertainty":
+            body = enrich_course(body, metadata["lang"])
         courses.append({
             **metadata,
             "source_path": path,
@@ -782,6 +787,14 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
             ("en/" if english else "") + f"courses/{course['slug']}.html", alternates,
         )
         context.update(course)
+        context["course_script_version"] = sha256((ROOT / "script.js").read_bytes()).hexdigest()[:10]
+        lab_assets = ["assets/course-labs.css", "assets/course-labs.js"] if course["slug"] == "deeponet-eki-uncertainty" else []
+        context["course_lab_assets"] = "\n".join(
+            (f'<link rel="stylesheet" href="{asset_root}{path}?v={sha256((ROOT / path).read_bytes()).hexdigest()[:10]}">'
+             if path.endswith(".css") else
+             f'<script defer src="{asset_root}{path}?v={sha256((ROOT / path).read_bytes()).hexdigest()[:10]}"></script>')
+            for path in lab_assets
+        )
         context["body"] = course["body"].replace("assets/deeponet-eki-math/", asset_root + "assets/courses/deeponet-eki/")
         context["course_toc"] = "\n".join(
             f'<a href="#{anchor}">{heading}</a>' for anchor, heading in course["chapters"]
