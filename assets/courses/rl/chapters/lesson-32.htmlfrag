@@ -1,0 +1,33 @@
+<section class="rl-lesson" data-lesson="32">
+<h2>第 32 讲：不知道环境动力学的导数，为什么仍能求策略梯度？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>你熟悉的轨迹优化通常沿状态方程逐步求导。可这里机器人只拿到传感器数据和奖励，环境甚至是一台无法求导的物理设备。上一课已经获得一个轨迹梯度，现在我们把它整理成一条能指导 Actor-Critic 设计的公式：在经常访问的状态，按动作的未来价值调整其概率。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>折扣状态访问分布为什么出现在梯度中？</li><li>能否忽略“策略改变会改变状态分布”这件事？</li><li>策略梯度定理与可微模型上的反向传播有什么关系？</li></ul>
+<h3>4. 直觉解释</h3><p>一个动作是否值得增加概率，要同时考虑两个因素：在那里行动后有多好，以及策略有多经常到达那里。远离训练分布的状态即使很重要，也不会凭空带来大量梯度；这解释了探索与覆盖对策略优化的影响。</p><p>定理并没有宣称状态分布不随参数变化。它把这种依赖通过价值递推或轨迹因果结构重新整理，最终无需显式计算访问分布的导数。把这一步当成“把分布导数直接扔掉”会误解整条推导。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="不知道环境动力学的导数，为什么仍能求策略梯度？"><text x="24" y="30" fill="var(--text)" font-size="18">不知道环境动力学的导数，为什么仍能求策略梯度？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">轨迹梯度</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">Gt × score</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">条件期望</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">替换成 Qπ</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">访问量 d̃π</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">累计 γᵗ</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">策略梯度</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">无需环境导数</text></svg><figcaption>数学整理没有忽略未来状态，而是把其作用纳入折扣访问量和 Qπ。</figcaption></figure>
+<h3>5. 数学原理</h3><p>考虑有界奖励、γ&lt;1 的折扣任务，初始状态分布与 θ 无关。定义未归一化折扣访问量 d̃π(s)=Σt≥0 γᵗPrπ(st=s)。上课推导给出 EΣt γᵗGt∇logπ。对 st、at 条件化，Gt 的条件期望就是 Qπ(st,at)，因此：</p><div class="rl-equation">\[\nabla J=\sum_s\widetilde d^\pi(s)\sum_a\pi_\theta(a\mid s)Q^\pi(s,a)\nabla\log\pi_\theta(a\mid s).\tag{32.1}\]</div><p>再用 π∇logπ=∇π，得到常见形式：</p><div class="rl-equation">\[\nabla J=\sum_s\widetilde d^\pi(s)\sum_a\nabla_\theta\pi_\theta(a\mid s)Q^\pi(s,a).\tag{32.2}\]</div><p>如果定义归一化分布 dπ=(1−γ)d̃π，则：</p><div class="rl-equation">\[\nabla J=\frac{1}{1-\gamma}\mathbb E_{s\sim d^\pi,a\sim\pi}[Q^\pi(s,a)\nabla\log\pi_\theta(a\mid s)].\tag{32.3}\]</div><p>式中 s 是状态，a 是动作，Qπ 是当前策略价值；1/(1−γ) 来自访问分布归一化。有限时域可用时间相关价值与访问概率写同样结构。常数有时被吸收进学习率，但比较不同 γ 时不能把其数学来源忘掉。</p><p>另一种推导从 Vπ(s)=Σa πθ(a|s)Qπ(s,a) 求导；其中 ∇Qπ=γE∇Vπ(s′)，递归展开后形成 d̃π。这正说明状态变化的影响已经包含在公式里。</p>
+<h3>6. 手算示例</h3><p>两步任务：初始 s0，动作右以概率 p 进入 s1、即时奖0；动作左以概率1−p终止、奖1。s1下一步固定奖4后结束。γ=0.5，则 Q(s0,右)=2，Q(s0,左)=1，V(s0)=1+p。</p><p>令 p=sigmoid θ 且 p=0.5，起点目标梯度为 p(1−p)×(2−1)=0.25。若直接把 s1 的奖励4当成 s0的动作价值，会得到错误的0.75。未来奖励必须按时间折扣进入 Q，访问分布中的 γᵗ又承担另一层时间权重，两者不可随意互换。</p>
+<h3>7. Python 实验</h3><p>脚本对同一个两步问题使用策略梯度公式与中央差分，两者应接近 0.25。改变 γ，找出左右策略偏好翻转的位置。再让 s1 也有参数化动作，并对两个参数分别做有限差分：此时第二步项必须带 γ，否则无法通过核对。</p><p>有限差分在这个已知小问题中是验证工具；真实环境通常无法精确枚举目标，且随机噪声会淹没微小差值。数值核对支持具体实现的一致性，不能代替定理的条件与推导。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_32.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+p = 0.5
+gamma = 0.5
+q = np.array([1.0, gamma * 4.0])
+prob = np.array([1-p, p])
+score = np.array([-p, 1-p])
+exact = np.sum(prob * q * score)
+def objective(theta):
+    right = 1 / (1 + np.exp(-theta))
+    return (1-right) + right * gamma * 4
+h = 1e-5
+finite_difference = (objective(h)-objective(-h))/(2*h)
+print(&quot;PG theorem:&quot;, exact)
+print(&quot;finite difference:&quot;, finite_difference)
+assert np.isclose(exact, finite_difference)</code></pre>
+<h3>8. 与已有知识的联系</h3><p>最优控制的伴随法将未来代价对状态的影响反向传播；策略梯度则用未来动作价值对概率变化加权。两者都处理长期影响，但求导路径与需要的信息不同。Qπ在定理中作为一个函数值出现，Actor 的更新通常不对 Q 的参数依赖求全导数；下一阶段确定性策略梯度会沿动作输入求 ∇aQ，那是另一种结构。</p>
+<h3>9. 常见误区</h3><ul><li>写下状态分布后直接声称它与参数无关。</li><li>混用归一化与未归一化访问分布而丢失常数。</li><li>把某个任意 replay 状态分布代入 On-Policy 定理，却不说明目标与分布修正。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>Qπ替代采样回报后，为什么仍然表示相同梯度？</li><li><strong>Level 2：</strong>从 Bellman 关系说明 ∇Qπ 如何递归产生未来状态访问项。</li><li><strong>Level 3：</strong>为三状态可枚举 MDP 写精确目标，并同时验证两种参数方向的梯度。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>给定 st、at 后，Gt 的条件期望是 Qπ；使用迭代期望即可替换，前提是其余因子只依赖相同条件信息。</p><p><strong>Level 2 参考：</strong>环境和即时奖励显式不依赖 θ 时，∇Q=γP∇V。把它反复代入 ∇V 的递推，得到每一未来时刻 γᵗ 加权的策略梯度项。</p><p><strong>Level 3 参考：</strong>用线性方程解 V=(I−γPπ)⁻¹rπ，再对初始价值有限差分；注意概率归一化、奖励索引和初始分布固定。</p></details>
+<h3>11. 本节知识总结</h3><p>策略梯度定理把轨迹梯度重写成“状态访问×动作价值×策略变化”。它保留了状态分布变化的全部影响，同时为用 critic 替代完整回报创造接口。</p>
+<h3>12. 下一节预告</h3><p>同样正确的梯度，为什么可以有完全不同的噪声？下一课用一个与动作无关的 baseline 看见这种自由度。</p>
+</section>

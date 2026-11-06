@@ -1,0 +1,208 @@
+<section class="rl-lesson" data-lesson="31">
+<h2>第 31 讲：一次成功经历，怎样告诉策略该往哪个方向改？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>机器人偶然绕过障碍，成功送达包裹。我们希望让类似的行动更容易发生，却没有老师告诉它哪一步正确。最直接的尝试是：把这段经历中动作的概率按回报一起调整。REINFORCE 给这个直觉一个精确概率解释，同时暴露一个困难：偶然性也会一起进入更新。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>怎样把分布参数的导数搬进期望内部？</li><li>为什么轨迹概率的对数能避开未知动力学导数？</li><li>怎样把一条轨迹变成可计算的策略更新？</li></ul>
+<h3>4. 直觉解释</h3><p>如果一种参数变化使某条轨迹更可能出现，而这条轨迹的回报很高，那么它应贡献正向更新；低回报轨迹则贡献相对较弱或负向的更新。“更可能出现的方向”由对数概率的梯度描述，“值不值得强化”由回报加权。</p><p>单次采样方向可能很差，但在适当条件下，它的期望等于真实梯度。这与普通梯度下降不同：我们优化的是平均表现，更新本身带有噪声。因而先检查推导，再看多次实验，不能凭一个成功回合判断算法。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="一次成功经历，怎样告诉策略该往哪个方向改？"><text x="24" y="30" fill="var(--text)" font-size="18">一次成功经历，怎样告诉策略该往哪个方向改？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">采样轨迹</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">当前策略</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">回报 Gt</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">反向累加</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">score × Gt</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">随机梯度</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">参数更新</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">提高平均回报</text></svg><figcaption>一次更新沿样本方向移动；正确性指向梯度期望，而非每次回报必然改善。</figcaption></figure>
+<h3>5. 数学原理</h3><p>假设可交换求导与求和或积分，且需要积分的位置有合适的共同支撑。由 ∇p=p∇log p 得：</p><div class="rl-equation">\[\nabla_\theta J=\sum_\tau R(\tau)\nabla_\theta p_\theta(\tau)=\mathbb E_{\tau\sim p_\theta}[R(\tau)\nabla_\theta\log p_\theta(\tau)].\tag{31.1}\]</div><p>用上课轨迹分解取对数，初始分布和环境规律的导数为零，所以：</p><div class="rl-equation">\[\nabla_\theta\log p_\theta(\tau)=\sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t).\tag{31.2}\]</div><p>对时间 t 的动作，过去奖励与该动作的 score 条件期望相乘为零，因为 Σa π(a|s)∇logπ(a|s)=∇Σaπ(a|s)=0。删掉过去项，令 Gt=Σk≥t γᵏ⁻ᵗrₖ₊₁：</p><div class="rl-equation">\[\nabla_\theta J=\mathbb E\left[\sum_{t=0}^{T-1}\gamma^tG_t\nabla_\theta\log\pi_\theta(a_t\mid s_t)\right].\tag{31.3}\]</div><p>单条轨迹就给出一个无偏估计；多条轨迹求平均通常降低噪声。自动微分库默认最小化，因此实现损失 L=−Σt γᵗGt logπθ(at|st)。Gt 必须作为采样权重，不对奖励反向传播。γᵗ对应本课折扣起点目标；某些常见实现略去它，所用状态采样与目标解释需要另行说明。</p>
+<h3>6. 手算示例</h3><p>一维 Bernoulli 策略右转概率 p=0.75。右转的 ∂logp/∂θ=1−p=0.25，左转的 ∂log(1−p)/∂θ=−p=−0.75。若右转奖励 3，本次估计为 3×0.25=0.75；若左转奖励 1，估计为 −0.75。</p><p>两种情况按概率平均：0.75×0.75+0.25×(−0.75)=0.375，恰好等于上一课的解析梯度。一次左转会产生负方向更新，即使奖励为正；score 的符号与参数化有关，不能把 REINFORCE 简化成“所有正奖励都增大同一个参数”。</p>
+<h3>7. Python 实验</h3><p>先用 <code>--smoke</code> 验证轨迹采样和反向传播，再用 <code>--steps 20000 --plot</code> 训练 CartPole。完整训练器在下方展开：采样一回合、反向累积回报、计算加权对数概率损失、更新参数，最后在独立环境评估。此处将 CartPole 的 500 步上限作为有限回合目标，Monte Carlo 在该边界结束。完整回合采样可能略超请求预算，以实际打印的 training_steps 为准。训练器中的梯度范数裁剪是工程稳定技巧，不属于无偏梯度恒等式。</p><ol><li>用当前策略采集完整轨迹。</li><li>从后向前递推 Gt=rₜ₊₁+γGt₊₁。</li><li>累加 −γᵗGt logπθ(at|st)，执行一次梯度下降。</li><li>重复交互，另开环境测量冻结策略的表现。</li></ol><p>修改种子、学习率和回报尺度，观察训练曲线的波动。预期是存在明显随机性；某个预算内没有进步时，应先检查动作概率、回报时间索引和梯度符号，再考虑增加预算。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_31.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python"># Put rl_policy_common.py beside this file.
+# python lesson_31.py --smoke
+# python lesson_31.py --steps 20000 --seed 7 --plot
+from rl_policy_common import run
+if __name__ == &quot;__main__&quot;:
+    run(&quot;reinforce&quot;)</code></pre><p>本实验使用同目录公共模块 <a href="../assets/courses/rl/examples/rl_policy_common.py" download>rl_policy_common.py</a>。将它与本课脚本放在同一文件夹；公共模块包含网络、采样、全部更新与独立评估，未调用强化学习框架。</p><details class="rl-source"><summary>展开公共训练器完整源码</summary><pre><code class="language-python">&quot;&quot;&quot;Minimal discrete-policy trainers for lessons 31, 34, 35 and 39.
+
+Install: python -m pip install numpy torch gymnasium matplotlib
+Run an importing lesson script with --smoke or --steps 20000 --plot.
+All networks and updates are written here; no RL framework is used.
+&quot;&quot;&quot;
+import argparse
+import random
+import numpy as np
+import torch
+from torch import nn
+from torch.distributions import Categorical
+import gymnasium as gym
+
+
+class ActorCritic(nn.Module):
+    def __init__(self, obs_dim, actions):
+        super().__init__()
+        self.body = nn.Sequential(nn.Linear(obs_dim, 64), nn.Tanh(),
+                                  nn.Linear(64, 64), nn.Tanh())
+        self.actor = nn.Linear(64, actions)
+        self.value = nn.Linear(64, 1)
+
+    def forward(self, obs):
+        features = self.body(obs)
+        return Categorical(logits=self.actor(features)), self.value(features).squeeze(-1)
+
+
+def evaluate(net, seed, episodes):
+    env = gym.make(&quot;CartPole-v1&quot;)
+    scores = []
+    for episode in range(episodes):
+        obs, _ = env.reset(seed=seed + episode)
+        score = 0.0
+        while True:
+            with torch.no_grad():
+                dist, _ = net(torch.as_tensor(obs, dtype=torch.float32))
+                action = int(dist.probs.argmax())
+            obs, reward, terminated, truncated, _ = env.step(action)
+            score += reward
+            if terminated or truncated:
+                break
+        scores.append(score)
+    env.close()
+    return scores
+
+
+def run(mode):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--steps&quot;, type=int, default=20000)
+    parser.add_argument(&quot;--seed&quot;, type=int, default=7)
+    parser.add_argument(&quot;--smoke&quot;, action=&quot;store_true&quot;)
+    parser.add_argument(&quot;--plot&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    budget = min(args.steps, 256) if args.smoke else args.steps
+    if budget &lt; 1:
+        parser.error(&quot;--steps must be positive&quot;)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.set_num_threads(1)
+    count = 4 if mode == &quot;a2c&quot; else 1
+    envs = [gym.make(&quot;CartPole-v1&quot;) for _ in range(count)]
+    obs = np.stack([env.reset(seed=args.seed + i)[0] for i, env in enumerate(envs)])
+    net = ActorCritic(obs.shape[-1], envs[0].action_space.n)
+    opt = torch.optim.Adam(net.parameters(), lr=3e-4)
+    gamma, lam = 0.99, (0.95 if mode == &quot;ppo&quot; else 1.0 if mode == &quot;a2c&quot; else 0.0)
+    steps, train_returns = 0, []
+    totals = np.zeros(count)
+
+    while steps &lt; budget:
+        if mode == &quot;reinforce&quot;:
+            # The benchmark&#x27;s 500-step limit is treated as the finite episode objective.
+            trajectory, rewards = [], []
+            while True:
+                state = torch.tensor(obs[0], dtype=torch.float32)
+                dist, _ = net(state)
+                action = dist.sample()
+                nxt, reward, term, trunc, _ = envs[0].step(int(action))
+                trajectory.append((state, action.detach()))
+                rewards.append(reward)
+                steps += 1
+                obs[0] = nxt
+                if term or trunc:
+                    obs[0], _ = envs[0].reset()
+                    break
+            returns, value = [], 0.0
+            for reward in reversed(rewards):
+                value = reward + gamma * value
+                returns.append(value)
+            returns = torch.tensor(returns[::-1], dtype=torch.float32)
+            states = torch.stack([pair[0] for pair in trajectory])
+            actions = torch.stack([pair[1] for pair in trajectory])
+            dist, _ = net(states)
+            # gamma**t is needed for the discounted start-state objective used here.
+            weights = gamma ** torch.arange(len(rewards), dtype=torch.float32)
+            loss = -(weights * dist.log_prob(actions) * returns).sum()
+            opt.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+            opt.step()
+            train_returns.append(sum(rewards))
+            continue
+
+        observations, actions, old_logs = [], [], []
+        values, rewards, next_values, terminals, boundaries = [], [], [], [], []
+        horizon = min(128 if mode == &quot;ppo&quot; else 16, max(1, (budget - steps) // count))
+        for _ in range(horizon):
+            state = torch.tensor(obs, dtype=torch.float32)
+            with torch.no_grad():
+                dist, value = net(state)
+                action = dist.sample()
+                old_log = dist.log_prob(action)
+            raw_next, rs, ts, bs = [], [], [], []
+            for i, env in enumerate(envs):
+                nxt, reward, term, trunc, _ = env.step(int(action[i]))
+                raw_next.append(nxt.copy())
+                rs.append(reward)
+                ts.append(float(term))
+                bs.append(float(term or trunc))
+                totals[i] += reward
+                obs[i] = nxt
+                if term or trunc:
+                    train_returns.append(float(totals[i]))
+                    totals[i] = 0
+                    obs[i], _ = env.reset()
+            with torch.no_grad():
+                _, nv = net(torch.tensor(np.stack(raw_next), dtype=torch.float32))
+            observations.append(state)
+            actions.append(action)
+            old_logs.append(old_log)
+            values.append(value)
+            rewards.append(torch.tensor(rs))
+            next_values.append(nv)
+            terminals.append(torch.tensor(ts))
+            boundaries.append(torch.tensor(bs))
+            steps += count
+
+        value = torch.stack(values)
+        advantage = torch.zeros_like(value)
+        trace = torch.zeros(count)
+        for t in reversed(range(horizon)):
+            delta = rewards[t] + gamma * (1 - terminals[t]) * next_values[t] - value[t]
+            # Bootstrap time truncations; never carry a trace across a reset.
+            trace = delta + gamma * lam * (1 - boundaries[t]) * trace
+            advantage[t] = trace
+        target = (advantage + value).flatten().detach()
+        adv = advantage.flatten().detach()
+        states = torch.stack(observations).reshape(-1, obs.shape[-1])
+        acts = torch.stack(actions).flatten()
+        old = torch.stack(old_logs).flatten().detach()
+        if mode == &quot;ppo&quot; and len(adv) &gt; 1:
+            adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+        epochs = 4 if mode == &quot;ppo&quot; else 1
+        for _ in range(epochs):
+            permutation = torch.randperm(len(adv))
+            for batch in permutation.split(64 if mode == &quot;ppo&quot; else len(adv)):
+                dist, predicted = net(states[batch])
+                log_prob = dist.log_prob(acts[batch])
+                if mode == &quot;ppo&quot;:
+                    ratio = (log_prob - old[batch]).exp()
+                    actor = -torch.minimum(ratio * adv[batch],
+                                           ratio.clamp(0.8, 1.2) * adv[batch]).mean()
+                else:
+                    actor = -(log_prob * adv[batch]).mean()
+                critic = 0.5 * (predicted - target[batch]).square().mean()
+                loss = actor + critic - 0.01 * dist.entropy().mean()
+                opt.zero_grad()
+                loss.backward()
+                nn.utils.clip_grad_norm_(net.parameters(), 0.5)
+                opt.step()
+    for env in envs:
+        env.close()
+    scores = evaluate(net, args.seed + 10000, 1 if args.smoke else 5)
+    print(f&quot;{mode}: training_steps={steps}, completed_episodes={len(train_returns)}&quot;)
+    print(&quot;Independent deterministic evaluation:&quot;, scores, &quot;mean=&quot;, float(np.mean(scores)))
+    print(&quot;A smoke run checks execution; it does not establish learning performance.&quot;)
+    if args.plot:
+        import matplotlib.pyplot as plt
+        plt.plot(train_returns, alpha=0.65)
+        plt.xlabel(&quot;Completed training episode&quot;)
+        plt.ylabel(&quot;Undiscounted episode reward&quot;)
+        plt.title(f&quot;{mode}, training seed {args.seed}&quot;)
+        plt.show()
+</code></pre></details>
+<h3>8. 与已有知识的联系</h3><p>对数导数技巧也称 score-function 估计，可用于不可微随机节点。它与通过可微动力学反向传播的轨迹优化不同：这里环境导数不需要知道，代价是梯度噪声较大。算法只用当前策略采集的数据，属于 On-Policy；把旧轨迹无限重复使用会破坏原来的采样分布，除非引入后续课程讨论的修正或代理目标。</p>
+<h3>9. 常见误区</h3><ul><li>把最大化目标直接交给最小化优化器，漏掉损失的负号。</li><li>用当前参数重新计算旧数据的概率，却把它当作当前策略新采到的数据。</li><li>把每个回合内回报标准化当成永远无偏的恒等变换；这是一项需要单独分析的工程处理。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>为什么未知环境转移仍出现在轨迹概率中，却没有出现在最终 score 梯度中？</li><li><strong>Level 2：</strong>在 p=0.5、左右奖励为 1 和 3 时，手算单样本梯度的均值与方差。</li><li><strong>Level 3：</strong>设计实验比较整段回报与 reward-to-go 两种梯度估计的波动。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>假设环境本身不直接依赖 θ，其 log 概率对 θ 的显式导数为零；环境仍通过采样轨迹影响梯度的分布。</p><p><strong>Level 2 参考：</strong>样本梯度右侧1.5、左侧−0.5，各半。均值0.5，方差[(1.5−0.5)²+(−0.5−0.5)²]/2=1。</p><p><strong>Level 3 参考：</strong>固定策略采大量独立回合，保持相同样本预算，重复估计每种梯度的均值与协方差，再检查是否围绕同一解析或高精度参考值。</p></details>
+<h3>11. 本节知识总结</h3><p>REINFORCE 用对数概率梯度乘采样回报，获得不依赖环境导数的策略梯度估计。它容易实现，但完整回合和高噪声会限制效率，后续 baseline 与 critic 正是为这些问题而来。</p>
+<h3>12. 下一节预告</h3><p>轨迹公式已经能训练策略，为什么还需要“策略梯度定理”？下一课把轨迹表达整理为状态访问与动作价值的关系。</p>
+</section>

@@ -1,0 +1,45 @@
+<h2>第 59 讲：一篇强化学习论文，应该先读公式还是先找它解决的问题？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你读完一篇论文，记住了算法名字和一条漂亮曲线，却说不出它为什么要增加第二个critic。第二天想复现时，发现论文的理论使用精确期望，代码却每次只取一个小批量。阅读研究论文的目标，是把作者的推理和证据重新搭起来。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>怎样把论文拆成可检验的主张？</li><li>如何区分定理、近似与实验观察？</li><li>公式怎样对应到代码和实验？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>先写一个问题：“已有方法在什么条件下失败？”再追踪方法改变了哪一处计算，以及作者拿什么证据说明它解决了问题。最后才判断这个结论能否迁移到你的机器人。</p><p>阅读可以分三遍：先看问题、方法图与结论；再追目标、数据分布和推导；最后核对代码、超参数、评估协议及失败案例。每一遍都产出一个能被别人检查的记录。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="一篇强化学习论文，应该先读公式还是先找它解决的问题？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第59讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">问题与主张</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">写清适用范围</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">公式与假设</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">辨别精确与近似</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">代码与数据</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">核对实际计算</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">实验与反例</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">决定证据强度</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>把一项主张写成“假设H成立时，方法A相对B在指标M上改善”。以下T特指最优Bellman算子，V*是其固定点，所有范数均为最大范数，且0≤γ&lt;1。理论主张需要明确量词与误差：例如 \(\|T V-T W\|_\infty\le\gamma\|V-W\|_\infty\) 依赖有限折扣MDP等条件。有限样本拟合算子 \(\hat T\) 并不直接继承精确T的全部结论。</p><p>用三角不等式把差距拆开：\[\|\hat T V-V^*\|\le\|\hat T V-TV\|+\|TV-TV^*\|.\tag{59.1}\]若第二项有收缩界，则 \(\|\hat T V-V^*\|\le\epsilon+\gamma\|V-V^*\|\)。第一项包含采样、函数逼近与优化误差；只有能控制它，理论递推才对实现有意义。</p><p>实验主张则是对明确评估协议下的随机表现作估计。把“在某些环境、预算和种子上提升”扩大为“算法总是更优”，改变了主张的量词。论文阅读要主动检查这个跨度。</p><p>建议依次阅读 <a href="https://link.springer.com/article/10.1007/BF00115009">Sutton 的 TD 论文</a>、<a href="https://link.springer.com/article/10.1007/BF00992696">Williams 的 REINFORCE 论文</a>、<a href="https://www.nature.com/articles/nature14236">DQN</a>、<a href="https://arxiv.org/abs/1707.06347">PPO</a>与<a href="https://arxiv.org/abs/1801.01290">SAC</a>。这些是阅读入口，原始算法变体与后续实现应按版本分别核对。</p>
+<p>把递推继续展开可得 \(e_k\le\gamma^ke_0+\epsilon(1-\gamma^k)/(1-\gamma)\)。它要求每一次近似备份都满足同一一致误差界，而非只在训练样本上平均准确。阅读时可以圈出这项要求，再问作者是否测量、证明或仅假设它；尚未连接的桥梁本身就是值得记录的问题。</p>
+<h3>6. 手算示例</h3>
+<p>假设每次近似备份误差至多0.02，γ=0.9，则固定误差递推的渐近界为 \(0.02/(1-0.9)=0.2\)。若实验仅报告平均TD损失0.02，不能直接代入这个界：平均平方残差与全状态最大范数误差不是同一个量，单位也不同。这是核对理论与实现时非常常见的一处断层。</p>
+<h3>7. Python 实验</h3>
+<p>本讲脚本仅用Python标准库，无需额外安装。运行 <code>python lesson_59.py</code>，会生成 <code>lesson59_reading.json</code> 并打印条件误差界；这是确定性阅读工作单，不进行训练或绘图。</p><pre><code class="language-python">import json
+from pathlib import Path
+# Deterministic reading worksheet: no random process is involved.
+record = {
+    &quot;paper&quot;: &quot;Fill in title, year, version, URL&quot;,
+    &quot;question&quot;: &quot;Which concrete failure motivates the method?&quot;,
+    &quot;claim&quot;: {&quot;setting&quot;: &quot;&quot;, &quot;baseline&quot;: &quot;&quot;, &quot;metric&quot;: &quot;&quot;, &quot;scope&quot;: &quot;&quot;},
+    &quot;theory&quot;: {&quot;assumptions&quot;: [], &quot;result&quot;: &quot;&quot;, &quot;unproved_bridge&quot;: &quot;&quot;},
+    &quot;implementation&quot;: {&quot;target_equation&quot;: &quot;&quot;, &quot;code_location&quot;: &quot;&quot;,
+                       &quot;gradient_stops&quot;: &quot;&quot;, &quot;data_distribution&quot;: &quot;&quot;},
+    &quot;evidence&quot;: {&quot;environment&quot;: &quot;&quot;, &quot;budget&quot;: &quot;&quot;, &quot;training_seeds&quot;: [],
+                 &quot;evaluation_episodes&quot;: &quot;&quot;, &quot;ablations&quot;: []},
+    &quot;limitations&quot;: [],
+    &quot;next_test&quot;: &quot;&quot;
+}
+Path(&quot;lesson59_reading.json&quot;).write_text(
+    json.dumps(record, ensure_ascii=False, indent=2), encoding=&quot;utf-8&quot;)
+gamma, epsilon = 0.9, 0.02
+print(&quot;conditional asymptotic bound:&quot;, epsilon/(1-gamma))
+print(&quot;Do not substitute average squared TD loss for a uniform backup bound.&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>你的工科研究经验可以直接用于这里：像检查控制定理一样检查假设，像审查数值求解器一样追踪近似，像设计物理实验一样定义对照。</p><p>脚本生成结构化阅读单；完成至少一篇后，把一条公式标到实际实现的位置。若无法找到对应代码，要先判断它是省略、变体还是你的理解尚有缺口。</p>
+<p>挑战记录应写出一个可能推翻解释的反例，例如加入相同计算预算的旧算法后优势消失。若代码只是生成空白字段，不能把文件存在当作读懂论文；验收时需要填入具体公式、代码位置，以及一项可以实际执行的后续核查。</p>
+<h3>9. 常见误区</h3>
+<ul><li>摘要中的改善不一定是定理保证。</li><li>代码与论文不同不一定是错误，也可能是不同版本或工程近似。</li><li>只记算法名称不足以理解其机制。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>理论主张与实验主张需要哪些不同证据？</li><li><strong>Level 2：</strong>推导近似收缩递推的渐近界。</li><li><strong>Level 3：</strong>为PPO的一条关键主张设计反证式实验。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>前者检查假设与证明，后者检查协议、随机性、基线与统计不确定性。</p><p><strong>Level 2：</strong>递推 \(e_{k+1}\le\epsilon+\gamma e_k\)，展开几何级数得 \(\limsup e_k\le\epsilon/(1-\gamma)\)。</p><p><strong>Level 3：</strong>例如固定其他条件改变更新轮数，记录KL、回报退化与clip比例，检验“裁剪足以限制任意更新”的错误主张。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>读论文是重建“问题—假设—方法—证据”的链条。最有价值的笔记会明确哪里已经证明，哪里仍需实验。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：我们拿自己的PPO实现来做一次逐项审查，看看相同算法名字背后藏着多少选择。</p>

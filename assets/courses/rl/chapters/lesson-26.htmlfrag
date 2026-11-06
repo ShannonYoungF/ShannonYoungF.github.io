@@ -1,0 +1,164 @@
+<section class="rl-lesson" id="lesson-26">
+<h2>第 26 讲：边写答案边改标准答案，游戏AI怎样学得稳？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>想象学生每做一道题，就用自己刚改过的答案重写下一题的评分标准，而且练习题全是刚遇到的相似题。即使每步计算正确，学习也可能摇摆。网络接入Q-Learning时，移动目标、相关数据与共享参数一起出现，DQN用两项朴素机制缓和问题。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>经验回放为何有助于打散时间相关性？</li><li>目标网络到底冻结哪部分计算？</li><li>怎样组成真正训练并独立评估的完整DQN？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>经验回放把转移存入有限缓存，再随机抽小批量，避免每次只追着最新一段轨迹跑；同一经验也可重复利用。目标网络保留在线网络的滞后副本，短期用较固定的尺子打分。在线网络负责当前动作值预测，目标网络只提供后继目标，再周期同步。</p>
+<p>它们是工程稳定机制，不会让数据变成完全独立同分布，也不保证深度Q学习收敛。缓存过旧可能偏离当前策略，目标同步过频又会失去滞后作用。先理解数据流，再通过消融判断当前环境中的实际影响。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="回放管理采样，目标网络管理标签变化；二者不是收敛保证。"><title>边写答案边改标准答案，游戏AI怎样学得稳？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">经验缓存D</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">随机抽取批量</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">滞后网络算y</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">在线网络回归</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">回放管理采样，目标网络管理标签变化；二者不是收敛保证。</text></svg><figcaption>回放管理采样，目标网络管理标签变化；二者不是收敛保证。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>缓存转移为(s,a,r,s′,d)，d只标记真正终止；在线参数θ，目标参数θ⁻。由采样最优备份构造目标，在线网络仅取已执行动作的分量：</p>
+<p>\[y=r+\gamma(1-d)\max_bQ_{\theta^-}(s^{\prime},b),\quad z=Q_\theta(s,a),\quad L(\theta)=\mathbb E_{\mathcal D}[\ell(z-y)].\tag{26.1}\]</p>
+<p>半平方误差的梯度是(z−y)∇θQ；实验采用Huber损失，在大误差处限制误差导数。目标分支必须停止梯度：</p>
+<p>\[\nabla_\theta\tfrac12(z-y)^2=(z-y)\nabla_\theta Q_\theta(s,a),\qquad\theta^-\leftarrow\theta\quad\text{每隔C个环境步}.\tag{26.2}\]</p>
+<p>C是同步间隔，批量大小决定一次更新使用多少样本。终止掩码、动作索引gather与目标detach一起决定是否实现了公式。训练流程为：采样转移入缓存，足够热身后抽批量，冻结目标计算y，对已执行动作回归，再按间隔同步。</p>
+<h3>6. 手算示例</h3>
+<p>奖励1、折扣0.9，目标网络后继动作值[2,3]，在线当前所选动作预测1.5。非终止目标3.7，误差y−z=2.2，半平方损失2.42；真正终止时目标1，误差−0.5，损失0.125。前者Huber损失使用线性尾部，阈值1时为2.2−0.5=1.7，并非2.42。</p>
+<h3>7. Python 实验</h3>
+<p>训练器在CartPole-v1运行，包含ε探索、回放热身、小批量、目标同步、梯度裁剪和独立贪心评估。用--steps 20000训练，--smoke执行512步接口检查；smoke只能验证执行，不能证明学会平衡。--plot绘出评估回报，阴影是评估幕标准差。正式比较用多个训练种子并固定环境步预算，不把单种子曲线当普遍规律。</p>
+<p>安装：<code>python -m pip install numpy torch gymnasium matplotlib</code>。运行：<code>python lesson_26.py</code>。<a href="../assets/courses/rl/examples/lesson_26.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Minimal complete DQN. pip install numpy torch gymnasium matplotlib
+Run: python lesson_26.py --steps 20000; quick plumbing check: --smoke
+"""
+import argparse
+import copy
+import random
+from collections import deque
+import numpy as np
+import torch
+from torch import nn
+import gymnasium as gym
+
+class QNetwork(nn.Module):
+    def __init__(self, obs_dim, actions):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(obs_dim, 64), nn.ReLU(),
+                                 nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, actions))
+    def forward(self, x):
+        return self.net(x)
+
+def parser(default_seed=26):
+    p = argparse.ArgumentParser()
+    p.add_argument('--steps', type=int, default=20000)
+    p.add_argument('--seed', type=int, default=default_seed)
+    p.add_argument('--smoke', action='store_true')
+    p.add_argument('--plot', action='store_true')
+    return p
+
+@torch.no_grad()
+def evaluate(net, seed, episodes=5):
+    # Independent environment and seeds; never add these transitions to replay.
+    env, totals = gym.make('CartPole-v1'), []
+    for ep in range(episodes):
+        state, _ = env.reset(seed=seed + ep)
+        total = 0.0
+        while True:
+            x = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
+            action = int(net(x).argmax(dim=1).item())
+            state, reward, terminated, truncated, _ = env.step(action)
+            total += reward
+            if terminated or truncated:
+                break
+        totals.append(total)
+    env.close()
+    return float(np.mean(totals)), float(np.std(totals))
+
+def train(args, network_factory=QNetwork, double=False):
+    if args.smoke:
+        args.steps = min(args.steps, 512)
+    if args.steps &lt; 1:
+        raise ValueError('--steps must be positive')
+    random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
+    torch.set_num_threads(1)
+    rng = np.random.default_rng(args.seed)
+    env = gym.make('CartPole-v1')
+    env.action_space.seed(args.seed)
+    obs_dim, actions = env.observation_space.shape[0], env.action_space.n
+    online = network_factory(obs_dim, actions)
+    target = copy.deepcopy(online).eval()
+    target.requires_grad_(False)
+    opt = torch.optim.Adam(online.parameters(), lr=5e-4)
+    replay = deque(maxlen=20000)
+    state, _ = env.reset(seed=args.seed)
+    gamma, batch = 0.99, 32 if args.smoke else 64
+    warmup = 64 if args.smoke else 500
+    interval = 256 if args.smoke else 2000
+    ep_return, train_returns, evaluations, losses = 0.0, [], [], []
+    try:
+        for step in range(1, args.steps + 1):
+            eps = max(0.05, 1 - 0.95 * step / max(1, args.steps * .6))
+            if rng.random() &lt; eps:
+                action = int(rng.integers(actions))
+            else:
+                with torch.no_grad():
+                    action = int(online(torch.as_tensor(state).float()[None]).argmax(1).item())
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            # Keep the real next observation. External TimeLimit still bootstraps.
+            replay.append((state.copy(), action, reward, next_state.copy(), terminated))
+            state, ep_return = next_state, ep_return + reward
+            if terminated or truncated:
+                train_returns.append(ep_return)
+                state, _ = env.reset()
+                ep_return = 0.0
+            if step &gt;= warmup and len(replay) &gt;= batch and step % 4 == 0:
+                indices = rng.choice(len(replay), batch, replace=False)
+                samples = [replay[int(i)] for i in indices]
+                s, ac, r, ns, terminal = zip(*samples)
+                s, ns = torch.as_tensor(np.stack(s)), torch.as_tensor(np.stack(ns))
+                ac = torch.as_tensor(ac, dtype=torch.int64).unsqueeze(1)
+                r, terminal = torch.as_tensor(r).float(), torch.as_tensor(terminal).float()
+                prediction = online(s).gather(1, ac).squeeze(1)
+                with torch.no_grad():
+                    if double:
+                        # Online selects; target evaluates that selected action.
+                        best = online(ns).argmax(1, keepdim=True)
+                        bootstrap = target(ns).gather(1, best).squeeze(1)
+                    else:
+                        bootstrap = target(ns).max(1).values
+                    y = r + gamma * (1 - terminal) * bootstrap
+                loss = nn.functional.smooth_l1_loss(prediction, y)
+                opt.zero_grad(); loss.backward()
+                nn.utils.clip_grad_norm_(online.parameters(), 10.0)
+                opt.step(); losses.append(float(loss.item()))
+            if step % 500 == 0:
+                target.load_state_dict(online.state_dict())
+            if step % interval == 0 or step == args.steps:
+                mean, std = evaluate(online, args.seed + 10000, 2 if args.smoke else 5)
+                evaluations.append((step, mean, std))
+                print(f'step={step} eval_mean={mean:.1f} eval_std={std:.1f} '
+                      f'epsilon={eps:.3f} replay={len(replay)} updates={len(losses)}')
+    finally:
+        env.close()
+    print('final 20 training returns:', np.round(train_returns[-20:], 1))
+    print('final 20 mean Huber loss:', np.mean(losses[-20:]) if losses else 'no updates')
+    if args.smoke:
+        print('SMOKE checks execution only; this budget cannot establish learning quality.')
+    if args.plot:
+        import matplotlib.pyplot as plt
+        x, y, sd = np.array(evaluations).T
+        plt.plot(x, y, marker='o', label='Independent greedy evaluation')
+        plt.fill_between(x, y-sd, y+sd, alpha=.2, label='Episode standard deviation')
+        plt.xlabel('Training environment steps'); plt.ylabel('Return'); plt.legend(); plt.show()
+    return online, evaluations
+
+if __name__ == '__main__':
+    train(parser().parse_args())
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>DQN仍逼近Q-Learning的一步最优目标，网络是动作价值近似器。输出维度等于离散动作数，所以CartPole适合入门；连续力矩无法逐个枚举max，需要后续策略优化。算法同时组合离策略、自举和函数逼近，正是必须认真研究稳定性的场景。</p>
+<h3>9. 常见误区</h3>
+<p>目标参数不反传，但仍需同步。不能把整行Q都回归到同一标量，只取已执行动作。回报升高而loss不下降未必是错误，因为目标也在改变。独立评估轨迹不能塞回训练缓存，否则评价污染训练。不要把Huber损失或裁剪视为能修复错误奖励、标记或数据覆盖的通用药。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：为什么回放不是简单增加数据量？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>它改变采样顺序和复用方式，缓存仍来自有限交互，没有创造新环境信息。</p></details>
+<p><strong>Level 2：手算中若后继最大值为−2，非终止目标与误差是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>目标1−1.8=−0.8，y−z=−2.3。</p></details>
+<p><strong>Level 3：怎样消融回放与目标网络的作用？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>分别去掉一项，固定交互预算、网络与种子集合，报告独立回报、失败比例和波动。当前小环境效果弱也应如实记录。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>回放重组经验，目标副本减缓标签变化。可信DQN来自完整数据流、正确目标和独立评估，不只是一个能下降的loss。</p>
+<h3>12. 下一节预告</h3>
+<p>训练不好可能只是把时间到了误当成任务失败。下一讲用小型数值实验定位终止与截断这个陷阱。</p>
+</section>

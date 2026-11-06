@@ -1,0 +1,52 @@
+<h2 id="lecture-02">第 2 讲：今天少拿一分，为什么反而可能更划算？</h2>
+<h3>2. 开场故事</h3>
+<p>机器人抵达岔路口。左边是一枚立刻能拿到的电池，奖励四分；右边要先走两步没有奖励的走廊，第三步才能取得八分。只看眼前，左边显然诱人。可如果任务还会持续，绕一点路是否更值得？更有意思的是：同样两条路，急着交差的机器人和耐心的机器人，可能作出不同选择。</p><p>我们需要一把共同的尺子，把不同时间获得的奖励放在一起比较。它就是回报。先规定这把尺子，再讨论哪条路线好，才能避免用“长期有利”这种模糊说法代替计算。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>即时奖励和回报有什么区别？</li><li>折扣因子怎样改变延迟奖励的吸引力？</li><li>有限回合、无限持续任务的回报分别在什么条件下有意义？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>把每次奖励看成一笔在不同时间到账的收入。折扣不是把未来删除，而是规定相隔一步的奖励在当前计分中占多大权重。当折扣因子接近一时，遥远奖励仍有分量；当它接近零时，决策几乎只看下一次反馈。它既可能表达任务偏好，也可能来自随机存活模型，但这两种解释需要各自的假设。</p><p>输入是一条奖励序列以及折扣因子，输出是一个总分。这个计算并不需要知道机器人通过什么算法获得轨迹。我们可以在尚未学习任何算法时，先练习比较轨迹，检验自己定义的目标是否符合任务意图。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="相同奖励、不同到账时间：折扣决定比较结果" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="35" y="40" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="110.0" y="72" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">路线 A：4</text><path d="M190 65 L600 65" stroke="var(--accent)"/><text x="395.0" y="43" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">立刻到账</text><rect x="35" y="140" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="110.0" y="172" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">路线 B：0</text><rect x="260" y="140" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="335.0" y="172" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">0</text><rect x="485" y="140" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="560.0" y="172" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">8</text><path d="M185 165 L260 165" stroke="var(--accent)"/><text x="222.5" y="130" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">一步</text><path d="M410 165 L485 165" stroke="var(--accent)"/><text x="447.5" y="130" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">一步</text></g></svg><figcaption>相同奖励、不同到账时间：折扣决定比较结果</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设 \(t\) 为当前决策时刻，\(T\) 为终止时刻，\(\gamma\) 为折扣因子。回报定义为</p>
+\[G_t=\sum_{k=0}^{T-t-1}\gamma^kR_{t+k+1}.\tag{2.1}\]
+<p>第一项是动作后的 \(R_{t+1}\)，不是 \(R_t\)。把第一项取出，再从其余项中提出一个 \(\gamma\)，得到</p>
+\[G_t=R_{t+1}+\gamma\left(R_{t+2}+\gamma R_{t+3}+\cdots\right)=R_{t+1}+\gamma G_{t+1}.\tag{2.2}\]
+<p>这只是同一奖励总和的重新分组，还没有用到马尔可夫性质。令终止后的 \(G_T=0\)，就能从后向前计算。有限回合允许 \(\gamma=1\)；无限持续任务通常要求 \(0\leq\gamma&lt;1\)，并假设奖励有界 \(|R_t|\leq R_{\max}\)，于是</p>
+\[|G_t|\leq R_{\max}\sum_{k=0}^{\infty}\gamma^k=\frac{R_{\max}}{1-\gamma}.\tag{2.3}\]
+<p>若每步独立以概率 \(\gamma\) 存活、终止后不再奖励，则从当前起第 \(k+1\) 个奖励被收到的概率是 \(\gamma^k\)（约定第一个奖励必然收到），折扣和因此也可解释为该随机终止机制下的期望总奖励；一般任务并不自动满足这个模型。</p>
+<h3>6. 完整手算示例</h3>
+<p>路线 A 的奖励是 \((4)\)，路线 B 是 \((0,0,8)\)。当 \(\gamma=0.9\)，A 得 \(4\)，B 得 \(8\times0.9^2=6.48\)，B 更好；当 \(\gamma=0.5\)，B 只得 \(2\)，A 更好。临界点满足 \(8\gamma^2=4\)，即 \(\gamma=1/\sqrt2\approx0.7071\)。再对 B 倒推：终点后回报零，第三步前为八，第二步前为七点二，第一步前为六点四八。</p>
+<h3>7. Python 实验</h3>
+<p>脚本用正向加权与反向递推两种方法计算同一回报，并画出两条路线随折扣变化的分数。两种实现一致是一个有意义的索引检查。尝试把 B 的八分再向后移一步，预测临界点如何移动，然后运行验证；不要只用“更不耐心”解释，要写出新的不等式。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>。运行独立脚本 <code>lesson_02.py</code>；下列代码与下载脚本一致。种子用于复现这个实验，不能代替对随机性和适用条件的分析。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)  # no sampling is needed for these fixed paths
+
+def backward_return(rewards, gamma):
+    total = 0.0
+    for reward in reversed(rewards):
+        total = reward + gamma * total
+    return total
+
+paths = {&#x27;A&#x27;: [4.0], &#x27;B&#x27;: [0.0, 0.0, 8.0]}
+for gamma in [0.5, 0.9]:
+    for name, rewards in paths.items():
+        direct = np.dot(gamma ** np.arange(len(rewards)), rewards)
+        recursive = backward_return(rewards, gamma)
+        assert np.isclose(direct, recursive)
+        print(f&#x27;gamma={gamma}: route {name}, return={recursive:.4f}&#x27;)
+grid = np.linspace(0, 1, 201)
+for name, rewards in paths.items():
+    plt.plot(grid, [backward_return(rewards, g) for g in grid], label=name)
+plt.axvline(1 / np.sqrt(2), linestyle=&#x27;--&#x27;, color=&#x27;gray&#x27;, label=&#x27;tie&#x27;)
+plt.xlabel(&#x27;Discount gamma&#x27;); plt.ylabel(&#x27;Return&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>你熟悉的最优控制常最小化阶段代价与终端代价之和。把奖励取为代价的负数，就可以对齐最大化与最小化的符号；但控制问题未必需要折扣。改变采样周期时，若希望表达连续时间衰减率 \(\rho\)，可取 \(\gamma=e^{-\rho\Delta t}\)，不能不加思考地沿用原数值。</p>
+<h3>9. 常见误区</h3>
+<p>较大折扣并不意味着未来单个奖励权重超过现在；在标准范围内，未来权重至多相同。折扣也不是探索概率。有限任务中只给 \(\gamma\) 改数值，实际上就在改优化目标；有时它有计算上的好处，却需要承认这是工程取舍。无限任务取一时，不能直接套用几何级数界。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>奖励序列 \((0,0,8)\) 的第一项回报一定是零吗？<br><strong>Level 2：</strong>比较 \((3)\) 与 \((0,6)\)，求后者严格更优的折扣范围。<br><strong>Level 3：</strong>采样周期从零点一秒改成零点零五秒，如何保持相同的连续时间折扣率？</p><details><summary>参考答案与检查方向</summary><p>L1：不是，回报包含未来，为 \(8\gamma^2\)。L2：\(6\gamma&gt;3\)，即 \(\gamma&gt;0.5\)。L3：保持 \(\rho=-\log\gamma/\Delta t\)，新折扣为旧折扣的平方根。奖励若表示单位时间收益，离散化时也要检查乘上时间步长，不能只改折扣。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>回报把整段奖励映射成一个数，折扣规定时间偏好。回报递推只是求和的重新分组，将在后续成为贝尔曼方程的第一块积木。是否理解，应通过独立计算和解释目标变化来判断。</p>
+<h3>12. 下一课预告</h3>
+<p>给定同一个路口，机器人必须每次都走同一边吗？下一课研究“选动作的规则”本身。</p>

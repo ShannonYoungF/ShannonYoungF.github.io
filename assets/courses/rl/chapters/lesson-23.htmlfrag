@@ -1,0 +1,105 @@
+<section class="rl-lesson" id="lesson-23">
+<h2>第 23 讲：最高分的动作，为什么可能只是运气最好？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>十位选手真实实力完全相同，评委却给每个人加上随机评分误差。你挑最高分者，再把该最高分当作他的真实实力，几乎总会过于乐观。Q-Learning也可能这样：同一组带噪估计既负责挑动作，又负责报告动作价值。Double Q试着让两个评委分工。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>max操作为什么会产生选择偏差？</li><li>双估计器如何拆开动作选择与价值评价？</li><li>减少过估计是否等于完全无偏或更好策略？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>不是每个Q估计都向上偏，而是赢家更容易携带正向噪声。动作越多，就越有机会遇到一个幸运高估。若让估计器A挑赢家，再由另一份估计器B报告该赢家的价值，B的噪声便不必也恰好是最大值。独立理想情况下可以消除这个特定偏差来源。</p>
+<p>学习时两份表共享环境数据，还可能相互影响，所以并不真正独立。Double Q是减少选择与评分耦合的机制，不是对所有任务的无偏保证。行为可按两张表的和或平均作ε-greedy选择，更新时随机选择其中一张。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="拆开选择与评价，缓解同一估计噪声被重复利用的偏差。"><title>最高分的动作，为什么可能只是运气最好？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">带噪动作估计</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">A负责选动作</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">B负责评价值</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">随机更新一张表</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">拆开选择与评价，缓解同一估计噪声被重复利用的偏差。</text></svg><figcaption>拆开选择与评价，缓解同一估计噪声被重复利用的偏差。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设每个动作估计Q̂ₐ的期望等于真实qₐ。由于max是凸函数，由凸性可得：</p>
+<p>\[\mathbb E[\max_a\widehat Q_a]\geq\max_a\mathbb E[\widehat Q_a]=\max_aq_a.\tag{23.1}\]</p>
+<p>若所有真值均为0，A、B两组噪声独立且均值0，令a*由A选出。条件于a*后，B仍均值0，因此E[Qᴮ(a*)]=0；关键是条件独立，而不是简单地有两份数组。实际更新A时使用：</p>
+<p>\[a^*=\arg\max_bQ^A(S_{t+1},b),\quad Y_t^A=R_{t+1}+\gamma(1-d_t)Q^B(S_{t+1},a^*),\tag{23.2}\]</p>
+<p>\[Q^A(S_t,A_t)\leftarrow Q^A(S_t,A_t)+\alpha[Y_t^A-Q^A(S_t,A_t)].\tag{23.3}\]</p>
+<p>更新B时交换角色。dₜ为真正终止，终点不自举。双表方法仍需要探索与合适步长等条件，不能用降偏机制代替完整收敛分析。</p>
+<h3>6. 手算示例</h3>
+<p>下一状态A表为[2,1]，B表为[0.5,1.5]，奖励1，折扣0.9。A选第一个动作，B对它评分0.5，目标为1.45。若当前A表条目为0，步长0.2，更新为0.29。若按单表A直接max，目标为2.8，更新0.56。两者不同并不证明本次双表一定更接近真值，真值还需要另行知道。</p>
+<h3>7. Python 实验</h3>
+<p>先用许多组独立零均值噪声比较单表max与“由A选、B评分”的平均值，真实值都为0。再在两阶段小MDP运行真正Q-Learning和Double Q：起点可直接拿0结束，或到另一个状态从多个均值−0.1的随机奖励动作中选择。最优应直接结束；观察末段仍选噪声分支的频率以及起点估计。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_23.py</code>。<a href="../assets/courses/rl/examples/lesson_23.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Double Q-learning in a noisy two-stage MDP. pip install numpy."""
+import argparse
+import numpy as np
+
+
+def choose(row, rng, epsilon=0.1):
+    if rng.random() &lt; epsilon:
+        return int(rng.integers(len(row)))
+    return int(rng.choice(np.flatnonzero(row == row.max())))
+
+
+def learn(double, runs, episodes, actions, seed):
+    # A: action 0 -&gt; terminal reward 0; action 1 -&gt; B reward 0.
+    # B: each of K actions terminates with reward Normal(-0.1, 1).
+    # Therefore the true optimal action at A is action 0.
+    fractions, estimates = [], []
+    for run in range(runs):
+        rng = np.random.default_rng(seed + run)
+        qa, qb = np.zeros((2, actions)), np.zeros((2, actions))
+        left = []
+        for _ in range(episodes):
+            action = choose((qa[0] + qb[0])[:2] if double else qa[0, :2], rng)
+            left.append(action == 1)
+            if double:
+                first, second = (qa, qb) if rng.random() &lt; .5 else (qb, qa)
+                if action == 0:
+                    target = 0.0
+                else:
+                    best = choose(first[1], rng, epsilon=0)
+                    target = second[1, best]
+                first[0, action] += .1 * (target - first[0, action])
+            else:
+                target = 0.0 if action == 0 else qa[1].max()
+                qa[0, action] += .1 * (target - qa[0, action])
+            if action == 1:
+                ba = choose(qa[1] + qb[1] if double else qa[1], rng)
+                reward = rng.normal(-.1, 1)
+                table = (qa if rng.random() &lt; .5 else qb) if double else qa
+                table[1, ba] += .1 * (reward - table[1, ba])
+        fractions.append(np.mean(left[-min(100, episodes):]))
+        estimates.append((qa[0, 1] + qb[0, 1]) / 2 if double else qa[0, 1])
+    return np.mean(fractions), np.mean(estimates)
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--trials', type=int, default=50000)
+    p.add_argument('--actions', type=int, default=10)
+    p.add_argument('--runs', type=int, default=30)
+    p.add_argument('--episodes', type=int, default=1000)
+    p.add_argument('--seed', type=int, default=23)
+    a = p.parse_args()
+    rng = np.random.default_rng(a.seed)
+    qa = rng.normal(0, 1, (a.trials, a.actions))
+    qb = rng.normal(0, 1, (a.trials, a.actions))
+    selected = qa.argmax(axis=1)
+    print('Independent-noise true action values: 0')
+    print('single max mean:', qa.max(axis=1).mean())
+    print('A selects/B evaluates mean:', qb[np.arange(a.trials), selected].mean())
+    for double in (False, True):
+        fraction, estimate = learn(double, a.runs, a.episodes, a.actions, a.seed)
+        print('Double Q' if double else 'Q-learning',
+              'final-window noisy-branch fraction:', fraction,
+              'mean estimated Q(A,noisy):', estimate)
+    print('True Q(A,noisy)=-0.1; exploratory action floor is epsilon/2=0.05.')
+    print('Finite constant-step estimates fluctuate; learning tables are correlated.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>它保留了Q-Learning的最优备份思想，只调整估计组织方式。后面Double DQN会让在线网络选择、目标网络评价，两者有关但并非完全相同：DQN目标网络是滞后副本，而表格Double Q通常随机更新两张对称表。</p>
+<h3>9. 常见误区</h3>
+<p>Double Q不是把两张表的最大值简单平均，也不是永远取较小值。独立噪声实验的近零均值不能证明实际学习永远无偏。过估计小也不保证任务回报高；探索不足、样本效率下降或低估仍可能影响决策。比较时要同时看价值偏差与真实策略表现。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：每个动作估计无偏，为什么最大值仍可能高估？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>挑最大值会优先选到带正向噪声的估计，选择过程改变了误差分布。</p></details>
+<p><strong>Level 2：交换两张表的角色，计算本手算例子的目标。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>B选择第二个动作，A评价为1，目标为1+0.9×1=1.9。</p></details>
+<p><strong>Level 3：怎样区分“偏差降低”和“任务更容易”两种解释？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>固定环境、预算、种子集合，既估计Q与已知真值的误差，也独立测量策略回报；两项结论应分别报告。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>最大化会把估计噪声转成选择偏差。Double Q拆开挑选与评分，缓解这类过估计，但效果依赖估计相关性及数据条件。</p>
+<h3>12. 下一节预告</h3>
+<p>如果状态不再只有几十个，而是连续位置、速度与传感器读数，Q表怎么放得下？下一讲先用线性特征共享经验。</p>
+</section>

@@ -1,0 +1,43 @@
+<h2 id="lecture-08">第 8 讲：怎样把一张地图变成一个决策问题？</h2>
+<h3>2. 开场故事</h3>
+<p>你拿到一张医院走廊地图，要让机器人从护士站送药到病房。地图标出了墙和门，却没有说地面会不会打滑、撞墙算多少分、送到病房后是否继续走。只把地图交给算法，相当于让棋手看见棋盘，却没告诉它规则和胜负条件。</p><p>这一课写一份可以交给另一位研究者复现的环境说明书：有哪些状态，能做什么，动作后有哪些可能后果，如何计分，以及任务何时结束。一旦这些项目清楚，规划和学习才有共同讨论对象。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>MDP 五元组分别定义了什么？</li><li>为什么联合写下一状态与奖励的概率更清楚？</li><li>真正终止、外部截断与有限时域任务怎样区分？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>地图只是状态空间的一部分。动作可能是前进或等待；转移模型说明同一动作是否打滑；奖励把耗时、成功或碰撞映射为数字；折扣描述时间计分。我们先讨论有限状态、有限动作的环境，以便手算并检查每一行概率是否归一。</p><p>把“到了病房任务完成”和“实验录像只拍三十秒”混为一谈，会改变对未来的解释。前者之后没有这项任务的奖励，后者只是我们停止记录，机器人原则上还可能继续。如果任务本来就要求三十秒内送达，那么剩余时间又成了决策变量，不能从状态里省略。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="一条动作分裂成两种带奖励的随机后果" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">走廊 C</text><rect x="460" y="20" width="190" height="50" rx="9" stroke="var(--warm)"/><text x="555.0" y="52" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">病房 G：终止</text><rect x="460" y="145" width="190" height="50" rx="9" stroke="var(--accent)"/><text x="555.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">走廊 C：继续</text><path d="M170 100 L460 45" stroke="var(--accent)"/><text x="315.0" y="35" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">0.8，奖励 +5</text><path d="M170 125 L460 170" stroke="var(--accent)"/><text x="315.0" y="195" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">0.2，奖励 −1</text></g></svg><figcaption>一条动作分裂成两种带奖励的随机后果</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>本课程把有限 MDP 写为 \((\mathcal S,\mathcal A,p,r,\gamma)\)。\(\mathcal S\) 是状态集合，\(\mathcal A\) 是可用动作集合，\(p(s'\mid s,a)\) 是转移概率，\(r(s,a)\) 是一步奖励的条件期望，\(\gamma\) 是折扣。更完整的联合核为</p>
+\[p(s',z\mid s,a)=\Pr(S_{t+1}=s',R_{t+1}=z\mid S_t=s,A_t=a).\tag{8.1}\]
+<p>离散奖励取值用 \(z\) 表示，避免和期望奖励函数混淆。由边缘化与期望定义可得到五元组中的两项：</p>
+\[p(s'\mid s,a)=\sum_zp(s',z\mid s,a),\quad r(s,a)=\sum_{s',z}z\,p(s',z\mid s,a).\tag{8.2}\]
+<p>同一状态动作的全部联合结果概率和必须为一。终止状态可建为零奖励吸收态；进入它的那一步仍可给成功奖励。若有限时域为 \(H\) 步，令增广状态 \(\tilde S_t=(S_t,H-t)\)，则剩余步数按每步减一确定转移，倒计时零时结束。</p><p>外部截断不自动令真实后续回报为零；这项区分会在经验学习目标中再次出现。初始分布 \(\rho_0\) 不总写进五元组，但完整实验仍需声明，因为从哪里开始会影响总体成绩。</p>
+<h3>6. 完整手算示例</h3>
+<p>两个状态为走廊 \(C\) 与病房 \(G\)。在 \(C\) 前进时，以零点八概率到 \(G\) 并得五分，以零点二概率留在 \(C\) 并得负一分。联合核只有 \(p(G,5\mid C,\mathrm{go})=0.8\) 和 \(p(C,-1\mid C,\mathrm{go})=0.2\)。一步期望奖励为 \(0.8\times5+0.2\times(-1)=3.8\)，转移概率和为一。进入 \(G\) 后终止，并不把刚收到的五分抹掉。</p>
+<h3>7. Python 实验</h3>
+<p>脚本逐项保存这个联合核，验证概率非负且归一，再重复一万次独立的一步前进实验，比较病房到达比例与平均奖励。它只检验该转移行，并不是训练策略。挑战是增加“等待”动作以及一个新的起点，并检查所有状态动作对，而不是只检查最顺利的一行。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_08.py</code>。下面展示完整脚本；固定种子用于复现，随机结果仍应通过重复实验评估。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+# Each outcome contains (next state, reward, probability).
+outcomes = [(&#x27;goal&#x27;, 5.0, 0.8), (&#x27;corridor&#x27;, -1.0, 0.2)]
+prob = np.array([row[2] for row in outcomes])
+assert np.all(prob &gt;= 0) and np.isclose(prob.sum(), 1.0)
+expected = sum(reward*p for _, reward, p in outcomes)
+indices = rng.choice(len(outcomes), size=10000, p=prob)
+rewards = np.array([outcomes[i][1] for i in indices])
+success = np.mean(indices == 0)
+print(&#x27;Kernel expected reward:&#x27;, expected)
+print(&#x27;Empirical mean reward:&#x27;, rewards.mean())
+print(&#x27;One-step goal probability, empirical:&#x27;, success)
+plt.bar([&#x27;theory&#x27;, &#x27;sample&#x27;], [expected, rewards.mean()])
+plt.ylabel(&#x27;One-step mean reward&#x27;); plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>已知的动力学 \(x'=f(x,u)\) 是转移分布集中在单点的特例；有过程噪声时分布会展开。机器人运动规划常给定地图与运动模型，MDP 进一步把随机性与奖励规则显式写出。模型是否已知将区分后面的动态规划与基于经验的学习。</p>
+<h3>9. 常见误区</h3>
+<p>MDP 的五元组记法在不同教材可能不同，先看每项定义，不能只凭字母对照。墙格可以不纳入可达状态，也可设碰撞自环，但实现必须一致。截止录制不能当然当成任务终止；有限时间限制若属于任务本身，必须让时间信息进入状态或使用显式时变策略。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>成功奖励发生在进入终止状态时，还是之后反复领取？<br><strong>Level 2：</strong>把成功概率改为零点六，计算一步期望奖励。<br><strong>Level 3：</strong>描述如何区分“最多二十步送达”与“连续送药任务每二十步切一段日志”。</p><details><summary>参考答案与检查方向</summary><p>L1：本例在进入时领取一次，随后零奖励。L2：\(0.6\times5+0.4\times(-1)=2.6\)。L3：前者是任务终止条件，剩余步数影响决策；后者是数据截断，日志边界后仍有任务回报，不能在建模时强行归零。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>MDP 把信息、行动、随机后果和目标放进同一说明书。我们能从联合结果表推出转移与期望奖励，并明确任务结束的语义；这比选择哪种算法更早，也更基础。</p>
+<h3>12. 下一课预告</h3>
+<p>地图上一个位置“好”，究竟是因为到了那里就好，还是因为在那里有一个好动作？下一课分清状态价值与动作价值。</p>

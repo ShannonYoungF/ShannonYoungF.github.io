@@ -1,0 +1,72 @@
+<section class="rl-lesson" id="lesson-29">
+<h2>第 29 讲：先判断处境好坏，再比较动作，网络能学得更快吗？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>自动驾驶车在宽阔直道上，轻微左打或右打方向影响很小；逼近弯道时，动作差别突然重要。若网络为每个动作都从头判断处境，会不会重复劳动？Dueling网络尝试共享“这个状态总体如何”的表示，再单独表达动作之间的差异。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>状态分支与动作差异分支如何合成Q？</li><li>为什么需要对动作差异做中心化？</li><li>网络中的V分支是否就是当前策略的真实状态价值？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>普通Q网络输出每个动作的分数；Dueling先提取共享特征，再分成一个标量分支与一个多动作分支。标量描述共同水平，多动作分支描述相对差异，最后重新合成Q。训练数据与TD目标可以完全不变，因此这是表示结构改动，不是另一种回报定义。</p>
+<p>合成方式必须固定分解约定。若直接Q=V+A，则给V加常数、给A减相同常数，Q不变，分支含义不确定。减掉动作分支均值后，V等于该状态各动作Q的算术平均，差异部分均值为0，便于解释。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="这是表示结构改动；算术均值V不自动等于指定策略价值。"><title>先判断处境好坏，再比较动作，网络能学得更快吗？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">共享状态特征</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">标量V分支</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">动作A分支</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">中心化合成Q</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">这是表示结构改动；算术均值V不自动等于指定策略价值。</text></svg><figcaption>这是表示结构改动；算术均值V不自动等于指定策略价值。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设共享特征为h(s)，价值头输出Vη(s)，差异头输出原始Aψ(s,a)，离散动作数为m。均值中心化的合成定义为：</p>
+<p>\[\overline A(s)=\frac1m\sum_bA_\psi(s,b),\quad Q(s,a)=V_\eta(s)+A_\psi(s,a)-\overline A(s).\tag{29.1}\]</p>
+<p>对所有动作求平均，中心化项消失，得到V=meanₐQ。它一般不同于策略价值vπ=Σₐπ(a|s)qπ(s,a)，除非策略加权与算术平均恰好一致。训练时对已执行动作的Q求导；动作差异头各输出的局部梯度为：</p>
+<p>\[\frac{\partial Q(s,a)}{\partial A_\psi(s,b)}=\mathbf1_{a=b}-\frac1m,\qquad\frac{\partial Q(s,a)}{\partial V_\eta(s)}=1.\tag{29.2}\]</p>
+<p>这说明一次选中动作的误差也会经中心化影响其他差异分量。原始A整体加常数仍被均值抵消，因此不应声称网络内部所有参数都因此唯一可辨识。</p>
+<h3>6. 手算示例</h3>
+<p>V=3，原始A=[1,−1,2]，均值2/3，合成Q=[10/3,4/3,13/3]，其平均为3，最佳为第三动作。若给原始A每项都加100，中心化后的Q完全不变；若只给V加1，所有Q都升1，最佳动作索引不变，但价值目标与TD误差会改变。</p>
+<h3>7. Python 实验</h3>
+<p>文件先验证手算合成和常数平移不变性，再以DuelingNetwork替换第26讲Q网络，仍使用原始DQN目标以隔离结构因素。下载lesson_26.py与lesson_29.py到同一目录。--smoke验证接口，较长训练与多个种子用于性能比较。新网络参数量与普通网络并非完全相同，严谨架构消融还应匹配参数量和计算预算。</p>
+<p>安装：<code>python -m pip install numpy torch gymnasium matplotlib</code>。运行：<code>python lesson_29.py</code>。<a href="../assets/courses/rl/examples/lesson_29.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Dueling DQN. Download lesson_26.py into this same directory first.
+pip install numpy torch gymnasium; python lesson_29.py --smoke
+"""
+import torch
+from torch import nn
+from lesson_26 import parser, train
+
+class DuelingNetwork(nn.Module):
+    def __init__(self, obs_dim, actions):
+        super().__init__()
+        self.features = nn.Sequential(nn.Linear(obs_dim, 64), nn.ReLU())
+        self.value = nn.Sequential(nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 1))
+        self.advantage = nn.Sequential(nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, actions))
+    def forward(self, x):
+        hidden = self.features(x)
+        value, advantage = self.value(hidden), self.advantage(hidden)
+        # Average over actions within each state, never over the batch.
+        return value + advantage - advantage.mean(dim=1, keepdim=True)
+
+def aggregation_demo():
+    value = torch.tensor([[3.0]])
+    raw = torch.tensor([[1.0, -1.0, 2.0]])
+    q = value + raw - raw.mean(1, keepdim=True)
+    shifted = raw + 100
+    q_shifted = value + shifted - shifted.mean(1, keepdim=True)
+    print('mean-centered Q:', q.numpy())
+    print('mean Q equals V:', q.mean().item(), value.item())
+    print('constant advantage-shift error:', (q-q_shifted).abs().max().item())
+    assert torch.allclose(q, q_shifted, atol=1e-5)
+
+if __name__ == '__main__':
+    aggregation_demo()
+    # Keep the DQN target unchanged to isolate architecture from Double DQN.
+    train(parser(default_seed=29).parse_args(), network_factory=DuelingNetwork)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>它把价值与动作差异的表示拆开，与之后Actor-Critic里的状态价值和优势有概念联系，但定义不能混同：这里的中心化依赖动作算术平均，策略优势依赖指定策略。Dueling可与Double DQN组合，一个改网络结构，一个改目标；教学实验先分别改变，避免无法归因。</p>
+<h3>9. 常见误区</h3>
+<p>mean必须沿每个状态的动作维，不能沿批量维，否则不同样本会互相污染预测。名称含Dueling不表示双网络；在线与目标副本仍由DQN训练机制管理。并非每个任务都从此结构受益。看到V分支平滑，也不能直接把它作为安全证书或真实策略价值。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：Dueling与Double DQN分别改变什么？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>前者改Q网络的表示结构，后者改TD目标中的选择与评价分工，二者可组合。</p></details>
+<p><strong>Level 2：若V=2、原始A=[0,2]，合成Q是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>原始均值1，Q=[1,3]，平均为2。</p></details>
+<p><strong>Level 3：怎样设计任务检验“许多动作差异很小时，共享价值有帮助”的假设？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>构造多数状态动作近似等价、少数关键状态动作差异大的环境；匹配参数量与预算，比较学习速度，并用动作普遍重要的对照环境检验解释。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>Dueling用共享水平加中心化动作差异表示Q。要区分网络分支的代数约定与真正策略价值，并以受控实验检验表示结构的收益。</p>
+<h3>12. 下一节预告</h3>
+<p>离散动作可以逐个评分，连续力矩却有无穷多选择。能否直接让一个策略网络输出动作分布，再沿回报上升方向训练？下一阶段从策略参数化出发。</p>
+</section>

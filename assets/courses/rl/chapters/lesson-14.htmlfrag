@@ -1,0 +1,63 @@
+<h2 id="lecture-14">第 14 讲：能否不用把旧策略算清楚，就开始寻找新策略？</h2>
+<h3>2. 开场故事</h3>
+<p>你要给一张有一万个路口的地图规划路线。每换一点驾驶习惯，就完整解一遍线性方程，未免像改一句文字就重写整本报告。有人提议：不必认定旧习惯，直接把每个位置的分数改成“眼下能算出的最佳一步”，反复刷新就好。</p><p>这就是价值迭代。我们不仅要知道更新公式，还要知道什么时候能停。两张相邻评分表看起来差不多，究竟能否说明离最优已经很近？答案取决于残差和折扣，单凭曲线变平不能作保证。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>价值迭代与策略迭代怎样分工不同？</li><li>最优算子为什么仍然收缩？</li><li>如何把可计算的贝尔曼残差转为价值误差保证？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>价值迭代没有长时间固定一套策略做完整评价，而是每次都让各动作竞赛，保留最佳的一步备份。远处终点的好消息经过一次次刷新向前传播，像水波扩散。中途某张评分表一般不是一套已被精确评价的策略的真实价值，所以不要把每个中间数字都当成可实现成绩。</p><p>更新完成后，可按“当前奖励加估计后续”抽出一个贪心策略。随后精确评价这套策略，可以验证其实际模型内表现。残差则衡量评分表对最优递推的自洽程度；它能在不知道精确最优解时计算，是停止算法的实用工具。</p><ol><li>初始化非终止状态的价值表，终点保持零。</li><li>对每个动作计算一步期望，再取最大，组成整张新表。</li><li>检查新表的贝尔曼残差，未达阈值则重复。</li><li>从最终表抽取贪心策略，并评价其真实模型内回报。</li></ol><figure><svg viewBox="0 0 680 220" role="img" aria-label="终点奖励每轮向前传播一段：零表并不立即知道远方价值" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">A：第2轮 0.9</text><rect x="260" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="335.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">B：第1轮 1</text><rect x="500" y="85" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="575.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">终点：进入 +1</text><path d="M170 110 L260 110" stroke="var(--accent)"/><text x="215.0" y="65" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">0</text><path d="M410 110 L500 110" stroke="var(--accent)"/><text x="455.0" y="65" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">+1</text><path d="M550 180 L100 180" stroke="var(--warm)"/><text x="340" y="207" font-size="17" fill="var(--text)" stroke="none" text-anchor="middle">信息从奖励处反向传播</text></g></svg><figcaption>终点奖励每轮向前传播一段：零表并不立即知道远方价值</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>定义最优算子与同步迭代为</p>
+\[(T_*v)(s)=\max_a\left[r(s,a)+\gamma\sum_{s'}P(s'\mid s,a)v(s')\right],\qquad v_{k+1}=T_*v_k.\tag{14.1}\]
+<p>对同一组动作数值，\(|\max_a x_a-\max_a y_a|\leq\max_a|x_a-y_a|\)：例如令 \(a_x\) 是 \(x\) 最大项，则 \(\max x-\max y\leq x_{a_x}-y_{a_x}\)，反向再交换两组即可。因此最优算子的差可先移入动作最大值，再用概率行和至多一，得到</p>
+\[\|T_*u-T_*w\|_\infty\leq\gamma\|u-w\|_\infty.\tag{14.2}\]
+<p>它有唯一不动点，且任意初值都收敛。若从该不动点抽取贪心策略，则它也是该策略评价算子的不动点；比较任意策略的一步备份并迭代，可知其不小于任意策略价值，因此这个不动点就是 \(v_*\)。</p><p>对当前表 \(v\)，定义残差 \(\delta=\|T_*v-v\|_\infty\)。利用三角不等式与收缩性，</p>
+\[\|v-v_*\|_\infty\leq\|v-T_*v\|_\infty+\|T_*v-T_*v_*\|_\infty\leq\delta+\gamma\|v-v_*\|_\infty,\tag{14.3}\]
+\[\|v-v_*\|_\infty\leq\frac{\delta}{1-\gamma}.\tag{14.4}\]
+<p>因此要保证价值误差不超过 \(\eta\)，足够令残差不超过 \((1-\gamma)\eta\)。这是价值表误差界，不是说最终贪心策略的性能损失恰好等于该数。</p>
+<h3>6. 完整手算示例</h3>
+<p>确定性链 A→B→终点，A 前进得零，B 前进得一，两个非终点还都允许零奖励等待，折扣零点九。从零表开始，第一轮得到 \((0,1)\)，第二轮得到 \((0.9,1)\)，第三轮不再改变，达到最优。第一轮之后的残差为零点九，误差上界为九，而实际最大误差只有零点九；界可以保守，仍是保证。换成折扣零点九九，同一残差对应的保证会明显变松。</p>
+<h3>7. Python 实验</h3>
+<p>阶段二综合项目：构造五格随机走廊，分别实现策略迭代与价值迭代，核对最优价值和贪心动作。下面先给价值迭代完整实现，打印残差与抽取策略后的精确价值差，画出价值传播。通过标准是自写概率检查、终点处理、停止判据，并解释两算法为什么应该在数值容差内一致；不只要求机器人能走到终点。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_14.py</code>。下列为完整实现；设置种子以便复现，当前已知模型计算本身是确定的。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+n, gamma = 5, 0.95
+P = np.zeros((n, 2, n)); r = np.zeros((n, 2))
+for s in range(n):
+    for a, direction in enumerate([-1, 1]):
+        intended = max(0, s+direction)
+        for next_state, probability in [(intended, 0.9), (s, 0.1)]:
+            reward = 1.0 if next_state == n else -0.1
+            r[s, a] += probability*reward
+            if next_state &lt; n:
+                P[s, a, next_state] += probability
+assert np.all(P &gt;= 0) and np.all(P.sum(axis=2) &lt;= 1+1e-12)
+def backup(v):
+    return r+gamma*np.einsum(&#x27;sak,k-&gt;sa&#x27;, P, v)
+v = np.zeros(n); history = [v.copy()]
+value_tolerance = 1e-7
+for iteration in range(10000):
+    new_v = backup(v).max(axis=1)
+    v = new_v; history.append(v.copy())
+    residual = np.max(np.abs(backup(v).max(axis=1)-v))
+    if residual &lt;= (1-gamma)*value_tolerance:
+        break
+policy = backup(v).argmax(axis=1)
+rows = np.arange(n)
+v_policy = np.linalg.solve(np.eye(n)-gamma*P[rows, policy], r[rows, policy])
+print(&#x27;Sweeps:&#x27;, iteration+1, &#x27;policy (0 left, 1 right):&#x27;, policy)
+print(&#x27;Residual:&#x27;, residual, &#x27;value error bound:&#x27;, residual/(1-gamma))
+print(&#x27;Difference from exact extracted-policy value:&#x27;, np.max(np.abs(v-v_policy)))
+plt.plot(np.array(history))
+plt.xlabel(&#x27;Synchronous sweeps&#x27;); plt.ylabel(&#x27;Value of each corridor cell&#x27;)
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是对 Bellman 最优性原理的数值求解。与策略迭代相比，它把评价和改善更紧密交织；与之后的 Q-Learning 相比，它目前仍用已知模型求完整期望，没有从一条随机经验学习。你熟悉的最短路松弛也有信息传播的相似结构，但无折扣最短路需要自己的条件和证明。</p>
+<h3>9. 常见误区</h3>
+<p>相邻迭代差只有在同步更新约定下才直接等于旧表残差，原地扫表不能不加检查照搬。折扣接近一时，残差小未必意味着误差同样小。策略抽出后的价值应单独评价，不能把尚未收敛的评分表当成其真实回报。终点不应被当作可重复领奖的普通格子。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>价值迭代每轮会把一套旧策略精确评估完吗？<br><strong>Level 2：</strong>折扣零点九五，希望价值误差不超过零点零一，残差应至多多少？<br><strong>Level 3：</strong>用一个确定性长走廊解释为什么仅做两轮刷新，起点还可能不知道终点奖励。</p><details><summary>参考答案与检查方向</summary><p>L1：不会，每轮仅做最优一步备份。L2：\(0.05\times0.01=0.0005\)。L3：同步更新每轮只把后方价值传播一条边；若终点距离大于两步，零初值下起点可能尚未收到奖励信息。原地更新的传播速度依赖扫描顺序，不能与同步图景混淆。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>价值迭代用最优算子直接逼近最优价值，收缩性保证有限折扣模型中的唯一解与收敛。残差提供可计算的停止依据，而模型内策略评价负责检验抽取行为的实际表现。</p>
+<h3>12. 下一课预告</h3>
+<p>贝尔曼思想是否只适用于格子地图？下一课把同一原理放进连续状态与连续控制，重新推导你熟悉的 LQR。</p>

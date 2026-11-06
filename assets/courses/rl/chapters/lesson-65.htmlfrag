@@ -1,0 +1,67 @@
+<h2>第 65 讲：如果别人接手你的项目，能否复现并质疑你的结论？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>一位同事接手你的项目。他需要知道用哪个环境、先运行什么、结果存在哪里，以及你为什么认为方法有效。如果只有一个最终模型文件和一张曲线，他几乎必须重新做一遍研究。可复现成果应当让别人既能重现，也能指出你哪里可能判断错了。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>一个研究交付包应包含什么？</li><li>怎样把探索过程与最终证据分开？</li><li>课程结束后，如何形成下一轮研究问题？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>交付包包含问题与假设、运行配置、环境版本、代码版本、数据获取或生成方式、原始日志、统计脚本、图表和失败案例。读者应该可以从一条命令走到一个明确的输出，而不是依靠你口头补全隐藏步骤。</p><p>本讲给出一个小型可复现原型：在标量失配系统中，用无模型的参数搜索学习固定控制器的有界残差。它不是PPO或SAC，也不支撑机器人研究结论；它让你在很低成本下走完训练、独立评估、资源记录和结果导出的闭环。完整毕业项目则把同一协议接到第39/45/48课的实现。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="如果别人接手你的项目，能否复现并质疑你的结论？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第65讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">可执行配置</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">版本·数据·预算</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">训练与选择</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">保留全部记录</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">独立评估</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">指标与不确定性</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">研究交付</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">结论·反例·下一步</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>控制律为 \(u_t=\operatorname{clip}(-Kx_t+k\tanh x_t,-1,1)\)，只学习标量k。有限时域目标为 \[J(k)=\mathbb E\sum_{t=0}^{T-1}(x_t^2+0.1u_t^2),\quad x_{t+1}=1.1x_t+0.5u_t+w_t.\tag{65.1}\]随机候选搜索使用真实模拟交互估计J，保留更好的k，不对动力学求导；这是直接策略搜索的教学形式。</p><p>训练从候选集合和有限种子中选择参数，因此训练最优值存在选择偏差。独立测试使用未参与选择的噪声序列，估计预先定义的指标。若每候选用m个回合、每回合T步、共C个候选，则采样预算为 \(C m T\)，应该记录实际消耗，而不只记录最后模型大小。</p><p>复现也需区分三件事：同一配置下的计算重现、多随机运行下的统计结果、不同任务条件下的泛化。某一项通过不能替代另外两项。</p>
+<h3>6. 手算示例</h3>
+<p>假设3个候选分别在训练集得到成本[10,8,9]，选择第二个。独立测试的成本却可能是[11,12,10]；这不说明测试失败，而是揭示有限训练样本与选择偏差。若每候选使用5回合、每回合40步，交互量为600，而不是仅仅被选策略的200步。</p>
+<h3>7. Python 实验</h3>
+<p>安装NumPy后运行 <code>python lesson_65.py</code>。这是真实执行标量仿真交互的随机参数搜索，输出 <code>lesson65_report.json</code>，没有神经网络、SAC更新或绘图。候选生成、训练扰动与测试扰动使用明确分离的种子。</p><pre><code class="language-python">import numpy as np
+import json
+import platform
+from pathlib import Path
+K, horizon = 1.5, 40
+true_a, control_b, noise_std = 1.1, 0.5, 0.03
+def episode(k, seed):
+    rng = np.random.default_rng(seed)
+    x = 2.0; cost = 0.0; violations = 0
+    for _ in range(horizon):
+        u = np.clip(-K*x+k*np.tanh(x), -1, 1)
+        cost += x*x+0.1*u*u
+        x = true_a*x+control_b*u+rng.normal(0, noise_std)
+        violations += abs(x)&gt;3
+    return cost, violations
+rng = np.random.default_rng(65)
+candidates = np.r_[0.0, rng.uniform(-0.5, 0.5, 30)]
+train_seeds, test_seeds = range(5), range(100, 130)
+scores = [np.mean([episode(k, s)[0] for s in train_seeds]) for k in candidates]
+k_best = float(candidates[np.argmin(scores)])
+results = {}
+for name, k in [("baseline", 0.0), ("searched residual", k_best)]:
+    runs = np.array([episode(k, s) for s in test_seeds])
+    results[name] = {"k": k, "mean_cost": float(runs[:, 0].mean()),
+                     "cost_std": float(runs[:, 0].std(ddof=1)),
+                     "mean_violations": float(runs[:, 1].mean()),
+                     "episode_costs": runs[:, 0].tolist(),
+                     "episode_violation_counts": runs[:, 1].astype(int).tolist()}
+report = {"python": platform.python_version(), "numpy": np.__version__,
+          "selection_seed": 65,
+          "config": {"K": K, "horizon": horizon, "initial_state": 2.0,
+                     "true_a": true_a, "control_b": control_b,
+                     "noise_std": noise_std, "violation_threshold": 3.0,
+                     "action_bounds": [-1.0, 1.0], "candidate_count": len(candidates)},
+          "training_seeds": list(train_seeds),
+          "candidate_log": [{"k": float(k), "mean_training_cost": float(score)}
+                            for k, score in zip(candidates, scores)],
+          "training_env_steps": len(candidates)*len(train_seeds)*horizon,
+          "evaluation_env_steps": len(results)*len(test_seeds)*horizon,
+          "evaluation_seeds": list(test_seeds), "results": results,
+          "scope": "scalar finite-horizon teaching prototype; not PPO or SAC"}
+Path("lesson65_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+print(json.dumps(report, indent=2))
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这套流程把控制建模、策略搜索、实验统计和科研表达连在一起。你最终需要证明的是某个范围内的研究主张，而不是证明自己使用了很多算法。</p><p>运行后检查JSON中的预算、测试种子、成本和约束指标。再把真实动力学参数改为1.0、1.2，分别报告范围内外表现。若改动结果导致主张被否定，把这个结果保留在报告中，并解释下一步需要怎样修改假设。</p>
+<p>零残差也在候选中，因此选中参数的训练均值不会劣于这批数据上的基线，独立测试却不保证改善。报告保留全部候选分数与逐回合测试值；30个测试回合测量的是同一次搜索选出的控制器，不是30次独立学习。残差有界和未观察到违规也不构成全局稳定或安全证明。</p>
+<h3>9. 常见误区</h3>
+<ul><li>只保存最佳模型会丢失选择过程与失败证据。</li><li>固定种子可帮助复现，但不能消除算法随机性。</li><li>课程原型跑通不意味着已经得到可发表的新结论。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>研究包为什么必须记录失败运行？</li><li><strong>Level 2：</strong>核对本脚本实际训练交互预算。</li><li><strong>Level 3：</strong>为自己的机器人课题提交一页研究主张与最小复现命令。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>失败率本身是方法性质，且删除失败会造成选择偏差。</p><p><strong>Level 2：</strong>31个候选×5回合×40步=6200环境步；另记录独立评估的交互量。</p><p><strong>Level 3：</strong>应含问题、适用条件、对照、预算、主要指标、否定条件与运行入口；答辩时允许根据反例修正结论。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>你已经获得一条从交互建模、Bellman递推、经验学习、深度算法到机器人实验与研究证据的路线。能力由独立推导、实现、诊断和研究判断证明，下一轮问题从你发现的失败开始。</p>
+<h3>12. 下一节预告</h3>
+<p>课程阅读稿到此结束。下一步选择一个研究分支，完成阶段项目答辩；回到尚未掌握的讲次补齐证据，再设计新的可证伪实验。</p>

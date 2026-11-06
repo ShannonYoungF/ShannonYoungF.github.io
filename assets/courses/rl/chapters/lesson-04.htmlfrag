@@ -1,0 +1,50 @@
+<h2 id="lecture-04">第 4 讲：三家充电站，怎样判断哪家最划算？</h2>
+<h3>2. 开场故事</h3>
+<p>三家充电站宣传的都是“服务最好”。机器人每次抵达一家，会根据排队时间、价格和补电速度得到一个综合分数。第一家昨天得九分，今天只有三分；第二家从来没去过。你会把昨天的最高分当成真实水平吗？在噪声里评价选项，是学习决策的第一道门槛。</p><p>本课把地图、路况和长期后果暂时拿掉：每次选择只影响当次奖励，下次面对相同的选择集合。这是多臂老虎机模型。简化不是为了回避机器人问题，而是让“估计一个动作的平均好处”这件事单独变得清楚。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>多臂老虎机为什么是一个有用的简化模型？</li><li>真实平均奖励与观测样本均值有何区别？</li><li>为什么不保存全部历史，也能逐次更新平均数？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>每家充电站是一只“臂”，选择一家就是拉一次臂，反馈是一个随机奖励。我们假设每只臂的奖励分布固定，各次抽样相互独立；这些假设一旦不成立，结论就要重新检查。真实均值是长期平均表现，单次高分只是一次实现。</p><p>先用轮流访问的方式收集数据，把“如何估计”与“如何分配访问次数”分开。输出是一张每家站的均值估计表，以及各自被访问的次数。次数很重要：两个相同的估计，一个只来自一次体验，一个来自一千次，可信程度显然不同；但本课先不把可信度用于决策。</p><ol><li>为每只臂保存自己的计数与估计。</li><li>选择一只臂，读取一次奖励，先增加该臂计数。</li><li>用新计数的倒数乘预测误差，更新该臂均值。</li></ol><figure><svg viewBox="0 0 680 220" role="img" aria-label="三只臂的采样数分别计数，均值随新奖励更新" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="30" y="65" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="105.0" y="97" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">站 A：N=4</text><rect x="265" y="65" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="340.0" y="97" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">站 B：N=2</text><rect x="500" y="65" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="575.0" y="97" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">站 C：N=6</text><text x="340" y="170" fill="var(--text)" stroke="none" text-anchor="middle" font-size="20">新均值 = 旧均值 + 新误差 / 新计数</text></g></svg><figcaption>三只臂的采样数分别计数，均值随新奖励更新</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>对动作 \(a\)，记其真实均值为 \(q_*(a)=\mathbb E[R\mid A=a]\)。设已经观察到它的 \(n\) 个奖励 \(R_1,\ldots,R_n\)，定义估计 \(Q_n(a)=n^{-1}\sum_{i=1}^nR_i\)。这里下标是该动作被选择的次数，不是所有动作共享的总时刻。利用前 \(n\) 项的和等于 \(nQ_n\)，可推导</p>
+\[Q_{n+1}=\frac{nQ_n+R_{n+1}}{n+1}=Q_n+\frac{1}{n+1}(R_{n+1}-Q_n).\tag{4.1}\]
+<p>括号是“新观测减旧预测”的误差，步长 \(1/(n+1)\) 决定新数据对旧估计的修正幅度。这不是近似，和保存全部数据求均值完全相等。第一条观测时令新计数为一，步长为一，初始化值便被替换。</p><p>在独立同分布且方差为 \(\sigma_a^2&lt;\infty\) 的假设下，期望的线性性与独立性给出</p>
+\[\mathbb E[Q_n(a)]=q_*(a),\qquad\operatorname{Var}(Q_n(a))=\frac{\sigma_a^2}{n}.\tag{4.2}\]
+<p>这是固定采样数量下的估计性质。后续若根据历史自适应选择站点，不能不检查条件就把所有固定样本结论原样搬过去。</p>
+<h3>6. 完整手算示例</h3>
+<p>某站三次分数为二、四、三。第一次 \(Q_1=2\)；第二次 \(Q_2=2+(4-2)/2=3\)；第三次 \(Q_3=3+(3-3)/3=3\)。第四次得到七分，更新为 \(Q_4=3+(7-3)/4=4\)。直接求 \((2+4+3+7)/4=4\)，两种计算一致。注意第四次步长是四分之一，不能把其他站访问的次数也算入分母。</p>
+<h3>7. Python 实验</h3>
+<p>实验中的站点真实均值由模拟器保存，估计程序只收到抽样分数。脚本轮流访问三家站，比较增量均值与保存历史后的直接均值，并画出估计路径。修改奖励标准差，观察噪声与所需样本量的关系；真实均值只用于评价，不能偷偷用于选择动作。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>。运行独立脚本 <code>lesson_04.py</code>；下列代码与下载脚本一致。种子用于复现这个实验，不能代替对随机性和适用条件的分析。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+truth = np.array([1.0, 1.5, 2.0])
+q, count = np.zeros(3), np.zeros(3, dtype=int)
+history = [[] for _ in truth]
+trace = []
+for t in range(900):
+    a = t % 3  # fixed balanced collection, not a decision algorithm
+    reward = rng.normal(truth[a], 1.0)
+    count[a] += 1
+    q[a] += (reward-q[a]) / count[a]
+    history[a].append(reward)
+    trace.append(q.copy())
+for a in range(3):
+    assert np.isclose(q[a], np.mean(history[a]))
+    print(f&#x27;Arm {a}: n={count[a]}, estimate={q[a]:.3f}, truth={truth[a]:.3f}&#x27;)
+trace = np.array(trace)
+for a in range(3):
+    plt.plot(trace[:, a], label=f&#x27;arm {a}&#x27;)
+    plt.axhline(truth[a], linestyle=&#x27;:&#x27;, alpha=0.4)
+plt.xlabel(&#x27;Total visits&#x27;); plt.ylabel(&#x27;Incremental mean&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是在线统计估计，也是递推最小二乘在只有常数参数时的朴素亲戚：样本均值最小化已收集数据上的平方误差。和完整强化学习相比，老虎机没有动作改变下一状态的长期效应，因此不需要贝尔曼方程；它隔离了未知收益下的学习与选择问题。</p>
+<h3>9. 常见误区</h3>
+<p>估计值不是已知真值，当前排名也不是最终结论。每只臂应有独立计数；把总轮数当成每只臂的样本数会低估修正幅度。对不断变化的充电站，递减到零的步长可能反应太慢，常数步长可以追踪变化，但不再等价于普通历史均值。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>一家站一次得十分，另一家一百次平均九分，能否断言第一家更好？<br><strong>Level 2：</strong>已有五次均值六分，第六次得零分，新均值多少？<br><strong>Level 3：</strong>若真实服务质量突然下降，为什么全历史均值调整缓慢？可提出什么改法？</p><details><summary>参考答案与检查方向</summary><p>L1：不能，噪声和样本量都需要考虑。L2：\(6+(0-6)/6=5\)。L3：样本数很大时新观测权重很小；可以用滑动窗口或常数步长，代价是更高的持续波动和新的参数选择问题。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>我们能用每个动作自己的计数在线估计平均奖励，并知道它与真值的区别。增量更新中的“预测误差乘步长”会多次出现，但今后必须逐个检查目标和假设，不能因为形式相似就认为算法相同。</p>
+<h3>12. 下一课预告</h3>
+<p>如果机器人总选当前估计最高的站点，它还会发现被低估的好站吗？下一课让估计与选择真正交织起来。</p>

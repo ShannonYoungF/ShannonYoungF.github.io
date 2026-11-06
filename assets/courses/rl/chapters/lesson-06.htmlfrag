@@ -1,0 +1,59 @@
+<h2 id="lecture-06">第 6 讲：一家从没去过的充电站，为什么值得尝试？</h2>
+<h3>2. 开场故事</h3>
+<p>一家新充电站只接待过机器人一次，得了七分；老站访问了一百次，平均七点二分。如果仅按均值排序，新站永远落后。可你也知道，只有一次的七分很不确定，它可能其实有九分的水平。能否让探索机会跟“尚未弄清楚多少”挂钩，而不是每次闭着眼睛随机选？</p><p>上置信界算法给每家站一个暂时乐观的分数：当前估计，加一份不确定性奖金。这个奖金不是真实奖励，也不会写进环境的任务目标，它只帮助我们决定下一次去哪儿收集信息。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>为什么访问次数少的动作应获得更大的探索奖金？</li><li>UCB 的上界来自什么概率假设？</li><li>如何同时比较累计遗憾和选择次数，检验探索是否有针对性？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>想象给每个均值估计画一根误差棒。访问次数多，误差棒通常变短；次数少，真实均值还有较大上升空间。UCB 按误差棒的上端选动作，允许“还可能很好”的选项获得一次验证。验证失败会使均值下降，验证变多也会缩小奖金。</p><p>我们把奖励限制在零和一之间，并保持各臂独立、平稳。先让每只臂至少访问一次，解决除以零的问题。即使某只臂长时间没被选，总轮数的对数仍缓慢增长，使它的乐观分数可能重新抬头；这解释了探索为何不会简单地在初始化之后消失。</p><ol><li>先访问每只臂一次。</li><li>为每只臂计算均值加探索奖金的选择指标。</li><li>执行指标最高的动作，更新其计数和均值，重复比较。</li></ol><figure><svg viewBox="0 0 680 220" role="img" aria-label="相同均值不代表相同不确定性：少访问的臂拥有更长的上界" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="25" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="57" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">老站：100次</text><rect x="20" y="135" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="95.0" y="167" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">新站：1次</text><path d="M250 50 L450 50" stroke="var(--accent)"/><text x="350.0" y="30" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">短奖金</text><path d="M250 160 L620 160" stroke="var(--warm)"/><text x="435.0" y="140" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">长奖金</text><circle cx="360" cy="50" r="7" fill="var(--accent)"/><circle cx="360" cy="160" r="7" fill="var(--warm)"/><text x="360" y="207" font-size="17" fill="var(--text)" stroke="none" text-anchor="middle">均值附近的上侧不确定性</text></g></svg><figcaption>相同均值不代表相同不确定性：少访问的臂拥有更长的上界</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设总轮数为 \(t\)，动作 \(a\) 已抽样 \(N_t(a)\) 次，样本均值为 \(Q_t(a)\)。对固定 \(n\) 个独立、取值在 \([0,1]\) 的观测，Hoeffding 不等式给出</p>
+\[\Pr(q_*(a)-Q_n(a)\geq b)\leq e^{-2nb^2}.\tag{6.1}\]
+<p>令右侧为 \(\delta\)，解得 \(b=\sqrt{\log(1/\delta)/(2n)}\)。这说明在固定样本数下，上侧误差随 \(n^{-1/2}\) 缩小。常见 UCB1 采用更保守的随时间奖金，并选择</p>
+\[A_t\in\arg\max_a\left[Q_t(a)+\sqrt{\frac{2\log t}{N_t(a)}}\right].\tag{6.2}\]
+<p>在固定 \(n\) 的界中代入该奖金对应 \(t^{-4}\) 的尾概率；但实际抽样次数由历史决定，严格的序贯保证还需对可能的计数和时间作联合控制，不能把一次固定样本置信区间直接当成所有时刻同时有效的保证。</p><p>表达式中的第二项属于选动作的算法，不改变上一课的伪遗憾定义。若奖励尺度改变，奖金也必须相应缩放；若噪声重尾、奖励无界或站点持续变化，上述有界平稳模型的论证就不直接适用。</p>
+<h3>6. 完整手算示例</h3>
+<p>总轮数 \(t=10\)，两只臂的估计分别为零点六、零点五，次数为八、二。奖金分别为 \(\sqrt{2\log10/8}\approx0.759\) 和 \(\sqrt{2\log10/2}\approx1.517\)，乐观分数约一点三五九、二点零一七，所以选择第二只。分数超过一并不矛盾：它是选择指标，不是对伯努利成功概率的合法参数，也不是实际会收到两分奖励。</p>
+<h3>7. Python 实验</h3>
+<p>本阶段综合项目就是“挑选充电站”：在三臂伯努利环境中比较 UCB 和固定 epsilon-greedy，重复四十个种子，记录平均累计伪遗憾与各臂次数。先完成正确初始化与增量更新，再增加参数敏感性实验。通过标准是解释两类探索成本、复现均值趋势，并说明单个种子的胜负不能作为普遍结论；不规定 UCB 在每次运行都必须获胜。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_06.py</code>。下面展示完整脚本；固定种子用于复现，随机结果仍应通过重复实验评估。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+MEANS = np.array([0.3, 0.5, 0.7])
+HORIZON = 2000
+
+def run(method, seed):
+    rng = np.random.default_rng(seed)
+    count = np.zeros(3, dtype=int); q = np.zeros(3)
+    losses = []
+    for t in range(1, HORIZON+1):
+        if t &lt;= 3:
+            a = t-1
+        elif method == &#x27;ucb&#x27;:
+            a = int(np.argmax(q + np.sqrt(2*np.log(t)/count)))
+        elif rng.random() &lt; 0.1:
+            a = rng.integers(3)
+        else:
+            a = rng.choice(np.flatnonzero(q == q.max()))
+        reward = float(rng.random() &lt; MEANS[a])
+        count[a] += 1; q[a] += (reward-q[a])/count[a]
+        losses.append(MEANS.max()-MEANS[a])
+    return np.cumsum(losses), count
+
+for method in [&#x27;ucb&#x27;, &#x27;epsilon&#x27;]:
+    results = [run(method, seed) for seed in range(40)]
+    curves = np.array([r[0] for r in results])
+    counts = np.array([r[1] for r in results])
+    print(method, &#x27;mean visits:&#x27;, counts.mean(axis=0),
+          &#x27;mean final pseudo-regret:&#x27;, curves[:, -1].mean())
+    plt.plot(curves.mean(axis=0), label=method)
+plt.xlabel(&#x27;Decisions&#x27;); plt.ylabel(&#x27;Mean cumulative pseudo-regret&#x27;)
+plt.legend(); plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与统计中的置信区间、实验设计相连。UCB 用不确定性指导数据收集，但不是贝叶斯后验，也不等同于所有机器人场景里的安全探索。我们已经能在没有状态转移的模型里学习；下一阶段加入位置和动力学后，同一动作还会影响未来访问哪些状态。</p>
+<h3>9. 常见误区</h3>
+<p>探索奖金不是环境额外发的奖，不能把它加进任务得分后再宣称性能提高。未访问臂不能直接令奖金为零，否则恰好失去探索目的。平局规则、预先访问和轮数索引应写清楚。把高置信上界叫作确定上界也不准确：它依赖概率事件和模型假设。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>两个动作均值相同，UCB 更偏好哪个？<br><strong>Level 2：</strong>在同一轮数下，把某臂次数增至四倍，其奖金如何变化？<br><strong>Level 3：</strong>某站每晚突然变拥挤，原 UCB 为什么可能反应迟缓？如何修改实验来检验？</p><details><summary>参考答案与检查方向</summary><p>L1：访问较少、奖金较大的动作。L2：减半。L3：全历史均值与不断增长的计数会掩盖变化；可加入时间变化环境，对比滑动窗口估计，但这已改变平稳假设，需要报告变化后的恢复时间，不能继续引用原有平稳模型结论。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>阶段一把交互、回报、策略、估计与探索串了起来。请保留项目配置、曲线和你对失败情形的解释；这些证据能支持掌握判断，观看曲线本身不能。还不需要使用任何神经网络。</p>
+<h3>12. 下一课预告</h3>
+<p>只给机器人一个当前位置，能否判断该刹车还是加速？下一课用一个会“看起来相同、未来却不同”的例子进入状态建模。</p>

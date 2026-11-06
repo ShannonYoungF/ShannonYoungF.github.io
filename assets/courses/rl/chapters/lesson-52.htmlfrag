@@ -1,0 +1,48 @@
+<h2>第 52 讲：看人演示就能学会，为什么模仿机器人仍会越走越偏？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>老师总是沿走廊中心开车，演示里几乎没有“车已经歪向墙边该怎么办”。学生用这些数据学得很准确，独自驾驶时却偏离了一点；来到老师很少访问的位置后，动作更差，偏差继续累积。问题不是监督学习消失了，而是它遇到了自己制造的新输入。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>行为克隆到底优化了哪个分布？</li><li>为什么小误差会改变未来数据？</li><li>DAgger 如何把偏离轨迹变成训练数据？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>行为克隆把专家的状态当输入、动作当标签，是监督学习。训练分布由专家控制产生，部署分布由学生产生；一次小偏差可能让之后的观测都不同。</p><p>DAgger 的关键动作是让学生访问状态，再请专家给这些状态标注，并把新数据合并。专家需要回答“这里该怎么办”，不一定每轮都亲自驾驶完整轨迹；原始算法也可混合专家和学生行为以控制数据收集。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="看人演示就能学会，为什么模仿机器人仍会越走越偏？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第52讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">专家演示</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">训练状态分布</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">学生行动</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">访问新的状态</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">专家标注</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">补齐纠错信息</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">聚合训练</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">再次评估闭环</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3><p>专家策略为 \(\pi_E\)，专家访问状态分布为 \(d^{\pi_E}\)。行为克隆求 \[\min_\theta\mathbb E_{s\sim d^{\pi_E}}\ell(\pi_\theta(s),\pi_E(s)).\tag{52.1}\]实际部署的状态来自 \(d^{\pi_\theta}\)，两者一般不同。</p><p>以离散动作分类为例，设专家访问分布上各步学生错误概率至多ε。把专家与学生轨迹在首次错误前耦合，则前t步发生首次错误的概率至多 \(\min(1,t\epsilon)\)，不需要错误彼此独立。首次错误后每步额外损失有界时，累加可得到最坏级别 \(O(T^2\epsilon)\)；不是所有任务都必然达到这个增长率。</p><p>DAgger第k轮用当前学生访问状态，并加入专家标签：\[\mathcal D_{k+1}=\mathcal D_k\cup\{(s,\pi_E(s)):s\sim d^{\pi_k}\}.\tag{52.2}\]然后在聚合数据上重新拟合。数据从固定专家分布扩展至学生实际分布；保证仍依赖专家反馈、损失与在线学习等假设。</p><h3>6. 手算示例</h3><p>三步任务，每步出错概率0.1。联合界给前一、二、三步曾发生错误的概率上界0.1、0.2、0.3；每步额外损失最多1时，粗累计界为0.6，而不是简单的0.3。这个界允许错误影响后续状态，并不声称每次错误都不可恢复。DAgger会补充这些偏离状态上的专家标签。</p><h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_52.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+rng = np.random.default_rng(52)
+def expert(x): return -0.8*np.tanh(1.5*x)
+def features(x):
+    x = np.asarray(x)
+    return np.column_stack([np.ones(x.size), x.ravel(), x.ravel()**2])
+xdata = rng.normal(0.5, 0.12, 80)
+ydata = expert(xdata)
+def fit():
+    F = features(xdata)
+    return np.linalg.solve(F.T@F+1e-5*np.eye(3), F.T@ydata)
+def rollout(w):
+    x = 2.2; states = []
+    for _ in range(25):
+        states.append(x)
+        u = np.clip((features([x])@w).item(), -1, 1)
+        x = 1.05*x+u
+    return np.array(states)
+for iteration in range(6):
+    w = fit(); visited = rollout(w)
+    actions = np.clip(features(visited)@w, -1, 1)
+    error = np.mean((actions-expert(visited))**2)
+    print(&quot;aggregation&quot;, iteration, &quot;visited imitation MSE&quot;, error,
+          &quot;max |x|&quot;, np.max(np.abs(visited)))
+    xdata = np.r_[xdata, visited]
+    ydata = np.r_[ydata, expert(visited)]
+print(&quot;This is a supervised aggregation demo, not a safety guarantee.&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>这段连续控制代码报告动作均方误差，没有实现上述离散错误概率界。每轮学生访问分布不同，误差下降也可能只是避开了困难状态。另取一组固定起点和外部扰动，对每轮保存的策略评价最大偏差、累计状态成本和恢复时间，再判断纠偏是否改善。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>与运动规划的联系是可以用规划器、MPC 或已有控制器生成专家动作。模仿可先提供可用的初始策略，再由 RL 优化任务目标，但专家的限制也会进入数据。</p><p>脚本比较的是访问状态上的模仿误差，分布每轮变化，因此不同轮的这个数值不是同一个固定测试集的误差。正式实验应另保留固定初始条件、扰动集合与轨迹指标；开放挑战就是补上这些评估。</p>
+<h3>9. 常见误区</h3>
+<ul><li>专家数据上的低误差不保证学生闭环表现。</li><li>DAgger仍需要能够给新状态标注的专家。</li><li>在真实危险区域收集失败状态不能依靠算法名字保证安全。</li></ul>
+<p><strong>理论边界：</strong>二次特征无法精确表示所有非线性专家行为；聚合更多标签不保证误差单调下降。调整正则强度可研究拟合与外推的变化，但专家查询次数也应作为成本报告。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>行为克隆为什么是监督学习？</li><li><strong>Level 2：</strong>推导误差损失粗界中的 \(\sum_{t=1}^T t\epsilon\)。</li><li><strong>Level 3：</strong>如果只能使用旧演示、无法查询专家，如何评价DAgger的可用性？</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>标签是专家动作，训练直接拟合输入—标签关系。</p><p><strong>Level 2：</strong>求和为 εT(T+1)/2，在每次偏差都可持续影响后续的最坏假设下为二次量级。</p><p><strong>Level 3：</strong>其关键交互环节缺失，应改用固定数据方法并分析覆盖；不能把普通重复训练称为DAgger。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>模仿的核心风险来自行为改变状态分布。DAgger通过向学生访问的状态补充专家标签，学习如何纠偏。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：如果既不能向环境试错，也不能找专家补标签，固定日志能支持怎样的策略改进？</p>

@@ -1,0 +1,49 @@
+<h2 id="lecture-03">第 3 讲：同一个路口，机器人为什么有时左转、有时右转？</h2>
+<h3>2. 开场故事</h3>
+<p>你站在测试场，观察同一个机器人反复通过同一个路口。十次里它左转七次、右转三次。工程师甲说程序不稳定，工程师乙却说它严格执行了设计。两人可能都没有看到代码：程序写的是“以零点七概率左转”，每次结果不同，规则本身完全可以一致。</p><p>现在把“策略”从日常语言变成可以计算、抽样和检查的对象。我们暂不讨论怎样学出这组概率，先弄懂给定策略后机器人会怎样行动。这样以后看到一条失败轨迹时，就不会立刻把随机结果和策略质量混为一谈。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>确定性策略与随机策略各怎样表示？</li><li>策略的输入输出是什么，怎样从概率表得到一次具体动作？</li><li>动作频率、动作价值和策略概率为什么不能混为一谈？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>确定性策略像写好的交通规则：“来到这个路口就左转”。随机策略像一只按指定比例分区的转盘：输入路口信息，输出左右动作的概率分布，再转一次得到动作。抽样结果不是整套策略，正如掷出一次正面不是整枚硬币的偏置。</p><p>随机性可以用于探索，也可以表达同等可接受的选择；本课只研究它的数学含义。概率可以依赖状态：雨天和晴天属于不同状态时，左转概率可以不同。如果有限任务还剩几步会改变选择，则需要让策略显式依赖时间，或把剩余时间纳入状态。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="策略输出概率分布，再抽样得到一个动作" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">路口状态 s</text><rect x="245" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="320.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">策略 π</text><path d="M170 110 L245 110" stroke="var(--accent)"/><text x="207.5" y="98.0" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><rect x="495" y="25" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="570.0" y="57" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">左转 0.7</text><rect x="495" y="145" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="570.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">右转 0.3</text><path d="M395 103 L495 50" stroke="var(--accent)"/><text x="445.0" y="64.5" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><path d="M395 117 L495 170" stroke="var(--accent)"/><text x="445.0" y="131.5" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text></g></svg><figcaption>策略输出概率分布，再抽样得到一个动作</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设状态集合为 \(\mathcal S\)，在状态 \(s\) 可用动作集合为 \(\mathcal A(s)\)。确定性策略是映射 \(a=\mu(s)\)。随机策略记为</p>
+\[\pi(a\mid s)=\Pr(A_t=a\mid S_t=s),\quad \pi(a\mid s)\geq0,\quad\sum_{a\in\mathcal A(s)}\pi(a\mid s)=1.\tag{3.1}\]
+<p>确定性策略是其特例：被选动作概率一，其他动作概率零。若一次左转固定获得二分、右转获得五分，且动作后立即终止，则由离散期望定义</p>
+\[\mathbb E_\pi[R_1\mid S_0=s]=\sum_a\pi(a\mid s)r(s,a).\tag{3.2}\]
+<p>这里 \(r(s,a)\) 是给定状态动作的一步奖励，并不是策略概率。独立重置到同一路口、每次重新抽样时，令 \(I_i\) 表示第 \(i\) 次是否左转，则 \(\hat p_N=N^{-1}\sum_{i=1}^N I_i\)。由于伯努利变量的方差为 \(p(1-p)\)，独立性给出</p>
+\[\mathbb E[\hat p_N]=p,\qquad \operatorname{Var}(\hat p_N)=\frac{p(1-p)}{N}.\tag{3.3}\]
+<p>因此频率会围绕设计概率波动，样本多时通常更接近；十次里恰好七次并不是随机策略必须满足的约束。</p>
+<h3>6. 完整手算示例</h3>
+<p>取左转概率零点七、右转零点三。期望奖励为 \(0.7\times2+0.3\times5=2.9\)。十次左转比例的标准差为 \(\sqrt{0.7\times0.3/10}\approx0.145\)，所以观测到六次或八次左转并不奇怪。若把全部概率放在右转上，期望变为五分；这只证明当前单步、奖励已知的小例子中右转更好，不是说随机策略在所有序贯决策中都多余。</p>
+<h3>7. Python 实验</h3>
+<p>实验重复从同一状态抽样一万次，绘制左转累计频率与平均奖励。修改概率后先算出期望再运行；尝试只看前十次，感受短序列有多容易误导判断。实验的回合相互独立，不能直接把同一长轨迹中高度相关的决策当成这些独立样本。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>。运行独立脚本 <code>lesson_03.py</code>；下列代码与下载脚本一致。种子用于复现这个实验，不能代替对随机性和适用条件的分析。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+p_left, n = 0.7, 10000
+# Each trial restarts in the same state; 0 means left, 1 means right.
+actions = rng.choice(2, size=n, p=[p_left, 1-p_left])
+rewards = np.array([2.0, 5.0])[actions]
+counts = np.arange(1, n+1)
+frequency = np.cumsum(actions == 0) / counts
+running_reward = np.cumsum(rewards) / counts
+expected = p_left*2 + (1-p_left)*5
+print(&#x27;Designed left probability:&#x27;, p_left)
+print(&#x27;Observed left frequency:&#x27;, frequency[-1])
+print(&#x27;Expected / observed reward:&#x27;, expected, running_reward[-1])
+fig, axes = plt.subplots(1, 2, figsize=(9, 3))
+axes[0].plot(counts, frequency); axes[0].axhline(p_left, color=&#x27;gray&#x27;)
+axes[0].set(xlabel=&#x27;Trials&#x27;, ylabel=&#x27;Left frequency&#x27;)
+axes[1].plot(counts, running_reward); axes[1].axhline(expected, color=&#x27;gray&#x27;)
+axes[1].set(xlabel=&#x27;Trials&#x27;, ylabel=&#x27;Mean reward&#x27;)
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>在控制理论中，状态反馈 \(u=\mu(x)\) 是确定性策略的直接对应。随机策略则在同一状态给出控制分布。这里的随机性来自控制器，不必来自动力学噪声：确定性控制器也可能遇到随机环境，随机控制器也可以作用于确定性环境，两个来源要分开建模。</p>
+<h3>9. 常见误区</h3>
+<p>策略概率不是对“正确动作”的置信度，除非你另外建立了这种解释。随机策略不是每次临时修改规则，种子固定也不会把其概率定义变成确定性策略。只凭一次动作无法识别策略；即使频率与目标相近，也应检查抽样时是否真的使用了对应状态的概率。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>动作有三种、概率为零点二、零点三、零点六，这是一项有效策略吗？<br><strong>Level 2：</strong>左转得二分、右转五分，左转概率为 \(p\)，求期望关于 \(p\) 的表达式。<br><strong>Level 3：</strong>为什么仅看位置相同，不一定能断言两次决策属于同一状态？</p><details><summary>参考答案与检查方向</summary><p>L1：无效，概率和为一点一。L2：\(2p+5(1-p)=5-3p\)。L3：速度、电量、剩余时间等可能改变后果；如果这些量与决策相关，位置相同也可能应编码为不同状态。第七课将给这个判断明确的马尔可夫标准。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>策略把决策信息映射为动作或动作分布，抽样把分布变成一次行为。我们能计算给定策略的一步期望，也能用重复实验检查它是否按规则执行；尚未涉及如何从未知奖励中学策略。</p>
+<h3>12. 下一课预告</h3>
+<p>三家充电站的真实体验分数都不知道，只有去过才有反馈。下一课从“执行已知规则”转向“用数据了解选项”。</p>

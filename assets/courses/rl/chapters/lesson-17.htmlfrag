@@ -1,0 +1,73 @@
+<section class="rl-lesson" id="lesson-17">
+<h2>第 17 讲：还没走到终点，机器人为什么已经能学习？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>机器人刚驶出电梯，就看到目的地楼层的指示牌：原本预计还有十分钟，现在看来只剩两分钟。包裹尚未送达，它已经有理由修正出发位置的判断。如果学习必须等待任务结束，许多宝贵信息就被浪费了。时序差分学习把下一刻的最新判断变成今天的教学信号。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>怎样只用一步经验构造学习目标？</li><li>自举如何加速反馈，又引入什么依赖？</li><li>TD误差为零和预测正确有什么关系？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>你估计从A出发还能赚5分；走一步拿到1分，到达估计还能赚6分的B。即使不知道结局，A原来的判断也显得偏低。TD并不假定B的估计一定正确，而是要求相邻时刻的预测逐渐自洽。反复访问后，终点真实奖励会沿着局部修正向前传播。</p>
+<p>本课仍评价固定策略，并不决定怎样选动作。输入只有奖励、后继状态与真正终止标记，不含转移概率。输出是更新后的价值表；表中旧估计又会成为其他状态的教学目标。这种用估计帮助估计的方式叫自举。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="自举使真实奖励通过局部一致性更新逐步传播。"><title>还没走到终点，机器人为什么已经能学习？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">观察一步</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">奖励＋后继估计</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">计算TD误差</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">立刻更新</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">自举使真实奖励通过局部一致性更新逐步传播。</text></svg><figcaption>自举使真实奖励通过局部一致性更新逐步传播。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>由贝尔曼期望方程，真值等于一步奖励加折扣后继真值的条件期望。以当前表V替代真值，以一次经验替代期望，便得到：</p>
+<p>\[Y_t=R_{t+1}+\gamma(1-d_t)V(S_{t+1}),\quad\delta_t=Y_t-V(S_t),\quad V(S_t)\leftarrow V(S_t)+\alpha\delta_t.\tag{17.1}\]</p>
+<p>其中dₜ=1表示真正终止，α为学习率，决定本次修正比例。为什么这种局部目标合理？把贝尔曼方程左右相减，若当前预测恰为真实价值，得到：</p>
+<p>\[\mathbb E[\delta_t\mid S_t=s,V=v_\pi]=\mathbb E[R_{t+1}+\gamma v_\pi(S_{t+1})\mid S_t=s]-v_\pi(s)=0.\tag{17.2}\]</p>
+<p>所以零期望TD误差表示预测自洽，不表示每次样本误差为零。固定策略、表格表示、充分访问及适当递减步长等条件下可讨论收敛；常数学习率通常保留波动，不能援引完全相同的极限结论。</p>
+<h3>6. 手算示例</h3>
+<p>设A当前价值5，B当前价值6，奖励1，折扣0.9，学习率0.2。一步目标为1+0.9×6=6.4，误差为1.4，A更新为5.28。若这一步实际已终止，目标只能为1，误差−4，新值为4.2。相同即时奖励下，是否还有未来任务会改变学习信号。</p>
+<h3>7. Python 实验</h3>
+<p>沿用五状态随机游走，保持真实价值与数据过程不变，只改为每步TD更新。程序输出最终价值、最后一次误差与末100幕平均误差。用--alpha调整步长，用--plot观察曲线。尝试0.01、0.05和0.3；步长小通常平稳却慢，步长大可能长期震荡。比较MC与TD时应固定交互预算、初始化和种子集合。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_17.py</code>。<a href="../assets/courses/rl/examples/lesson_17.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""TD(0) prediction on a random walk. Install: pip install numpy."""
+import argparse
+import numpy as np
+
+def run(episodes=2000, seed=17, alpha=0.05):
+    rng = np.random.default_rng(seed)
+    v = np.zeros(7)
+    truth = np.arange(1, 6) / 6
+    errors = []
+    for _ in range(episodes):
+        s = 3
+        while s not in (0, 6):
+            ns = s + rng.choice([-1, 1])
+            reward = float(ns == 6)
+            terminated = ns in (0, 6)
+            target = reward + (0 if terminated else v[ns])
+            v[s] += alpha * (target - v[s])
+            s = ns
+        errors.append(np.sqrt(np.mean((v[1:6] - truth)**2)))
+    print('values:', np.round(v[1:6], 3))
+    print('last episode RMSE:', errors[-1])
+    print('mean RMSE in final 100 episodes:', np.mean(errors[-100:]))
+    return errors
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=2000)
+    p.add_argument('--seed', type=int, default=17)
+    p.add_argument('--alpha', type=float, default=0.05)
+    p.add_argument('--plot', action='store_true')
+    a = p.parse_args()
+    errors = run(a.episodes, a.seed, a.alpha)
+    if a.plot:
+        import matplotlib.pyplot as plt
+        plt.plot(errors); plt.xlabel('Episode'); plt.ylabel('Value RMSE'); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>动态规划计算完整贝尔曼备份，TD以抽样后继作异步随机近似。对控制背景而言，价值像剩余代价函数，TD误差衡量预测沿实际轨迹的局部一致性。不过此时仍在评价给定策略，还没有求解最优控制；不能把价值更新误认为策略改进。</p>
+<h3>9. 常见误区</h3>
+<p>TD(0)中的0指后面将学习的资格迹参数，而不是没有时间概念。自举目标有估计误差，不代表方法必然收敛到错误值；必须区分瞬时目标偏差与渐近解。训练误差降低也不保证策略更好，因为当前策略根本没改变。外部时间上限也不应随意当作任务终止。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：TD为什么能在一幕结束前更新？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>它用下一状态的当前估计补足尚未观察的未来，因此不必等待完整回报。</p></details>
+<p><strong>Level 2：若B估计为2，其余手算条件不变，A的新值是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>目标2.8，误差−2.2，新值5−0.44=4.56。</p></details>
+<p><strong>Level 3：如何公平测试长走廊中TD是否比MC更早学会？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>固定策略、初始化与环境交互数，重复多个种子，按步数记录真实价值误差，同时记录MC尚未结束第一幕的等待区间。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>TD把贝尔曼自洽关系变成一步样本更新，用下一状态估计换取即时反馈。目标、误差、步长与终止掩码共同决定更新含义。</p>
+<h3>12. 下一节预告</h3>
+<p>只看一步容易依赖错误估计，等终点又太慢。有没有旋钮可以决定先看几步，再给剩下的未来估价？下一讲研究多步目标。</p>
+</section>

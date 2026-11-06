@@ -1,0 +1,45 @@
+<h2>第 49 讲：机器人能否先学会预测世界，再学习行动？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你把机器人交给两位学生。第一位直接记住“在什么位置踩多大油门”；第二位先问：“踩下油门以后，下一秒会在哪里？”后者可以在不真正撞墙的情况下比较候选动作。但如果它把地面摩擦想错了，越精确地优化那个想象中的世界，真实表现反而可能越差。</p><p>本课先把世界模型缩小为一个能手算的线性动力学辨识问题。目标不是预测所有可能发生的事情，而是在策略实际访问的区域，预测与控制相关的状态变化。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>模型学习的监督信号从哪里来？</li><li>单步拟合误差如何变成多步误差？</li><li>什么是不确定性与模型利用？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>一张地图只告诉你哪里有路，动力学模型还告诉你“方向盘转这些，车会怎样动”。模型学习使用交互产生的状态—动作—后继状态数据；即使数据来自强化学习过程，这一步本身通常是监督学习。</p><p>模型必须接受行动作为输入。只预测录像下一帧的模型，如果无法区分不同候选动作的后果，就不能直接承担控制规划。多个模型对同一输入意见不同，可以提示数据不足，但大家一致也可能是共同的建模偏差。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="机器人能否先学会预测世界，再学习行动？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第49讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">交互数据</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">状态·动作·后继</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">拟合模型</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">最小二乘 / 似然</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">滚动预测</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">误差逐步传播</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">控制验证</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">关注访问分布</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3><p>记真实系统为 \(s_{t+1}=f(s_t,a_t)+\epsilon_t\)，其中s是状态、a是动作、ε是过程噪声。对数据集 \(\mathcal D=\{(s_i,a_i,s'_i)\}\)，假设条件噪声为固定方差高斯，负对数似然中依赖参数的项是平方残差，因此最大似然等价于 \[\hat\theta=\arg\min_\theta{1\over N}\sum_i\|s'_i-f_\theta(s_i,a_i)\|^2.\tag{49.1}\]</p><p>为分析多步误差，先讨论无噪声系统，令 \(e_t=\|s_t-\hat s_t\|\)。假设两条轨迹始终处于相关区域，那里有统一模型误差界 \(\|\hat f(s,a)-f(s,a)\|\le\delta\)，真实f对状态L-Lipschitz，两个模型使用同一动作序列。加减 \(f(\hat s_t,a_t)\)，用三角不等式得到 \[e_{t+1}\le L e_t+\delta,\quad e_0=0.\tag{49.2}\]逐次代入得到 \[e_H\le\delta\sum_{j=0}^{H-1}L^j.\tag{49.3}\]当L大于1时上界可能快速增长；闭环策略依赖状态时，还需把策略敏感性纳入闭环映射。若两条轨迹有不同噪声，还要加入噪声差，不能用训练集均方误差直接充当确定误差上界。</p><p>线性模型 \(x'=ax+bu\) 写成 \(y=Xw,w=[a,b]^\top\)。平方误差梯度为 \(2X^\top(Xw-y)\)，令其为零得到正规方程。数值求解用最小二乘分解而非显式求逆。训练分布之外的输入未受这个经验损失直接约束；集合模型分歧也不是自动校准的误差界。</p><h3>6. 手算示例</h3><p>三条样本 \((x,u,x')=(1,0,1.1),(0,1,0.5),(1,1,1.6)\) 给出a=1.1、b=0.5。若模型a=1.12，零控制、初值1，两步真值1.21，预测1.2544，误差0.0444。单步初值处误差0.02并不是全域误差界：误差随状态增加。因此不能不检查区域，就把δ=0.02代入统一误差上界。</p><h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_49.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(49)
+n = 250
+x, u = rng.uniform(-1, 1, (2, n))
+y = 1.1*x + 0.5*u + rng.normal(0, 0.02, n)
+X = np.column_stack([x, u])
+w = np.linalg.lstsq(X, y, rcond=None)[0]
+# Bootstrap ensembles illustrate parameter sensitivity to this dataset.
+ensemble = []
+for _ in range(20):
+    ix = rng.integers(n, size=n)
+    ensemble.append(np.linalg.lstsq(X[ix], y[ix], rcond=None)[0])
+print(&quot;estimated [a,b]:&quot;, w)
+print(&quot;ensemble parameter std:&quot;, np.std(ensemble, axis=0))
+truth, model = [1.0], [1.0]
+for _ in range(25):
+    truth.append(1.1*truth[-1])
+    model.append(w[0]*model[-1])
+print(&quot;25-step absolute error:&quot;, abs(truth[-1]-model[-1]))
+plt.plot(truth, label=&quot;true open-loop&quot;)
+plt.plot(model, &quot;--&quot;, label=&quot;learned open-loop&quot;)
+plt.xlabel(&quot;step&quot;); plt.ylabel(&quot;state&quot;); plt.legend()
+plt.tight_layout(); plt.savefig(&quot;lesson49_model.png&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>脚本只辨识参数并画零控制的开环预测，没有训练控制策略。先独立生成测试转移，计算其单步误差；再增加滚动步数，分清参数偏差和不稳定动力学放大的作用。把数据中的油门几乎固定为零，检查设计矩阵是否病态：模型也许能解释旧数据，却无法识别控制增益。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>这一步与你熟悉的系统辨识严格相连：在选定模型类和损失后，求解的是参数估计。Model-Based RL 的额外问题是数据由策略主动生成，模型又反过来影响探索和控制，数据分布会持续变化。</p>
+<h3>9. 常见误区</h3>
+<ul><li>训练损失小不代表在规划器选择的动作上也准确。</li><li>集合分歧小不能排除共同模型偏差。</li><li>多步误差界必须在真实访问区域满足假设。</li></ul>
+<p>重采样集合只反映当前数据与拟合流程的变化。换一种真实非线性，使全部线性模型共同拟合错，是检验“低分歧仍然可能高偏差”的具体反例。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>为什么模型输入必须包含动作？</li><li><strong>Level 2：</strong>推导 \(L=1\) 时的误差界。</li><li><strong>Level 3：</strong>设计一个规划器主动利用模型漏洞的例子。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>不同动作产生不同后果；缺少动作会将其混合成条件平均。</p><p><strong>Level 2：</strong>每步累加δ，故 \(e_H\le H\delta\)。</p><p><strong>Level 3：</strong>例如训练数据只含小油门，模型向大油门外推过于乐观；规划器持续选未覆盖的大油门。应报告覆盖与真实执行后果。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>学习模型首先是数据与估计问题，规划随后把估计误差变成决策后果。模型质量需要在控制相关的状态—动作分布上检验。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：已经有一个会预测的模型，怎样每隔一小会儿重新规划，让误差有机会被纠正？</p>

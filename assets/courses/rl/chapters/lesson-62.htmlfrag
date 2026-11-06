@@ -1,0 +1,41 @@
+<h2>第 62 讲：一条漂亮曲线，为什么还不足以说明方法有效？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>方法A的一次训练曲线胜过B，你兴奋地准备写结果。换一个种子后顺序反过来了；再检查发现A被挑了五十组超参数，B只试了一组。研究结论需要回答的不只是“这条曲线高不高”，还包括“你通过什么过程选中了它”。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>训练种子与评估回合为什么不能混为一谈？</li><li>如何估计改进的不确定性？</li><li>怎样安排消融、调参与独立测试？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>同一次训练得到一个策略，多运行100个评估回合可以更准确地测量这个策略，却不能消除“训练会学成哪种策略”的波动。统计单位必须对应你的问题。</p><p>先约定主要指标、预算和种子集合，再看结果。训练回报描述带探索的数据收集行为，冻结策略的评估回报描述部署行为；成功率、违规率、能量和延迟还可能揭示奖励没有表达的任务质量。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="一条漂亮曲线，为什么还不足以说明方法有效？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第62讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">固定研究问题</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">指标与预算</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">独立训练单元</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">区分评估回合</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">消融与不确定性</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">保留失败结果</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">独立测试</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">明确结论范围</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>记第i个训练种子的第j个评估回报为 \(Y_{ij}\)。总方差分解为 \[\operatorname{Var}(Y)=\operatorname{Var}(\mathbb E[Y|i])+\mathbb E[\operatorname{Var}(Y|i)].\tag{62.1}\]第一项是训练结果之间的波动，第二项是固定策略的回合波动。把所有回合当独立训练结果会形成伪重复。</p><p>配对设计使用相同任务实例或种子条件，先计算每个独立训练单元的差 \(D_i=\bar Y_{Ai}-\bar Y_{Bi}\)，再估计 \(\bar D=n^{-1}\sum_iD_i\)。配对是否合理取决于共同随机条件，编号相同并不自动形成有效配对。</p><p>以训练单元为簇重采样可构造bootstrap区间：重复有放回抽取n个 \(D_i\)，计算均值并取分位点。少量种子时区间仍不稳定；bootstrap不是增加真实实验信息。消融还要控制预算和其他实现差异，多个比较的选择过程应透明。</p>
+<h3>6. 手算示例</h3>
+<p>三个训练结果的配对改善为[10,−5,7]，平均为4；样本标准差约7.94，均值标准误约4.58。若每个模型评估100回合，就宣称有300个独立训练样本，会严重低估训练不确定性。这个小例子提示“平均改善为正”与“证据足够稳定”是两个判断。</p>
+<h3>7. Python 实验</h3>
+<p>安装NumPy和Matplotlib，运行 <code>python lesson_62.py</code>。两组固定数组是人为构造的五个训练单元数据，绝非算法实测；种子62仅控制bootstrap重采样。输出均值与区间，并保存 <code>lesson62_bootstrap.png</code>。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(62)
+# Synthetic training-level data only; replace with independent real runs.
+baseline = np.array([90, 100, 80, 110, 95], dtype=float)
+candidate = np.array([103, 97, 91, 120, 99], dtype=float)
+difference = candidate-baseline
+samples = rng.choice(difference, size=(10000, len(difference)), replace=True)
+boot = samples.mean(axis=1)
+low, high = np.quantile(boot, [0.025, 0.975])
+print(&quot;SYNTHETIC demonstration: mean improvement&quot;, difference.mean())
+print(&quot;training-unit bootstrap interval:&quot;, low, high)
+print(&quot;n independent units:&quot;, len(difference))
+plt.hist(boot, bins=35)
+plt.axvline(0, color=&quot;black&quot;, linestyle=&quot;--&quot;)
+plt.xlabel(&quot;bootstrap mean improvement&quot;); plt.ylabel(&quot;resamples&quot;)
+plt.tight_layout(); plt.savefig(&quot;lesson62_bootstrap.png&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与你做工科实验时区分样品、重复测量和实验批次相同。强化学习额外存在自适应数据收集、调参选择和训练失败，因此记录失败种子很重要。</p><p>脚本数组是明确标注的合成示例，不是任何算法成绩。把它替换为真实独立训练结果后，再加入任务成功率与违规率；对罕见安全事件，仅有零次观测不能证明概率为零。</p>
+<p>实验差值为[13,−3,11,10,4]，均值7。把重采样次数从一万增到十万，只会更精细地计算这五个数给出的区间，不能补回未观测的训练失败。若比较算法其实独立训练且没有合理配对，应改用两组独立重采样；若同时汇总多个任务，还需先规定任务归一化和汇总权重。</p>
+<h3>9. 常见误区</h3>
+<ul><li>只画平滑曲线会掩盖原始波动和失败。</li><li>多个评估回合不是多个独立训练种子。</li><li>在测试集反复调参会改变测试的独立性。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>为什么固定策略评估100次不能代替训练100次？</li><li><strong>Level 2：</strong>计算[10,−5,7]的均值与样本标准差。</li><li><strong>Level 3：</strong>设计区分奖励漏洞和真实泛化提升的测试。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>它们只重复策略执行，没有重新抽样训练过程。</p><p><strong>Level 2：</strong>均值4，样本方差63，标准差√63≈7.94。</p><p><strong>Level 3：</strong>在未参与优化的任务条件下测真实成功与约束，检查高奖励失败轨迹，并对奖励定义做机制消融。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>可信实验需要正确的统计单位、固定协议和独立测试。曲线呈现只是证据表达，不能替代实验设计。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：强化学习与MPC各自拥有不同信息和计算方式，怎样让比较真正回答你的研究问题？</p>

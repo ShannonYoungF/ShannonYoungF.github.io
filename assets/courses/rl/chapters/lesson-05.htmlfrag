@@ -1,0 +1,57 @@
+<h2 id="lecture-05">第 5 讲：一直选择目前最好的充电站，为什么可能一直吃亏？</h2>
+<h3>2. 开场故事</h3>
+<p>第一次试用时，真正优秀的充电站恰好排起长队，只得零分；一家普通站却恰好空闲，得了两分。从此机器人只去普通站。“我每次都选择最好的一家”，它的日志写得理直气壮。问题在于：它说的最好，是已知估计最高，而不是实际上最好。</p><p>如果行动决定了今后能看到什么数据，那么错误判断可以自我维持。本课不再轮流采样，而让机器人根据现有估计选站。我们将亲眼看到贪心怎样锁死，也会用少量随机尝试撬开这个闭环。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>探索与利用为何会冲突？</li><li>epsilon-greedy 的随机动作究竟如何抽取？</li><li>怎样用遗憾衡量选择不佳的长期损失？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>利用是去目前估计最好的站；探索是暂时尝试别的站，换取信息。探索当次可能吃亏，但能纠正误判。epsilon-greedy 先掷一次硬币：以 \(\varepsilon\) 的概率在全部动作中均匀抽样，以其余概率选择估计最大的动作。均匀抽样仍可能抽到当前最优动作，所以“发生探索”和“选择非贪心动作”不是同一事件。</p><p>比较算法时，不宜只看某一次获得的奖励，因为运气差时好站也能给低分。模拟器知道真实均值，因此可计算每次选择相对于真正最佳站损失了多少期望收益。真实部署里通常不知道这个数，只能通过设计合理的评估近似判断。</p><ol><li>以 epsilon 概率均匀随机选动作，否则选当前估计最大的动作。</li><li>执行动作并记录真实环境奖励。</li><li>只更新该动作的计数与均值，然后进入下一轮。</li></ol><figure><svg viewBox="0 0 680 220" role="img" aria-label="早期误判会改变数据来源；探索打开重新估计的通道" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">估计最好</text><rect x="265" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="340.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">选择该站</text><rect x="500" y="85" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="575.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">只收到它的数据</text><path d="M170 110 L265 110" stroke="var(--accent)"/><text x="217.5" y="98.0" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><path d="M415 110 L500 110" stroke="var(--accent)"/><text x="457.5" y="98.0" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><path d="M575 135 L575 190 L95 190 L95 135" stroke="var(--warm)"/><text x="340" y="180" font-size="18" fill="var(--text)" stroke="none" text-anchor="middle">随机尝试让其他站重新进入数据</text></g></svg><figcaption>早期误判会改变数据来源；探索打开重新估计的通道</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>假设有 \(K\) 个动作、唯一贪心动作 \(a_g\)，则该动作被选中的总概率包括两条路径：</p>
+\[\Pr(A_t=a_g)=1-\varepsilon+\frac{\varepsilon}{K},\qquad\Pr(A_t=a\ne a_g)=\frac{\varepsilon}{K}.\tag{5.1}\]
+<p>若有并列最大值，必须另行规定打破平局的规则。设真实最优均值 \(q_*^{\max}=\max_a q_*(a)\)，动作差距 \(\Delta_a=q_*^{\max}-q_*(a)\)。长度 \(T\) 的累计伪遗憾为</p>
+\[\mathcal R_T=\sum_{t=1}^T\Delta_{A_t}=\sum_a N_T(a)\Delta_a.\tag{5.2}\]
+<p>第二个等号把同一动作的损失按访问次数合并。它比较期望收益，不是把每次随机奖励都拿来相减。当估计已经正确、最佳动作唯一时，固定 epsilon 仍会持续抽到差动作，每步期望损失为</p>
+\[\frac{\varepsilon}{K}\sum_a\Delta_a.\tag{5.3}\]
+<p>因此固定探索率通常带来线性增长的长期遗憾。让 epsilon 下降可能缓解损失，但下降太快也可能再度锁死；本课不声称任意衰减方案都能收敛。</p>
+<h3>6. 完整手算示例</h3>
+<p>两家站真实均值分别为一、二，但初始各观测一次后估计为二、零。若随后第一家总给一分，纯贪心的估计会从二逐步降向一，始终大于第二家的零，因而再也不访问真正优秀的第二家。它每多走一步就多损失一分期望收益。若 epsilon 为零点一且第二家已被识别为最佳，它每步仍以零点零五概率选第一家，期望损失零点零五分。</p>
+<h3>7. Python 实验</h3>
+<p>脚本把这个有意构造的初始误判固定下来，随后使用确定性奖励隔离探索效果，并跨多个种子比较累计损失。它不是声称真实奖励没有噪声，而是用反例展示纯贪心的缺陷。修改初始估计、时长和 epsilon，观察探索过少与过多分别付出什么代价。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>。运行独立脚本 <code>lesson_05.py</code>；下列代码与下载脚本一致。种子用于复现这个实验，不能代替对随机性和适用条件的分析。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+
+def run(epsilon, seed, horizon=500):
+    rng = np.random.default_rng(seed)
+    means = np.array([1.0, 2.0])
+    q = np.array([2.0, 0.0])  # a misleading initial observation per arm
+    count = np.ones(2, dtype=int)
+    regret = []
+    for t in range(horizon):
+        if rng.random() &lt; epsilon:
+            action = rng.integers(2)
+        else:
+            ties = np.flatnonzero(q == q.max())
+            action = rng.choice(ties)
+        reward = means[action]  # deterministic continuation isolates the trap
+        count[action] += 1
+        q[action] += (reward-q[action]) / count[action]
+        regret.append(means.max()-means[action])
+    return np.cumsum(regret)
+
+for epsilon in [0.0, 0.1, 0.5]:
+    curves = np.array([run(epsilon, seed) for seed in range(100)])
+    avg = curves.mean(axis=0)
+    print(f&#x27;epsilon={epsilon}: mean final pseudo-regret={avg[-1]:.2f}&#x27;)
+    plt.plot(avg, label=f&#x27;epsilon={epsilon}&#x27;)
+plt.xlabel(&#x27;Additional decisions&#x27;); plt.ylabel(&#x27;Mean cumulative pseudo-regret&#x27;)
+plt.legend(); plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与主动实验设计相连：控制动作既改变性能，也影响信息获取。但不要把它直接等同于双重控制的完整理论，老虎机没有未知动力学状态。监督学习中训练数据常被视为给定，在线决策中策略会主动改变数据来源，这正是误判能自我强化的原因。</p>
+<h3>9. 常见误区</h3>
+<p>epsilon 不是折扣；前者调节选动作，后者定义时间价值。随机探索不必更安全，在机器人上需要独立约束。遗憾曲线上升不代表没有学会：固定 epsilon 即便已经识别正确仍持续付出探索成本。跨种子比较应保持相同环境设定，不能挑一条漂亮曲线下结论。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>三只臂、epsilon 为零点三，唯一贪心动作实际被选概率多少？<br><strong>Level 2：</strong>真实均值为一、二、四，动作访问次数为二、三、五，累计伪遗憾多少？<br><strong>Level 3：</strong>设计一个过早停止探索会永久错选的奖励序列。</p><details><summary>参考答案与检查方向</summary><p>L1：\(0.7+0.3/3=0.8\)。L2：\(2(4-1)+3(4-2)+5(4-4)=12\)。L3：使好臂早期低估、差臂早期高估，并让停止探索后差臂估计保持高于好臂的冻结估计；需要明确初始化与奖励生成规则，不能只说“运气不好”。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>探索让错误估计有机会被修正，利用把已有信息变成收益。epsilon-greedy 提供可运行的折中，但固定随机探索会持续付出代价；累计伪遗憾能把这种代价与奖励噪声分开。</p>
+<h3>12. 下一课预告</h3>
+<p>能否把尝试机会优先给那些“我们还不太确定”的站，而不是一视同仁地乱试？下一课用不确定性指导探索。</p>

@@ -1,0 +1,57 @@
+<section class="rl-lesson" id="lesson-28">
+<h2>第 28 讲：同一个网络既选冠军又打分，会高估多少？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你已经让游戏AI用目标网络作较稳定的评分老师，可老师仍亲自挑它眼中分数最高的动作。只要评分带噪，挑冠军与给冠军报告成绩还是纠缠在一起。目标滞后解决移动尺子的问题，却没有自动拆开选择偏差；Double DQN再作一次细小但有针对性的改动。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>原始DQN的选择与评价在哪里共用估计？</li><li>Double DQN怎样使用现有两张网络？</li><li>怎样公平判断它是否缓解当前任务的过估计？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>原始DQN在目标网络上同时argmax和读取最大值。Double DQN让在线网络选下一动作，再由目标网络读取该动作的价值，像让训练中的学生提名、滞后的老师评分。它不需要新增第二套完整训练流程，只修改目标构造。</p>
+<p>在线与目标网络并不独立，周期同步时甚至完全相同。因此它是表格Double Q思想的近似迁移，不能照搬独立噪声下的无偏证明。改进是否明显还取决于动作数量、噪声、相关性和任务难度，小型CartPole上可能观察不到稳定优势。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="两张网络仍相关；选择—评价分离的效果需要实验检验。"><title>同一个网络既选冠军又打分，会高估多少？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">在线网络选a*</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">目标网络评a*</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">构造独立目标</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">共享DQN训练器</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">两张网络仍相关；选择—评价分离的效果需要实验检验。</text></svg><figcaption>两张网络仍相关；选择—评价分离的效果需要实验检验。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>记在线参数θ、目标参数θ⁻，后继状态s′，奖励r，终止标记d。先把原始DQN的max写成“选择再评价”的展开式：</p>
+<p>\[y_{\rm DQN}=r+\gamma(1-d)Q_{\theta^-}\!\left(s^{\prime},\arg\max_bQ_{\theta^-}(s^{\prime},b)\right).\tag{28.1}\]</p>
+<p>将内部负责选择的网络换为在线网络，外部评价仍保持滞后副本：</p>
+<p>\[a^*=\arg\max_bQ_\theta(s^{\prime},b),\qquad y_{\rm DDQN}=r+\gamma(1-d)Q_{\theta^-}(s^{\prime},a^*).\tag{28.2}\]</p>
+<p>损失和已执行动作预测保持与上一讲一致。目标整体停止梯度，argmax不是需要微分的策略层。同步瞬间θ=θ⁻时两目标完全相同，随后网络分离才可能产生差异；仅仅有两张网络并不足以证明降偏。</p>
+<h3>6. 手算示例</h3>
+<p>在线后继Q为[5,4]，目标后继Q为[2,6]，奖励1，折扣0.9。DQN由目标网络选第二个动作并评价6，目标6.4；Double DQN由在线网络选第一个动作，再用目标值2，目标2.8。若当前所选动作预测3，两个y−z分别为3.4与−0.2，甚至会推动相反更新方向。</p>
+<h3>7. Python 实验</h3>
+<p>本课文件先打印这组手算目标，再导入第26讲完整训练器，以double=True启用选择—评价分离。请把lesson_26.py与lesson_28.py下载到同一目录；运行--smoke检查导入和训练路径，再以--steps 20000观察学习。共享训练器保证回放、网络、评估协议一致，便于只比较目标改变，而非同时改许多超参数。</p>
+<p>安装：<code>python -m pip install numpy torch gymnasium matplotlib</code>。运行：<code>python lesson_28.py</code>。<a href="../assets/courses/rl/examples/lesson_28.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Double DQN. Download lesson_26.py into this same directory first.
+pip install numpy torch gymnasium; python lesson_28.py --smoke
+"""
+import numpy as np
+from lesson_26 import parser, train
+
+def selection_evaluation_demo():
+    online = np.array([5.0, 4.0])
+    target = np.array([2.0, 6.0])
+    selected = int(online.argmax())
+    print('online selects action:', selected)
+    print('DQN bootstrap:', target.max())
+    print('Double DQN bootstrap:', target[selected])
+    print('reward=1, gamma=.9: DQN target=', 1+.9*target.max(),
+          'Double DQN target=', 1+.9*target[selected])
+
+if __name__ == '__main__':
+    selection_evaluation_demo()
+    train(parser(default_seed=28).parse_args(), double=True)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>它直接继承Double Q的降偏思想，又保留DQN的滞后目标机制，两种机制解决相关但不同的问题。与最优控制中的“选动作”和“估代价”分工类似，但这里的核心风险来自统计估计噪声。网络能给出高Q不表示真实回报高，需要独立轨迹验证。</p>
+<h3>9. 常见误区</h3>
+<p>不要反过来让目标网络选、在线网络评分，那是另一种目标，非此处公式。argmax需按动作维度计算，gather索引保留批量维。Double DQN通常仍用一套在线网络优化器，不是同时反传两套目标网络。回报更高不能单独证明偏差更小，偏差需要与可比较回报估计或已知真值核对。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：为什么“DQN已经有目标网络”仍不等于Double DQN？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>原始DQN仍在同一目标网络上选并评，Double DQN把选择交给在线网络。</p></details>
+<p><strong>Level 2：若两网络下一状态都为[5,4]，两种目标各是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>两者都选第一动作，目标为1+0.9×5=5.5。</p></details>
+<p><strong>Level 3：怎样在可知真值的小环境中检验过估计，而非只看游戏分数？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>构造小离散MDP用动态规划求真Q，固定交互预算训练网络，分别报告Q估计误差、过估计方向和独立策略回报。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>Double DQN只替换目标中的动作选择者，把选择与评价部分分开。它缓解一个特定统计机制，不承诺独立性、完全无偏或所有任务上的优势。</p>
+<h3>12. 下一节预告</h3>
+<p>有些状态无论怎样微调动作都很安全，另一些却对动作极敏感。网络能否把“身处何地”和“动作差别”分别表示？下一讲研究Dueling。</p>
+</section>

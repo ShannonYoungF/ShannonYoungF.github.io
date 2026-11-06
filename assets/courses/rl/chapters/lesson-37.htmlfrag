@@ -1,0 +1,30 @@
+<section class="rl-lesson" data-lesson="37">
+<h2>第 37 讲：昨天采来的数据，今天还能用几次？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>你让机器人练习一小时，只更新一次网络就丢掉数据，总觉得浪费。于是把同一批动作反复训练。问题在于动作是昨天的策略抽出的，而网络已经变了。重要性采样能修正某些分布差异，但不能把任意旧数据变成免费、无限可靠的新经验。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>动作概率比值修正了哪一个分布？</li><li>完整轨迹比值与PPO常用单步比值有何不同？</li><li>为什么多次更新后代理目标会越来越不可靠？</li></ul>
+<h3>4. 直觉解释</h3><p>假设旧策略只在20%的情况下右转，而新策略右转30%。旧数据中的右转样本应被放大1.5倍，左转样本相应缩小，这样在同一状态下能重建新动作分布的期望。但新策略也会改变将来访问哪些状态，单独修正动作比例并没有自动修正状态分布。</p><p>因而我们区分两件事：具有覆盖条件的精确重加权，以及固定旧状态分布构造的局部代理目标。后者在旧策略附近有用，正是TRPO/PPO的起点；它不是一次等式变换就获得的全局新策略回报。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="昨天采来的数据，今天还能用几次？"><text x="24" y="30" fill="var(--text)" font-size="18">昨天采来的数据，今天还能用几次？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">旧数据 μ</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">冻结概率</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">概率比 π/μ</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">动作重加权</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">旧状态分布</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">仍然固定</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">局部代理</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">监控偏移</text></svg><figcaption>单步动作重加权不等于自动修正新策略的整条状态分布。</figcaption></figure>
+<h3>5. 数学原理</h3><p>给定状态s，行为策略μ对目标策略π的支持动作都赋正概率，则：</p><div class="rl-equation">\[\mathbb E_{a\sim\pi}[f(s,a)]=\mathbb E_{a\sim\mu}\left[\frac{\pi(a\mid s)}{\mu(a\mid s)}f(s,a)\right].\tag{37.1}\]</div><p>整条轨迹的环境项抵消，精确轨迹权重是Πtπ(at|st)/μ(at|st)，可能随时域产生极大方差。PPO使用的单步比值rt(θ)=πθ(at|st)/πold(at|st)，与完整轨迹权重不同。</p><div class="rl-equation">\[L_{\mathrm{old}}(\theta)=\mathbb E_{s\sim d^{\mathrm{old}},a\sim\pi_{\mathrm{old}}}[r_t(\theta)A^{\mathrm{old}}(s,a)].\tag{37.2}\]</div><p>这里dold固定在旧策略访问分布。它可用旧数据估计，并在θold处具有与相应策略改进梯度一致的局部方向（注意访问分布归一化常数）。它一般不等于J(θ)−J(θold)，因为新策略访问分布和优势函数都发生变化。</p><p>实现时old_log_prob必须在采样时保存且冻结；优势也在多轮优化中固定。反复用“当前概率除以当前概率”会让比值数值恒为1，失去原来的代理目标含义。概率过小时用对数差再exp，仍需监控数值和策略偏移。</p>
+<h3>6. 手算示例</h3><p>同一状态，旧动作概率为(0.8,0.2)，新策略为(0.7,0.3)，动作收益为(1,3)。比值为(0.875,1.5)。旧分布加权期望为0.8×0.875×1+0.2×1.5×3=1.6，与新策略的0.7×1+0.3×3一致。</p><p>若两步轨迹都右转，其整段权重为1.5²=2.25。只使用1.5并不能修正完整轨迹概率。对于长轨迹，连乘快速扩大波动；这不是浮点数技巧就能解决的统计困难。</p>
+<h3>7. Python 实验</h3><p>先核对固定状态等式，再把旧右转概率降到0.01、新概率保持0.3。右转权重变成30，样本均值会显著波动。记录多个独立批次的估计误差，不要只看一次均值。把时间长度增加后比较轨迹权重的分布，观察极少数轨迹如何主导估计。</p><p>在公共PPO代码中，保存采样时log概率和冻结优势；每轮优化后计算KL或概率比值分位数。增加epoch会提高同一数据的优化程度，也会扩大分布偏移，是否有益要由独立评估判断。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_37.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+old = np.array([0.8, 0.2])
+new = np.array([0.7, 0.3])
+reward = np.array([1., 3.])
+ratio = new / old
+print(&quot;direct:&quot;, new @ reward)
+print(&quot;importance weighted:&quot;, old @ (ratio * reward))
+print(&quot;two right actions trajectory ratio:&quot;, ratio[1]**2)
+rng = np.random.default_rng(7)
+a = rng.choice(2, size=10000, p=old)
+print(&quot;sample estimate:&quot;, np.mean(ratio[a] * reward[a]))
+# Fixed-state equality says nothing by itself about changed state occupancy.</code></pre>
+<h3>8. 与已有知识的联系</h3><p>这是第三阶段Off-Policy评估的重要性采样在策略优化中的新用途。与监督学习反复打乱固定标签数据不同，强化学习训练目标受当前策略改变，所以数据复用需要更仔细的解释。统计上，覆盖不足与极端权重互相联系；控制上，局部代理目标类似在当前轨迹附近构造近似优化模型。</p>
+<h3>9. 常见误区</h3><ul><li>把单步概率比值当作完整轨迹分布修正。</li><li>忘记冻结旧策略概率，导致分母随优化一起变化。</li><li>认为无偏就代表有限样本可靠，忽略重要性权重方差。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>旧策略从不右转，新策略想右转，能靠现有数据精确重加权吗？</li><li><strong>Level 2：</strong>把本例新右转概率改成0.6，计算两个比值和期望。</li><li><strong>Level 3：</strong>设计一项实验，展示相同动作比值修正仍不能解决状态覆盖不足。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>不能；目标支持不包含在行为支持内，缺失动作没有可用样本。</p><p><strong>Level 2 参考：</strong>比值为0.4/0.8=0.5与0.6/0.2=3，期望0.8×0.5×1+0.2×3×3=2.2。</p><p><strong>Level 3 参考：</strong>构造早期动作进入不同房间的任务，旧策略很少进入某房间；固定旧状态样本优化后检查新策略访问分布和真实回报。</p></details>
+<h3>11. 本节知识总结</h3><p>重要性采样能在覆盖条件下修正分布，但单步比值代理目标通常只具有局部策略优化含义。数据复用次数与策略偏移需要共同控制。</p>
+<h3>12. 下一节预告</h3><p>怎样让局部近似在更新后仍有参考价值？下一课用KL与信赖域限制策略移动。</p>
+</section>

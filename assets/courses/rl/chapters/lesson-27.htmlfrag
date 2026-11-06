@@ -1,0 +1,67 @@
+<section class="rl-lesson" id="lesson-27">
+<h2>第 27 讲：只是实验时间到了，为什么不能说世界结束了？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>机器人在仓库每分钟得到1分，你每十分钟暂停实验换电池。如果把暂停误记为世界终结，它会学到“临近十分钟，未来突然不值钱”。这本是采样设备的限制，却被写成任务规律。许多看似复杂的训练故障，根源只是结束标记含义不清。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>terminated与truncated各表示什么？</li><li>为什么重置采样与关闭bootstrap是两件事？</li><li>真正有限时域任务应怎样建模？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>真正终止表示任务定义下没有未来收益，例如倒杆失败或到达目标。外部截断表示本次采样停下，但原过程本可以继续。两者都要求重置环境以收集新幕，却只有真正终止通常把未来价值置零。重置属于数据收集层，掩码属于学习目标层。</p>
+<p>如果任务本身只允许十分钟，时间限制就是目标的一部分。此时应明确有限时域价值，通常把剩余时间纳入状态，否则同一位置在开局与最后一秒的最佳动作可能不同，原状态会失去马尔可夫性。关键是任务语义，而非机械照抄API名字。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="采样停止与任务终止不同，价值边界由任务目标决定。"><title>只是实验时间到了，为什么不能说世界结束了？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">读清结束语义</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">两标记都重置</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">仅真终止去未来</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">保留真实后继</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">采样停止与任务终止不同，价值边界由任务目标决定。</text></svg><figcaption>采样停止与任务终止不同，价值边界由任务目标决定。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>对外部截断下的持续任务，令d表示真正终止，c表示本段数据截断。一步目标与采样重置条件分别为：</p>
+<p>\[y=r+\gamma(1-d)V(s^{\prime}),\qquad\text{重置条件为 }d\lor c.\tag{27.1}\]</p>
+<p>误用d∨c作掩码，会在截断时丢掉γV(s′)。考虑永远每步奖励1的单状态过程，真实值满足V=1+γV，所以V=1/(1−γ)。若每步外部截断概率p，错误掩码的期望固定点满足：</p>
+<p>\[V_{\rm wrong}=1+\gamma(1-p)V_{\rm wrong}=\frac1{1-\gamma(1-p)}.\tag{27.2}\]</p>
+<p>这是系统性目标改变，增加样本无法修复。若真任务仅有H步，则使用剩余h步的价值Vₕ，边界V₀=0：</p>
+<p>\[V_h(s)=\mathbb E[R+\gamma V_{h-1}(S^{\prime})\mid s],\quad h=1,\ldots,H.\tag{27.3}\]</p>
+<p>这里γ是折扣，p是外部截断概率，H是任务长度；不能把它们都混写为“结束概率”。</p>
+<h3>6. 手算示例</h3>
+<p>奖励1、后继价值5、折扣0.9。普通转移目标5.5，真正终止目标1，仅外部截断时仍为5.5。持续过程γ=0.9时真值10；p=0.2时错误固定点为1/(1−0.9×0.8)=3.571。稳定学到一个数也可能是在稳定地学错问题。</p>
+<h3>7. Python 实验</h3>
+<p>程序打印四种标记组合的正确目标与错误目标，并用断言固定两个关键值；再用随机截断的单状态过程比较两种更新。无需Gymnasium，便于从复杂训练中抽离错误。回到DQN，应检查缓存保存的next_state是结束前真实后继，而不是reset返回的新初始状态；普通非自动重置环境可以直接保存。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_27.py</code>。<a href="../assets/courses/rl/examples/lesson_27.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Termination versus external truncation: an executable regression example."""
+import numpy as np
+
+def target(reward, next_value, terminated, truncated, gamma=0.9):
+    # truncated deliberately does not enter the bootstrap mask.
+    return reward + gamma * (not terminated) * next_value
+
+if __name__ == '__main__':
+    rng = np.random.default_rng(27)
+    reward, next_value = 1.0, 5.0
+    cases = [('normal', False, False), ('task terminal', True, False),
+             ('external time limit', False, True), ('terminal at limit', True, True)]
+    for name, terminal, cutoff in cases:
+        good = target(reward, next_value, terminal, cutoff)
+        wrong = reward + .9 * (not (terminal or cutoff)) * next_value
+        print(f'{name:22s} correct={good:.1f} done-mask={wrong:.1f}')
+    assert np.isclose(target(1, 5, False, True), 5.5)
+    assert np.isclose(target(1, 5, True, False), 1.0)
+    # A continuing reward-1 process has value 1/(1-gamma)=10.
+    v_correct = v_wrong = 0.0
+    for _ in range(10000):
+        externally_cut = rng.random() &lt; 0.2
+        v_correct += .02 * (1 + .9*v_correct - v_correct)
+        v_wrong += .02 * (1 + .9*(not externally_cut)*v_wrong - v_wrong)
+    print('true continuing value: 10')
+    print('correct bootstrap:', v_correct, 'wrong cutoff mask:', v_wrong)
+    print('Reset collection after either flag, but never use the reset observation as next_state.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这连接MDP边界条件、有限时域动态规划与实现调试。MPC也必须区分预测时域结束与物理任务结束，预测末端不意味着系统消失；但本课讨论学习目标，不能由结构类比直接获得MPC终端代价的稳定性结论。</p>
+<h3>9. 常见误区</h3>
+<p>不要不读环境定义就把所有done机械换成not terminated。若达到限时确实是任务失败，应按目标设边界。自动重置和向量环境可能在info保存末端观测，需看对应版本接口；不能拿新初始状态自举。两个标记同时为真时，真正终止仍使未来值为0。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：截断后既然重置，为什么还保留原过程的未来价值？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>重置是采样安排，目标评价原过程若继续会怎样，两者属于不同层面。</p></details>
+<p><strong>Level 2：γ=0.8、p=0.25时，真值与错误固定点是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>真值5，错误值1/(1−0.8×0.75)=2.5。</p></details>
+<p><strong>Level 3：机械臂限时抓取，怎样判断时间应不应该进状态？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>若奖励或最佳动作取决于剩余时间，就明确有限时域并加入时间或用时间索引价值；若只是日志切片，则保持持续任务目标。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>结束一段数据不总意味着结束未来收益。任务边界、剩余时间与真实后继观测，必须在环境、缓存和目标中保持一致。</p>
+<h3>12. 下一节预告</h3>
+<p>标记修正后，DQN仍会高估幸运动作。下一讲把Double Q的选择—评价分工迁移到在线网络与目标网络。</p>
+</section>

@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from scripts.course_labs import enrich_course
 from scripts.formula_figures import enrich_formulas
+from scripts.rl_course import assemble as assemble_rl_course
 
 
 ROOT = Path(__file__).resolve().parent
@@ -791,6 +792,11 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
         context.update(course)
         context["course_script_version"] = sha256((ROOT / "script.js").read_bytes()).hexdigest()[:10]
         lab_assets = ["assets/course-labs.css", "assets/course-labs.js", "assets/formula-figures.css", "assets/formula-figures.js"] if course["slug"] == "deeponet-eki-uncertainty" else []
+        is_rl = course["slug"] == "robot-reinforcement-learning"
+        if is_rl:
+            lab_assets = ["assets/courses/rl/course.css", "assets/courses/rl/course.js"]
+        context["course_math_startup"] = 'startup: { typeset: false }, svg: { fontCache: "local" },' if is_rl else ""
+        context["course_math_script"] = asset_root + "assets/vendor/mathjax-3.2.2-tex-svg-full.js" if is_rl else "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
         context["course_lab_assets"] = "\n".join(
             (f'<link rel="stylesheet" href="{asset_root}{path}?v={sha256((ROOT / path).read_bytes()).hexdigest()[:10]}">'
              if path.endswith(".css") else
@@ -814,6 +820,7 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
 
 
 def build() -> None:
+    assemble_rl_course()
     site = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
     posts = load_posts()
     courses = load_courses()

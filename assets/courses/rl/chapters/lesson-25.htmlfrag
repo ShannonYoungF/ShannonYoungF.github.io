@@ -1,0 +1,70 @@
+<section class="rl-lesson" id="lesson-25">
+<h2>第 25 讲：一小张神经网络，怎样装下弯曲的价值地图？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>机器人离障碍很远时，多走一厘米几乎无所谓；贴近边缘时，同样一厘米可能让成功率骤降。这样的价值地图很难用一条直线描述。你准备让网络学习曲面，但先暂停强化学习的反馈环，只回答一个更干净的问题：网络能否表示并拟合一张已知地图？</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>网络如何把固定特征升级为可学习特征？</li><li>一次损失怎样通过链式法则影响多层参数？</li><li>为何拟合成功仍不等于强化学习训练稳定？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>线性模型只能在预定特征上调权重，神经网络还可以改变特征本身。隐藏层像许多可移动、可缩放的小探测器，非线性激活让它们组合成弯曲的曲面。参数更多带来表达能力，也让一次更新改变更大范围的状态，需要警惕错误泛化。</p>
+<p>本课把标签固定为一条人工价值曲线，不同时改变策略、环境或bootstrap目标。这样拟合失败时先检查网络、梯度与优化，不必猜测奖励设计。下一讲再接回真正的强化学习；这种逐层隔离变量的实验方法，会成为后续排查训练问题的重要习惯。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="固定标签实验先检验表示与梯度，再接入强化学习反馈环。"><title>一小张神经网络，怎样装下弯曲的价值地图？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">状态输入x</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">学习隐藏特征</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">输出价值预测</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">误差反向传播</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">固定标签实验先检验表示与梯度，再接入强化学习反馈环。</text></svg><figcaption>固定标签实验先检验表示与梯度，再接入强化学习反馈环。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>以一层隐藏网络为例，x是状态特征，W和b是隐藏层参数，σ为逐元素非线性，u和c是输出参数：</p>
+<p>\[h=\sigma(Wx+b),\qquad\widehat v_\theta(x)=u^\top h+c,\qquad\ell(\theta)=\tfrac12(\widehat v_\theta(x)-y)^2.\tag{25.1}\]</p>
+<p>令e=v̂−y，链式法则先从输出往回传：输出层梯度为eh，隐藏层还需乘输出权重和激活导数。因此：</p>
+<p>\[\nabla_u\ell=eh,\quad\nabla_W\ell=[e\,u\odot\sigma^{\prime}(Wx+b)]x^\top,\qquad\theta\leftarrow\theta-\alpha\nabla_\theta\ell.\tag{25.2}\]</p>
+<p>符号⊙表示逐元素乘法，α为步长。若标签换成TD目标，就要明确哪些分支允许求导；最简半梯度做法停止目标分支梯度。不能因为自动微分会算导数，就默认所有计算路径都应被优化。</p>
+<h3>6. 手算示例</h3>
+<p>取一维输入x=2，隐藏权重w=1、偏置b=−1，激活ReLU，输出权重u=3且输出偏置0。隐藏值为max(0,2−1)=1，预测3，标签5，半平方损失为2。输出权重梯度为−2，隐藏权重梯度为(−2)×3×2=−12。步长0.01时两者分别变为3.02与1.12；更新后要重新前向计算，不能沿用旧隐藏值。</p>
+<h3>7. Python 实验</h3>
+<p>程序以128个随机位置作为训练点，拟合cos(3x)+0.2x，用201个均匀网格点独立评估插值误差。打印初始和最终训练误差、网格测试误差以及各参数梯度范数。修改--updates、隐藏宽度或激活，观察表达与优化；测试点不用于梯度更新。固定种子便于复现，但不同库版本仍可能产生数值差别。</p>
+<p>安装：<code>python -m pip install numpy torch gymnasium matplotlib</code>。运行：<code>python lesson_25.py</code>。<a href="../assets/courses/rl/examples/lesson_25.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Fit a nonlinear value surface with a tiny neural network; no RL framework."""
+import argparse
+import numpy as np
+import torch
+from torch import nn
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--updates', type=int, default=1000)
+    p.add_argument('--seed', type=int, default=25)
+    a = p.parse_args()
+    torch.manual_seed(a.seed)
+    rng = np.random.default_rng(a.seed)
+    torch.set_num_threads(1)
+    # A fixed supervised target isolates approximation before bootstrapping.
+    x = torch.from_numpy(rng.uniform(-1, 1, (128, 1)).astype('float32'))
+    y = torch.cos(3 * x) + 0.2 * x
+    model = nn.Sequential(nn.Linear(1, 32), nn.Tanh(), nn.Linear(32, 1))
+    opt = torch.optim.Adam(model.parameters(), lr=0.01)
+    initial = nn.functional.mse_loss(model(x), y).item()
+    for _ in range(a.updates):
+        loss = nn.functional.mse_loss(model(x), y)
+        opt.zero_grad(); loss.backward(); opt.step()
+    test_x = torch.linspace(-1, 1, 201).reshape(-1, 1)
+    with torch.no_grad():
+        test_y = torch.cos(3 * test_x) + 0.2 * test_x
+        test_mse = nn.functional.mse_loss(model(test_x), test_y).item()
+    print('initial training MSE:', initial)
+    print('final training MSE:', loss.item(), 'grid test MSE:', test_mse)
+    for name, param in model.named_parameters():
+        print(name, tuple(param.shape), 'gradient norm:', param.grad.norm().item())
+    print('Small supervised error alone is not evidence of a correct RL policy.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>已有机器学习知识在这里用于价值近似，而不是取代MDP建模。监督标签固定时，误差分析相对直接；RL中数据分布受策略影响，标签还来自模型的未来估计，形成移动目标。用网络代替表格只是模块替换，并不自动继承表格算法的收敛性质。</p>
+<h3>9. 常见误区</h3>
+<p>输入数值大不代表物理量更重要，尺度差异可能让优化困难。调用backward前要清空累积梯度。价值可以为负，不能随意在输出端加ReLU限制。训练误差小可能只说明拟合样本，不能据此推断未覆盖状态或实际策略可靠。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：没有非线性，叠很多线性层能得到什么？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>线性变换加偏置的复合仍是仿射函数，不会因层数增加而变成弯曲曲面。</p></details>
+<p><strong>Level 2：手算例子中输出偏置c的梯度是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>误差为−2，预测对c的导数为1，梯度为−2。</p></details>
+<p><strong>Level 3：设计一个训练误差低但机器人控制差的反例。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>数据只覆盖安全中心区，网络在近障碍状态任意外推；测试拟合虽好，策略进入边缘仍危险。应按控制使用区域补充评估。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>网络提供可学习非线性特征，链式法则把误差传回参数。先检验固定标签拟合，再接入移动目标，有助于建立可信实验。</p>
+<h3>12. 下一节预告</h3>
+<p>网络接到Q-Learning后为什么常常越学越乱？下一讲用回放和目标副本管理相关数据与移动标签。</p>
+</section>

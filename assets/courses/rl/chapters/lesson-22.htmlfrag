@@ -1,0 +1,78 @@
+<section class="rl-lesson" id="lesson-22">
+<h2>第 22 讲：终点才有奖励，能不能一次感谢沿途所有路口？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>搜救机器人绕了许多弯才找到被困者，奖励在最后一刻到来。若只更新紧邻终点的状态，成功信息要反复经历才能传到起点。你想到在走过的路口留一串会褪色的粉笔印：越近期、越频繁经过，印记越深。资格迹就是这样一份面向信用分配的短期记忆。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>资格迹怎样把一次TD误差分给多个状态？</li><li>λ回报如何混合不同长度的目标？</li><li>前向与后向视角在什么条件下严格等价？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>前向视角站在一个过去状态上，等待未来，综合一步、两步直到完整回报；后向视角站在现在，看哪些过去状态留下了资格迹，再把当前误差传给它们。前者描述学习目标，后者给出高效实现，两者回答同一个信用分配问题的不同侧面。</p>
+<p>累积迹在访问状态时加1，随后乘γλ衰减。λ=0只更新刚访问状态；λ接近1，较久以前的状态仍有机会得到信用。重复访问会叠加资格，所以迹不一定小于1。替换迹把访问分量设为1，是另一种规则，不能把对应等价结论随意互换。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="冻结价值时前后向恒等；普通在线更新需要单独分析。"><title>终点才有奖励，能不能一次感谢沿途所有路口？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">未来λ回报</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">展开TD误差</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">过去累积迹</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">聚合分配信用</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">冻结价值时前后向恒等；普通在线更新需要单独分析。</text></svg><figcaption>冻结价值时前后向恒等；普通在线更新需要单独分析。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设从t到终点还剩H=T−t步，冻结一份价值函数V。用较短n步回报的几何权重，加上保留末端质量的完整回报，定义有限幕λ回报：</p>
+<p>\[G_t^\lambda=(1-\lambda)\sum_{n=1}^{H-1}\lambda^{n-1}G_t^{(n)}+\lambda^{H-1}G_t.\tag{22.1}\]</p>
+<p>各权重相加为1。将每个n步回报减去V(Sₜ)，展开为TD误差望远镜求和；交换求和次序，每个未来误差的系数合并为(γλ)的幂：</p>
+<p>\[G_t^\lambda-V(S_t)=\sum_{k=t}^{T-1}(\gamma\lambda)^{k-t}\delta_k,\qquad\delta_k=R_{k+1}+\gamma V(S_{k+1})-V(S_k).\tag{22.2}\]</p>
+<p>于是对一幕所有访问聚合修正，可用后向累积迹计算：</p>
+<p>\[e_t(s)=\gamma\lambda e_{t-1}(s)+\mathbf1_{S_t=s},\qquad\Delta V(s)=\alpha\sum_t\delta_t e_t(s).\tag{22.3}\]</p>
+<p>以上严格恒等式要求误差和回报使用同一份冻结V，再聚合更新。普通在线TD(λ)中V持续改变，一般不严格等于该离线前向形式；精确在线对应需要进一步修正。</p>
+<h3>6. 手算示例</h3>
+<p>取γ=1、λ=0.5，先访问A后访问B，两次TD误差分别0.2与1。第一步迹为A:1，第二步为A:0.5、B:1。因此总修正除以α后，A得到0.2+0.5×1=0.7，B得到1。站在A的前向视角，未来误差加权也是0.2+0.5×1，数值完全相同。</p>
+<h3>7. Python 实验</h3>
+<p>程序分成两个清楚隔离的实验：先冻结价值，对一段包含重复状态的轨迹分别计算前向误差加权与后向累积迹，并断言结果一致；再运行真正在线TD(λ)随机游走，输出学到的价值。第一段验证代数恒等式，第二段展示在线算法，不能把前者的断言解释成后者每步也严格等价。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_22.py</code>。<a href="../assets/courses/rl/examples/lesson_22.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Frozen-value forward/backward trace identity; then online TD(lambda)."""
+import argparse
+import numpy as np
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=1000)
+    p.add_argument('--lam', type=float, default=0.8)
+    p.add_argument('--seed', type=int, default=22)
+    a = p.parse_args()
+    gamma, lam = 0.9, a.lam
+    states, rewards = [1, 2, 1, 3], [0.0, 0.0, 1.0]
+    v0 = np.array([0, .2, .4, 0.0])
+    delta = np.array([rewards[t] + gamma * v0[states[t+1]] - v0[states[t]]
+                      for t in range(3)])
+    forward, backward, e = np.zeros(4), np.zeros(4), np.zeros(4)
+    for t in range(3):
+        forward[states[t]] += sum((gamma*lam)**(k-t)*delta[k] for k in range(t, 3))
+        e *= gamma * lam
+        e[states[t]] += 1
+        backward += delta[t] * e
+    print('frozen forward sum:', forward)
+    print('frozen backward sum:', backward)
+    print('identity error:', np.max(np.abs(forward-backward)))
+    assert np.allclose(forward, backward)
+    rng, v = np.random.default_rng(a.seed), np.zeros(7)
+    for _ in range(a.episodes):
+        s, e = 3, np.zeros(7)
+        while s not in (0, 6):
+            ns = s + rng.choice([-1, 1])
+            done = ns in (0, 6)
+            d = float(ns == 6) + (0 if done else v[ns]) - v[s]
+            e *= lam  # gamma=1 for this separate episodic random walk
+            e[s] += 1
+            v += 0.03 * d * e
+            s = ns
+    print('online accumulating TD(lambda):', np.round(v[1:6], 3))
+    print('Online changing values do not obey the frozen-value identity exactly.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>λ将前面离散选择n的多步方法推广为几何混合，也为后续广义优势估计提供直觉基础。资格迹类似控制中的衰减记忆，但其作用是分配学习信用，不是直接滤波控制输入。离策略时简单套用同策略迹可能带来偏差或不稳定，重要性修正还会引入方差。</p>
+<h3>9. 常见误区</h3>
+<p>迹记录的是近期访问资格，不是真正因果贡献；有资格不代表应得到正奖励，负TD误差也会向后传。λ=1在有限幕与规定条件下联系完整回报，不能由此宣称任意在线代码逐步等于MC。每个新幕都应清零迹，避免上一幕的访问影响新任务。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：同一状态重复访问，累积迹能否大于1？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>可以，旧迹未完全衰减就再次加1，因此资格不是概率。</p></details>
+<p><strong>Level 2：手算例子将λ改为0.8，A得到多少倍α的修正？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>0.2+0.8×1=1.0。</p></details>
+<p><strong>Level 3：怎样实验检验冻结等价与在线近似的区别？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>固定同一轨迹，先冻结V聚合更新验证恒等式，再每步更新V并与离线前向结果比较；改变学习率，观察差别而不预设完全相等。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>资格迹用衰减记忆传播信用，前向λ回报解释目标，后向迹提供计算。严格等价需要明确更新时机与价值是否冻结。</p>
+<h3>12. 下一节预告</h3>
+<p>Q表中哪个动作最大，可能只是哪个动作噪声最幸运。如果同时用它挑选和评分，会怎样系统性高估？下一讲拆开这两份工作。</p>
+</section>

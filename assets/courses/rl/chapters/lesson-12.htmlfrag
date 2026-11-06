@@ -1,0 +1,45 @@
+<h2 id="lecture-12">第 12 讲：如果每一步都选得最好，整条路线就最好吗？</h2>
+<h3>2. 开场故事</h3>
+<p>一扇门打开就能领两分，另一扇门当前一分没有，却通向下一步可领五分的房间。只奖励眼前的机器人会立刻领走两分，然后宣布自己完成了“每步最优”。你当然知道它漏掉了未来。贝尔曼最优方程要挽救的正是这种说法：每步比较的是包含最优后续的总价值。</p><p>本课把“最优”说严谨。我们先用小反例区分即时贪心与长期最优，再说明最优性原理为什么允许把长策略分解成当前选择与最优子问题。方程的成立不意味着手里已经有了它的解。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>为什么每步选即时奖励最大不保证最优？</li><li>最优价值与固定策略价值有何区别？</li><li>最优性原理如何导出贝尔曼最优方程？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>假设一条号称最好的路线，在抵达某个状态后却继续使用一套明显更差的后续策略。如果从这个状态起换成更好的后续不影响已经发生的事，整条路线就会改善，和“最好”矛盾。这就是替换后缀的思想；状态必须总结未来所需信息，约束若跨时间累积也需要适当编码。</p><p>这里的“每步最好”是拿当前奖励加上下一状态的最优价值来比较。它绝不是只选眼前奖励最大的动作，也不是在每个随机后果上分别事后挑动作：当前动作必须在后果揭晓之前确定，所以最大化与对后果求平均的顺序不能随意交换。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="眼前两分与延迟五分：比较必须包含后续价值" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">起点 A</text><rect x="450" y="20" width="200" height="50" rx="9" stroke="var(--accent)"/><text x="550.0" y="52" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">领取：终止 +2</text><rect x="450" y="145" width="200" height="50" rx="9" stroke="var(--warm)"/><text x="550.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">前进：B 后得 +5</text><path d="M170 100 L450 45" stroke="var(--accent)"/><text x="310.0" y="35" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">总值 2</text><path d="M170 125 L450 170" stroke="var(--accent)"/><text x="310.0" y="195" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">总值 0.9×5</text></g></svg><figcaption>眼前两分与延迟五分：比较必须包含后续价值</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>在有限状态、有限动作、奖励有界且 \(0\leq\gamma&lt;1\) 的模型中，定义 \(v_*(s)=\sup_\pi v_\pi(s)\)。对任意策略，其第一步后的价值不超过 \(v_*\)，所以</p>
+\[v_\pi(s)\leq\max_a\sum_{s',z}p(s',z\mid s,a)[z+\gamma v_*(s')].\tag{12.1}\]
+<p>反向看：若后续可以选到最优策略，则先选使右侧最大的动作，再在下一状态执行最优后续，正好实现同一右侧。有限折扣 MDP 确有一个对所有状态同时最优的确定性平稳策略；这一存在性也可由最优算子的收缩不动点与贪心策略验证，下一两课完成算法层面的构造。于是</p>
+\[v_*(s)=\max_a\sum_{s',z}p(s',z\mid s,a)[z+\gamma v_*(s')].\tag{12.2}\]
+<p>记指定第一步动作后采用最优后续的价值为 \(q_*(s,a)\)，有</p>
+\[q_*(s,a)=\sum_{s',z}p(s',z\mid s,a)\left[z+\gamma\max_bq_*(s',b)\right],\qquad v_*(s)=\max_aq_*(s,a).\tag{12.3}\]
+<p>后一个最大化在观察到下一状态后发生，允许 \(b\) 随 \(s'\) 变化。这是动作与信息的正确时间顺序。有限时域时应带时刻下标，并从终端条件倒推，而不能无条件套用平稳结论。</p>
+<h3>6. 完整手算示例</h3>
+<p>A 可选择“领取”：立即得二分并终止；也可“前进”：立即得零并到 B。B 只有领取五分并终止的动作。折扣零点九，先算末端 \(v_*(B)=5\)，再算 \(v_*(A)=\max\{2,0+0.9\times5\}=4.5\)。即时贪心选领取只有二分；按最优动作价值贪心选前进才得到四点五。这是两步任务的精确倒推，不是用无限远直觉猜答案。</p>
+<h3>7. Python 实验</h3>
+<p>代码显式列出两条可行计划的奖励序列，与两层树的最大化计算相互核对。把“前进”的奖励改成负二，重新判断何时应接受眼前两分。再增加一条失败分支，确保先算每个动作的期望，再在动作之间取最大，避免无意中写成提前知道随机结果的控制器。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_12.py</code>。下列为完整实现；设置种子以便复现，当前已知模型计算本身是确定的。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+gamma = 0.9
+plans = {&#x27;take_now&#x27;: [2.0], &#x27;move_then_take&#x27;: [0.0, 5.0]}
+values = {name: sum(gamma**t*r for t, r in enumerate(path))
+          for name, path in plans.items()}
+v_b = 5.0
+q_a = np.array([2.0, 0.0+gamma*v_b])
+v_a = np.max(q_a)
+print(&#x27;Enumerated plan returns:&#x27;, values)
+print(&#x27;Optimal B value:&#x27;, v_b, &#x27;A action values:&#x27;, q_a)
+print(&#x27;Optimal A action:&#x27;, list(plans)[int(np.argmax(q_a))], &#x27;value:&#x27;, v_a)
+assert np.isclose(v_a, max(values.values()))
+plt.bar(list(values), list(values.values()))
+plt.ylabel(&#x27;Discounted return&#x27;); plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与确定性最短路的最优后缀性质、最优控制的 Bellman 最优性原理直接对应，随机 MDP 多了对转移后果的期望。与固定策略方程的区别只有一个位置，却改变了问题本质：平均动作价值变成挑选最佳动作价值，线性方程也变成一般非线性不动点。</p>
+<h3>9. 常见误区</h3>
+<p>知道 \(v_*\) 的方程不等于已经求得 \(v_*\)。最优动作可能不唯一，不必强行选出唯一“正确动作”。最大化期望不保证每次实现都优于别的策略，也不自动满足安全约束。当前动作先选、转移后果后揭晓，这个因果顺序尤其不能在程序里颠倒。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>式中的最大化针对奖励本身，还是奖励加最优后续？<br><strong>Level 2：</strong>若 A 前进立即得负二、B 仍得五，折扣零点九，该选什么？<br><strong>Level 3：</strong>举例说明“先看随机后果再选当前动作”会高估实际能达到的表现。</p><details><summary>参考答案与检查方向</summary><p>L1：后者。L2：前进值二点五，大于领取二。L3：两个动作在互斥的随机天气下分别得十分或零；若天气揭晓前必须选且两种天气等概率，任一动作期望五分，事后挑对动作却会虚报十分。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>长期最优允许逐步选择，但每次比较必须纳入最优后续价值。马尔可夫状态、可达动作与信息时间顺序是这项分解的前提；接下来用评价与改善交替，把方程变成可执行算法。</p>
+<h3>12. 下一课预告</h3>
+<p>如果手里只有一套很普通的驾驶习惯，能否每次只做一点局部改进，最后走到全局最优？</p>

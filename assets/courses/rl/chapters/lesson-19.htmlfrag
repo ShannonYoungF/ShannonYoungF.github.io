@@ -1,0 +1,92 @@
+<section class="rl-lesson" id="lesson-19">
+<h2>第 19 讲：明知近路最快，机器人为什么仍绕着悬崖走？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>两台机器人都知道贴着悬崖的路线最短，但它们仍在探索，每隔几步就可能试一个随机动作。一台学会离悬崖远一点，另一台仍贴边。差别未必来自胆量，而可能来自到底在评估哪种未来行为。本课研究把“我接下来确实会做什么”写进目标的SARSA。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>怎样从价值预测进入动作选择与控制？</li><li>为什么下一动作要由当前行为策略采样？</li><li>探索怎样改变学到的路线偏好？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>动作价值Q(s,a)评估先在s执行a，再按后续策略继续的回报。机器人执行一步后，按同一ε-greedy习惯选择下一动作，并把该动作的Q值接入目标。它不仅学习理想驾驶的路线长度，也会看到自己探索失误引起的坠落损失。</p>
+<p>ε-greedy以ε概率随机选动作，其余时候选当前最优动作。相等动作在代码中随机打破平局，避免索引偏好。SARSA名称来自更新需要的五个量：状态、动作、奖励、下一状态、下一动作。评价与采样属于同一策略，因此叫同策略学习。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="目标使用实际下一动作，因此当前探索风险进入价值。"><title>明知近路最快，机器人为什么仍绕着悬崖走？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">ε贪心选择A</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">得到R与S′</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">同策略选择A′</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">用实际Q值更新</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">目标使用实际下一动作，因此当前探索风险进入价值。</text></svg><figcaption>目标使用实际下一动作，因此当前探索风险进入价值。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>固定策略的动作价值贝尔曼方程先对环境后继求平均，再对下一动作求平均。把这两层期望替换成一次实际采样，得到：</p>
+<p>\[q_\pi(s,a)=\mathbb E_\pi[R_{t+1}+\gamma q_\pi(S_{t+1},A_{t+1})\mid S_t=s,A_t=a].\tag{19.1}\]</p>
+<p>\[\delta_t=R_{t+1}+\gamma(1-d_t)Q(S_{t+1},A_{t+1})-Q(S_t,A_t),\quad Q(S_t,A_t)\leftarrow Q(S_t,A_t)+\alpha\delta_t.\tag{19.2}\]</p>
+<p>dₜ表示真正终止，α为步长。终点无需下一动作。控制时，再用改进后的Q定义ε-greedy策略，所以策略逐渐改变。表格SARSA的经典最优收敛条件包括无限探索、极限贪心及适当递减步长；固定ε的本课实验不满足极限贪心，不能直接声称它必然收敛到最优贪心控制器。</p>
+<h3>6. 手算示例</h3>
+<p>当前Q(s,a)=−5，奖励−1，折扣1，下一状态安全动作值−3，危险动作值−20。若实际探索选中危险动作，目标为−21，步长0.5时新值为−5+0.5×(−21+5)=−13。若实际选择安全动作，目标−4，新值−4.5。行为风险通过实际下一动作进入学习。</p>
+<h3>7. Python 实验</h3>
+<p>实验在4×12网格训练，跌落悬崖回起点并罚−100，普通步罚−1，到达右下角终止。程序打印末100幕训练回报与训练后贪心路线。训练ε固定0.1，因此训练回报包含持续探索，贪心评估则取消探索。改变探索率后同时比较路线长度、坠落率和离悬崖距离，不要从单次路线概括普遍行为。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_19.py</code>。<a href="../assets/courses/rl/examples/lesson_19.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""On-policy SARSA in a cliff grid. Install: pip install numpy."""
+import argparse
+import numpy as np
+
+START, GOAL = 36, 47
+DELTAS = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+
+def step(s, a):
+    row, col = divmod(s, 12)
+    dr, dc = DELTAS[a]
+    row, col = np.clip(row + dr, 0, 3), np.clip(col + dc, 0, 11)
+    ns = int(row * 12 + col)
+    if 37 &lt;= ns &lt;= 46:
+        return START, -100.0, False
+    return ns, -1.0, ns == GOAL
+
+def choose(q, s, eps, rng):
+    if rng.random() &lt; eps:
+        return int(rng.integers(4))
+    return int(rng.choice(np.flatnonzero(q[s] == q[s].max())))
+
+def run(episodes=1500, seed=19):
+    rng = np.random.default_rng(seed)
+    q, rewards = np.zeros((48, 4)), []
+    for _ in range(episodes):
+        s, total = START, 0.0
+        a = choose(q, s, 0.1, rng)
+        for t in range(1000):
+            ns, r, terminated = step(s, a)
+            na = choose(q, ns, 0.1, rng)
+            target = r if terminated else r + q[ns, na]
+            q[s, a] += 0.5 * (target - q[s, a])
+            total += r
+            s, a = ns, na
+            if terminated:
+                break
+        # The 1000-step cutoff ends collection, not the underlying task.
+        rewards.append(total)
+    s, path = START, [START]
+    for _ in range(100):
+        s, _, done = step(s, choose(q, s, 0.0, rng))
+        path.append(s)
+        if done:
+            break
+    print('mean final training return:', np.mean(rewards[-100:]))
+    print('greedy route:', [divmod(s, 12) for s in path])
+    print('greedy success:', path[-1] == GOAL)
+    return rewards
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=1500)
+    p.add_argument('--seed', type=int, default=19)
+    a = p.parse_args()
+    run(a.episodes, a.seed)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>从预测到控制，不只是换一张表，而是让表影响之后的数据收集。它与策略迭代的联系是评价和改进交替发生；区别是采样控制把两者交织在每一步，没有等待一次完整策略评估。机器人执行时存在探索噪声，该噪声造成的损失会进入当前策略的性能。</p>
+<h3>9. 常见误区</h3>
+<p>跌落回起点不一定意味着终止，本环境将其建模为同一幕中的惩罚转移。更新时采样的下一动作必须是随后实际执行的动作，不能更新与执行各抽一个。训练回报和取消探索后的回报不可混写。绕行是特定奖励与探索机制下的现象，不构成严格安全保证。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：SARSA为什么叫同策略？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>下一动作由当前行为策略采样，目标恰好评价这同一策略的后续行为。</p></details>
+<p><strong>Level 2：危险采样情况下，学习率改为0.1，新值是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>−5+0.1×(−21+5)=−6.6。</p></details>
+<p><strong>Level 3：如何验证绕行来自探索风险，而非奖励中额外写入了远离悬崖的偏好？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>固定奖励、地图和预算，仅改变ε并重复多个种子；分别记录探索中的路线和取消探索后的路线，统计坠落率及长度。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>SARSA用实际下一动作构造目标，把当前探索行为的后果计入动作价值。行为策略怎样进入目标，是理解它与Q-Learning差别的关键。</p>
+<h3>12. 下一节预告</h3>
+<p>如果一边随机试路，却只想学习“之后都选最佳动作”的价值，目标要怎样修改？下一讲只替换一个操作，就改变了评价对象。</p>
+</section>

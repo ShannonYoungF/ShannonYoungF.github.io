@@ -1,0 +1,39 @@
+<h2>第 54 讲：“先去门口，再穿过走廊”，能否成为机器人自己的技能？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你让机器人从实验室走到电梯，它却需要每0.1秒重新考虑一次“现在要去哪”。人通常会先选择“走到门口”，执行一段时间，再选择“穿过走廊”。如果机器人也能把一段动作组织成技能，长任务的决策层次就会改变。难点是：不同技能需要的时间并不一样。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>技能与单步动作有什么区别？</li><li>如何把持续时间放进Bellman方程？</li><li>层次结构会怎样限制最优策略？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>一个技能不仅是一条动作序列，还需要知道何时能启动、内部怎样行动、何时结束。遇到障碍时，它可能提前终止；同一个技能在不同起点也可能持续不同长度。</p><p>高层选择技能，低层执行原始动作。这样可以减少高层决策频率，重复利用子行为；但如果技能库没有“必须绕行”的行为，高层再聪明也无法创造被排除的轨迹。层次结构既提供归纳偏好，也限制可选策略。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="“先去门口，再穿过走廊”，能否成为机器人自己的技能？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第54讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">高层选择</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">启动一个option</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">低层执行</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">内部策略运行</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">随机持续 τ</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">累计折扣奖励</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">技能终止</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">γ^τ接回后续</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>一个 option 写为 \(o=(I_o,\pi_o,\beta_o)\)：\(I_o\) 是允许启动的状态集合，\(\pi_o\) 是内部策略，\(\beta_o(s)\) 是在状态s终止的概率。采用 call-and-return 语义：高层选择一个option并执行到终止，再选择下一个。</p><p>设本次持续时间为随机变量 \(\tau\)，内部折扣奖励为 \(R_o=\sum_{k=0}^{\tau-1}\gamma^k r_{t+k+1}\)。直接把原始回报按终止时刻拆分：\[G_t=R_o+\gamma^\tau G_{t+\tau}.\tag{54.1}\]取条件期望得到半MDP的最优备份 \[Q(s,o)=\mathbb E[R_o+\gamma^\tau\max_{o'}Q(s_{t+\tau},o')\mid s,o].\tag{54.2}\]这里的 \(\gamma^\tau\) 来自真实经过的原始时间步，不能因为高层只做了一次选择就改为γ。</p><p>这个式子仍然需要高层状态足够描述后续分布。只在某些区域可启动、可能永不终止的技能，还需检查可行性和回报定义。层次最优是在指定技能结构内最优，未必等于原始动作空间的全局最优。</p>
+<h3>6. 手算示例</h3>
+<p>技能A持续2步，奖励依次1、2；结束后的状态价值为4，γ=0.9。那么 \(R_A=1+0.9\times2=2.8\)，总值为 \(2.8+0.9^2\times4=6.04\)。错误地只折扣一次会得到6.4。若技能B一步结束、奖励1、后继价值5，则值为5.5；高层应比较6.04与5.5，技能持续更久并不必然更差。</p>
+<h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_54.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+gamma = 0.9
+options = {&quot;A&quot;: ([1.0, 2.0], 4.0), &quot;B&quot;: ([1.0], 5.0)}
+for name, (rewards, next_value) in options.items():
+    tau = len(rewards)
+    R = sum(gamma**k*r for k, r in enumerate(rewards))
+    target = R + gamma**tau*next_value
+    print(name, &quot;duration&quot;, tau, &quot;R_option&quot;, R, &quot;target&quot;, target)
+rng = np.random.default_rng(54)
+durations = rng.choice([1, 4], size=100000, p=[0.5, 0.5])
+estimate = np.mean(gamma**durations*5)
+exact = 0.5*(gamma+gamma**4)*5
+print(&quot;sampled continuation&quot;, estimate, &quot;exact&quot;, exact)
+print(&quot;using mean duration instead:&quot;, gamma**np.mean(durations)*5)
+</code></pre>
+<p><strong>实验观察与修改：</strong>代码后半固定后继价值为5，只改变持续时间。因 \(g(\tau)=\gamma^\tau\) 在 \(0&lt;\gamma&lt;1\) 时为凸函数，Jensen不等式给 \(\mathbb E[\gamma^\tau]\ge\gamma^{\mathbb E[\tau]}\)。本例正确延续值3.89025，高于用平均时长得到的约3.84217。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>层次运动规划也会使用航点、行为模式和轨迹片段；它们与options有结构上的联系。只有明确启动、执行、终止及回报语义后，才能使用相应半MDP更新。</p><p>脚本比较随机持续时间的正确期望与“先求平均时长再折扣”，二者通常不同。下一步可把网格中的“走到门”实现为option，与原始动作学习在相同原始环境步数下比较。</p>
+<h3>9. 常见误区</h3>
+<ul><li>高层一次决策不等于只经过一个物理时间步。</li><li>手工技能库可能排除最优路径。</li><li>高层奖励与底层奖励需要说明，不能任意混用两个目标。</li></ul>
+<p><strong>理论边界：</strong>若持续时间与终止位置相关，应逐条计算折扣乘后继价值，再求平均，不能拆成两个独立期望。比较层次与单层方法还要统计原始步数、技能失败率与高层决策开销；只减少高层选动作次数不等于节省了真实交互。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>一个option需要哪三个组成部分？</li><li><strong>Level 2：</strong>把手算中γ改为0.5，比较两个技能。</li><li><strong>Level 3：</strong>设计一个技能库缺少必要绕行动作的反例。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>启动集合、内部策略、终止规则。</p><p><strong>Level 2：</strong>A=1+0.5×2+0.25×4=3；B=1+0.5×5=3.5，因此B更优。</p><p><strong>Level 3：</strong>例如所有技能都单调接近目标，而环境必须先远离目标绕过U形障碍；高层无法组成可行路线。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>技能把决策时间尺度改写为半MDP。持续时间、终止和技能库覆盖共同决定价值与可达能力。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：如果环境里的另一台机器人也在学习，你面对的转移规律还固定吗？</p>

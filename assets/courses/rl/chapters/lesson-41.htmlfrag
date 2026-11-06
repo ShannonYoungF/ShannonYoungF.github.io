@@ -1,0 +1,32 @@
+<section class="rl-lesson" data-lesson="41">
+<h2>第 41 讲：不随机抽动作，也能沿着梯度改进控制器吗？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>一个反馈控制器每次看到同一状态，就输出同一个力矩。没有随机动作概率，REINFORCE中的logπ从哪里来？确定性策略梯度换了一条路：先学习动作价值对力矩的斜率，再通过控制器参数的链式法则调整输出。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>确定性策略的梯度沿哪条计算路径传播？</li><li>为什么不需要可微环境，却需要对动作可微的critic？</li><li>经验回放中的状态分布与理论目标如何区分？</li></ul>
+<h3>4. 直觉解释</h3><p>把critic想成一张“当前状态下，力矩与长期价值的地形图”。actor先给出一个力矩，再询问地形在该处往哪边上升。它不必知道力矩如何经过真实动力学改变状态，只需critic已经用数据学到了长期后果。</p><p>代价在于地形图可能画错。actor沿critic的斜率优化，尤其容易利用数据稀少区域的虚假高峰。这正是DDPG及后续TD3要面对的问题：可微的评价器提供了方向，也成为新的误差入口。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="不随机抽动作，也能沿着梯度改进控制器吗？"><text x="24" y="30" fill="var(--text)" font-size="18">不随机抽动作，也能沿着梯度改进控制器吗？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">参数 θ</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">控制器坐标</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">动作 μθ(s)</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">可微输出</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">价值 Qw(s,a)</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">动作方向斜率</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">链式梯度</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">∇θμ × ∇aQ</text></svg><figcaption>反向路径经过学习到的critic动作输入，不经过真实环境动力学。</figcaption></figure>
+<h3>5. 数学原理</h3><p>令确定性策略a=μθ(s)，Qμ满足：</p><div class="rl-equation">\[Q^\mu(s,a)=r(s,a)+\gamma\mathbb E[V^\mu(s^\prime)\mid s,a],\qquad V^\mu(s)=Q^\mu(s,\mu_\theta(s)).\tag{41.1}\]</div><p>在适当可微性、积分交换与有界条件下，对V求导会出现当前动作路径项∇θμ∇aQ，以及未来价值递归项。递归展开并收集折扣访问量d̃μ，得到确定性策略梯度：</p><div class="rl-equation">\[\nabla_\theta J=\sum_s\widetilde d^\mu(s)\nabla_\theta\mu_\theta(s)\left.\nabla_aQ^\mu(s,a)\right|_{a=\mu_\theta(s)}.\tag{41.2}\]</div><p>连续状态把求和换为积分。∇aQ是价值对动作输入的导数，∇θμ是控制器Jacobian；它不等于对未知动力学直接求导。准确Q和正确访问分布是理论对象，学习critic与经验回放是近似实现。</p><p>实践常在replay状态分布β上优化代理目标 Eβ[Qw(s,μθ(s))]，梯度路径简单，但不能无条件等同起点目标J的精确梯度。固定critic参数时，actor损失−Qw(s,μθ(s))只沿动作输入回传。</p>
+<h3>6. 手算示例</h3><p>单一状态s=2，控制器μθ(s)=θs，真实Q(a)=−(a−1)²。θ=0.2时a=0.4，∂Q/∂a=−2(0.4−1)=1.2，∂μ/∂θ=2，所以∂J/∂θ=2.4。</p><p>以学习率0.1更新θ到0.44，动作变为0.88，价值由−0.36改善到−0.0144。若critic错误地认为Qw=+(a−1)²，它会指向远离最佳动作的方向。梯度计算完全正确，也可能因价值模型错误而得到错误控制。</p>
+<h3>7. Python 实验</h3><p>脚本用解析链式法则与有限差分核对。改变状态尺度，会同时改变动作和Jacobian；这提示观测归一化与控制参数尺度影响优化条件。将Q换成带虚假高峰的函数，观察actor能否被误导，并把“优化正确”与“模型正确”分开检验。</p><p>接入神经网络时，可先冻结critic，只对actor做一步更新，检查actor参数改变而critic参数没有被优化器更新。critic仍需允许对动作求导；把整个Q计算放进no_grad会连actor梯度也切断。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_41.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+state = 2.0
+theta = .2
+def value(parameter):
+    action = parameter*state
+    return -(action-1)**2
+action = theta*state
+gradient = state*(-2*(action-1))
+h = 1e-6
+check = (value(theta+h)-value(theta-h))/(2*h)
+new_theta = theta+.1*gradient
+print(&quot;action:&quot;, action, &quot;gradient:&quot;, gradient, &quot;finite difference:&quot;, check)
+print(&quot;old Q:&quot;, value(theta), &quot;new Q:&quot;, value(new_theta))
+assert np.isclose(gradient, check)</code></pre>
+<h3>8. 与已有知识的联系</h3><p>DPG的链式结构与你熟悉的可微反馈控制器优化非常接近。区别在于未来影响压缩进学习的Q，未必由已知模型和伴随方程计算。它也解释连续动作下的价值最大化：DQN难以枚举argmax，actor承担了近似寻找高Q动作的工作。</p>
+<h3>9. 常见误区</h3><ul><li>认为确定性策略可以直接套连续Dirac分布的普通log概率梯度。</li><li>把不需要环境导数误解为不需要任何动作可微性。</li><li>在actor更新中把critic输出detach，切断关键梯度路径。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>actor更新时冻结critic参数，是否等于把critic输出停止梯度？</li><li><strong>Level 2：</strong>独立推导本例θ=0.6时的梯度方向。</li><li><strong>Level 3：</strong>设计一个critic外推高峰，展示actor如何利用它。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>不等于；要保留Q对动作输入的导数，只是不更新critic权重。</p><p><strong>Level 2 参考：</strong>动作1.2，∇aQ=−0.4，乘状态2得到−0.8，参数应减小。</p><p><strong>Level 3 参考：</strong>在训练数据覆盖外加入人为凸起，固定critic训练actor，比较预测Q与真实环境回报，识别模型利用。</p></details>
+<h3>11. 本节知识总结</h3><p>DPG用critic的动作斜率指导确定性actor。链式法则避免了动作枚举与环境求导，但价值误差、动作覆盖和状态分布近似决定了实际可靠性。</p>
+<h3>12. 下一节预告</h3><p>怎样一边从经验学习这张价值地形图，一边学习控制器？下一课把DPG、回放与目标网络组成DDPG。</p>
+</section>

@@ -1,0 +1,55 @@
+<h2 id="lecture-13">第 13 讲：先评价，再改进，为什么能越来越好？</h2>
+<h3>2. 开场故事</h3>
+<p>一位新驾驶员只走熟悉的近路，另一位只愿意去自己知道的充电站。你不想一开始就搜索所有完整驾驶方案，于是提出温和的训练法：先算清这位驾驶员每个位置的长期表现，再问每个路口“如果只替换第一步，会不会更好？”</p><p>看似只改一步，但所有路口同时换规则后，未来会不会互相干扰、反而变差？策略改进定理给出严格答案。随后我们把精确评价与贪心改进轮流进行，形成策略迭代，并观察好消息怎样从后方逐次传播回起点。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>根据旧策略价值改第一步，为什么能改善整套新策略？</li><li>策略迭代的评价阶段与改进阶段各需要什么输入？</li><li>平局处理怎样影响有限终止与实现稳定性？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>评价阶段把当前驾驶规则完整算清，得到每个路口的平均总分；改进阶段用这张评分表，选择“一步奖励加下一站旧评分”最大的动作。后续换成新规则并不会破坏改进，因为新规则在每个状态都至少不比旧规则的选择差，可以反复把这个不等式向未来推进。</p><p>一轮评价不是采集几条轨迹随便平均，而是对已知有限模型精确解方程，或求到明确精度。本课先使用线性求解隔离数学保证。近似评价、函数逼近与噪声会改变分析，后面再讨论，不能把精确定理当成所有工程实现的自动保修。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="策略评价与贪心改善交替，将好消息逐轮传回起点" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="30" y="80" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="105.0" y="112" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">策略 πₖ</text><rect x="270" y="80" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="345.0" y="112" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">精确评价 vπₖ</text><rect x="510" y="80" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="585.0" y="112" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">贪心 πₖ₊₁</text><path d="M180 105 L270 105" stroke="var(--accent)"/><text x="225.0" y="93.0" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><path d="M420 105 L510 105" stroke="var(--accent)"/><text x="465.0" y="93.0" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17"></text><path d="M585 130 L585 190 L105 190 L105 130" stroke="var(--accent)"/><text x="340" y="180" font-size="18" fill="var(--text)" stroke="none" text-anchor="middle">重复直到没有严格改进</text></g></svg><figcaption>策略评价与贪心改善交替，将好消息逐轮传回起点</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设 \(v_\pi\) 已知，选择新策略 \(\pi'\) 在每个状态对 \(q_\pi(s,a)\) 贪心，则旧策略平均不超过最大值，因此</p>
+\[v_\pi=T_\pi v_\pi\leq T_{\pi'}v_\pi.\tag{13.1}\]
+<p>所有不等式逐状态理解。由于转移概率非负，若 \(u\leq w\)，则 \(T_{\pi'}u\leq T_{\pi'}w\)，即该算子保持大小关系。不断应用可得</p>
+\[v_\pi\leq T_{\pi'}v_\pi\leq T_{\pi'}^2v_\pi\leq\cdots\longrightarrow v_{\pi'}.\tag{13.2}\]
+<p>极限来自第十一课的收缩性，所以新策略处处不差。若旧策略在每个状态已经对自身价值贪心，则 \(T_*v_\pi=T_\pi v_\pi=v_\pi\)，由最优不动点的唯一性，它已经最优。</p><p>伪代码为：初始化确定策略；精确评价 \(v_\pi\)；计算 \(q_\pi(s,a)=r(s,a)+\gamma\sum_{s'}P(s'\mid s,a)v_\pi(s')\)；只在有严格改进时换动作；若策略不变则停止。在有限状态动作模型里，确定性策略数量有限，严格改进不会回到更差旧策略。保留并列时的原动作可避免无意义地来回切换。</p>
+<h3>6. 完整手算示例</h3>
+<p>三状态 A、B、C 的“领取”立即分别得三、二、五分并终止；“前进”在 A、B 立即得零并到下一状态，在 C 等同领取五分。折扣零点九。初始都领取，价值为 \((3,2,5)\)。第一次改善时，A 前进值一点八，不换；B 前进值四点五，换。重新评价得 \((3,4.5,5)\)，这时 A 前进值四点零五，第二次才换。最终价值 \((4.05,4.5,5)\)。</p>
+<h3>7. Python 实验</h3>
+<p>代码打印每轮的策略、价值与改进前动作价值，并断言新价值逐状态不下降。把 A 的领取奖励改大，判断最终是否仍值得前进；再故意用一轮粗略评价替代线性解，观察数值与轮次变化，但不要沿用精确评价时的所有结论。实验还应保留每轮策略，便于定位平局和索引错误。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_13.py</code>。下列为完整实现；设置种子以便复现，当前已知模型计算本身是确定的。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+gamma = 0.9
+P = np.zeros((3, 2, 3))  # missing probability goes to a zero-value terminal
+r = np.array([[3., 0.], [2., 0.], [5., 5.]])
+P[0, 1, 1] = 1.; P[1, 1, 2] = 1.
+policy = np.zeros(3, dtype=int)
+values, previous = [], np.full(3, -np.inf)
+for iteration in range(10):
+    rows = np.arange(3)
+    v = np.linalg.solve(np.eye(3)-gamma*P[rows, policy], r[rows, policy])
+    assert np.all(v &gt;= previous-1e-10)
+    q = r+gamma*np.einsum(&#x27;sak,k-&gt;sa&#x27;, P, v)
+    improved = policy.copy()
+    for s in rows:
+        best = int(np.argmax(q[s]))
+        if q[s, best] &gt; q[s, policy[s]]+1e-12:
+            improved[s] = best  # keep the existing action on a tie
+    print(&#x27;iteration:&#x27;, iteration, &#x27;policy:&#x27;, policy, &#x27;value:&#x27;, v)
+    values.append(v.copy()); previous = v
+    if np.array_equal(improved, policy):
+        break
+    policy = improved
+for s, name in enumerate([&#x27;A&#x27;, &#x27;B&#x27;, &#x27;C&#x27;]):
+    plt.plot(np.array(values)[:, s], marker=&#x27;o&#x27;, label=name)
+plt.xlabel(&#x27;Policy evaluation round&#x27;); plt.ylabel(&#x27;Value&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是动态规划中的策略迭代，与控制领域“策略评价—策略改善”的思路对应。以后 Actor-Critic 会让一个模块估值、一个模块调策略，但那通常使用采样、参数化和局部梯度；它与此处具有思想联系，不能视作完全相同的精确算法。</p>
+<h3>9. 常见误区</h3>
+<p>在旧价值上贪心不等于只看当前奖励。策略改善可能有些状态严格提高、另一些暂时不变，不能要求每轮所有状态都升分。若随意打破相同价值动作的平局，策略表可能改变而价值没变；停止判据应与既定平局规则一致。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>评价时能不能同时改变策略而仍声称在精确评价同一套规则？<br><strong>Level 2：</strong>手算三状态例子的第一次改进，解释 A 为什么暂时没变。<br><strong>Level 3：</strong>构造动作价值相同的状态，说明随机打破平局会怎样干扰“策略不变”判据。</p><details><summary>参考答案与检查方向</summary><p>L1：不能，那已是另一种交替更新过程。L2：旧 B 价值仅二，所以 A 前进的旧动作价值一点八，小于领取三。L3：两个动作奖励和后果完全相同，交替选择它们会不断更改策略表；保留旧动作或用价值残差可避免把这种变化误当作实质改善。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>精确策略评价提供可信的后续分数，逐状态贪心改进通过单调性与收缩性保证不变差。反复交替能在有限折扣模型中找到最优策略；下一课缩短评价工作，让寻找更直接。</p>
+<h3>12. 下一课预告</h3>
+<p>每次换规则前都把整张评分表算到很准，会不会太费时间？能否只刷新一次，就继续寻找最佳动作？</p>

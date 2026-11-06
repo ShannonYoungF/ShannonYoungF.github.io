@@ -1,0 +1,241 @@
+<section class="rl-lesson" data-lesson="42">
+<h2>第 42 讲：把 DQN 和 Actor-Critic 接起来，会得到什么？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>连续动作无法像DQN那样把每个候选力矩枚举一遍。DDPG安排一个actor直接给出候选力矩，再让critic估值；采样数据进入回放池，目标网络缓慢跟踪当前网络。你已经学过这些零件，现在要看它们怎样组成一个闭环学习系统。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>DDPG的critic目标和actor目标分别是什么？</li><li>探索噪声为何与确定性评估策略分开？</li><li>目标网络与经验回放解决哪些问题，又留下哪些问题？</li></ul>
+<h3>4. 直觉解释</h3><p>critic像学习长期代价的评价器，actor像一个可微的近似优化器。经验回放使旧转移可重复用于价值回归；目标网络缓慢改变回归目标。行为时额外加入动作噪声，扩大数据覆盖，评估时则通常使用无噪声actor。</p><p>这不是一个会自动稳定的组合。actor可能追逐critic的错误高值，critic又用actor给出的目标动作自举，误差会在两者间反馈。DDPG让连续控制成为可实现的算法，也清楚暴露了为什么后续需要双critic等改进。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="把 DQN 和 Actor-Critic 接起来，会得到什么？"><text x="24" y="30" fill="var(--text)" font-size="18">把 DQN 和 Actor-Critic 接起来，会得到什么？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">带噪 Actor</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">收集执行动作</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">Replay</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">离策略转移</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">Critic 回归</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">目标网络自举</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">Actor 改进</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">沿 Q 的动作斜率</text></svg><figcaption>DDPG的actor目标使用当前critic；critic的自举目标使用目标网络。</figcaption></figure>
+<h3>5. 数学原理</h3><p>回放样本(s,a,r,s′,d)中a是实际执行的归一化动作，d只表示真实终止。目标actor和critic参数分别θ̄、w̄，目标为：</p><div class="rl-equation">\[y=r+\gamma(1-d)Q_{\bar w}(s^\prime,\mu_{\bar\theta}(s^\prime)),\qquad L_Q=\mathbb E[(Q_w(s,a)-\operatorname{stopgrad}(y))^2].\tag{42.1}\]</div><p>在同一批状态上，actor最大化当前critic对自己动作的评分：</p><div class="rl-equation">\[L_\mu(\theta)=-\mathbb E_{s\sim\mathcal D}[Q_w(s,\mu_\theta(s))].\tag{42.2}\]</div><p>actor更新保留Q对动作的导数，critic权重不由此优化。目标网络用Polyak平均：</p><div class="rl-equation">\[\bar w\leftarrow(1-\tau)\bar w+\tau w,\qquad \bar\theta\leftarrow(1-\tau)\bar\theta+\tau\theta.\tag{42.3}\]</div><p>τ较小使目标缓变。行为动作为clip(μθ(s)+ε)，回放必须存执行后的动作。外部TimeLimit结束后环境重置，但目标仍使用结束前的末观测自举。DDPG并不因使用目标网络就恢复表格Q-Learning的收敛保证；函数逼近、离策略与自举的风险仍在。</p>
+<h3>6. 手算示例</h3><p>样本奖励1，γ=0.9，目标critic对下一状态目标动作给出2，则非终止目标为2.8，真实终止目标为1。若当前Q为2，平方损失为0.64；对Q输出的梯度为2(2−2.8)=−1.6。</p><p>某个目标权重为1、当前权重为3，取τ=0.1，更新后目标权重为0.9×1+0.1×3=1.2。它不是直接复制3，也不是用目标权重更新在线网络。代码默认τ=0.005，比手算更缓慢。</p>
+<h3>7. Python 实验</h3><p>在Pendulum-v1上先运行smoke，核对采样、回放、critic更新、actor更新和独立评估。完整公共训练器在下方展开，使用归一化动作，再映射到环境力矩范围；外部200步截断保留自举。smoke只有少量交互，目的仅是执行验证。</p><ol><li>用带探索噪声的actor或初始随机动作收集转移。</li><li>随机抽取replay批次，计算停止梯度的目标。</li><li>先更新critic，再通过critic动作导数更新actor。</li><li>软更新两个目标网络，结束回合时独立处理重置。</li></ol><p>正式比较时固定步数，多种子记录实际评估回报，并观察Q估计与真实回报的差距。学习率、噪声和warmup长度均可修改，不应只追求critic损失下降。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_42.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python"># Download rl_continuous_common.py beside this file.
+# python lesson_42.py --smoke
+# python lesson_42.py --steps 50000 --seed 7 --plot
+from rl_continuous_common import run
+if __name__ == &quot;__main__&quot;:
+    run(&quot;ddpg&quot;)</code></pre><p>本实验使用同目录公共模块 <a href="../assets/courses/rl/examples/rl_continuous_common.py" download>rl_continuous_common.py</a>。将它与本课脚本放在同一文件夹；公共模块包含网络、采样、全部更新与独立评估，未调用强化学习框架。</p><details class="rl-source"><summary>展开公共训练器完整源码</summary><pre><code class="language-python">&quot;&quot;&quot;Minimal DDPG / TD3 / SAC implementations for Pendulum-v1.
+
+Install: python -m pip install numpy torch gymnasium matplotlib
+Actor/critic inputs use normalized actions in [-1, 1]. SAC entropy is
+expressed in physical action coordinates, including the constant scale Jacobian.
+&quot;&quot;&quot;
+import argparse
+import copy
+import random
+import numpy as np
+import torch
+from torch import nn
+from torch.distributions import Normal
+import gymnasium as gym
+
+
+def mlp(inputs, outputs):
+    return nn.Sequential(nn.Linear(inputs, 64), nn.ReLU(), nn.Linear(64, 64),
+                         nn.ReLU(), nn.Linear(64, outputs))
+
+
+class Actor(nn.Module):
+    def __init__(self, obs_dim, action_dim, stochastic=False):
+        super().__init__()
+        self.stochastic = stochastic
+        self.action_dim = action_dim
+        self.net = mlp(obs_dim, action_dim * (2 if stochastic else 1))
+
+    def forward(self, state, deterministic=False):
+        output = self.net(state)
+        if not self.stochastic:
+            return output.tanh(), None
+        mean, log_std = output.chunk(2, dim=-1)
+        dist = Normal(mean, log_std.clamp(-5, 2).exp())
+        latent = mean if deterministic else dist.rsample()
+        action = latent.tanh()
+        # Stable exact log(1 - tanh(z)^2), avoiding a saturated-action log(0).
+        correction = 2 * (np.log(2.0) - latent - nn.functional.softplus(-2 * latent))
+        log_prob = (dist.log_prob(latent) - correction).sum(-1, keepdim=True)
+        return action, log_prob
+
+
+class Critic(nn.Module):
+    def __init__(self, obs_dim, action_dim):
+        super().__init__()
+        self.net = mlp(obs_dim + action_dim, 1)
+
+    def forward(self, state, action):
+        return self.net(torch.cat((state, action), dim=-1))
+
+
+class Replay:
+    def __init__(self, obs_dim, action_dim, seed, capacity=100000):
+        self.s = np.zeros((capacity, obs_dim), np.float32)
+        self.a = np.zeros((capacity, action_dim), np.float32)
+        self.r = np.zeros((capacity, 1), np.float32)
+        self.ns = np.zeros_like(self.s)
+        self.term = np.zeros_like(self.r)
+        self.position, self.size, self.capacity = 0, 0, capacity
+        self.rng = np.random.default_rng(seed)
+
+    def add(self, state, action, reward, nxt, terminated):
+        i = self.position
+        self.s[i], self.a[i], self.r[i] = state, action, reward
+        self.ns[i], self.term[i] = nxt, float(terminated)
+        self.position = (i + 1) % self.capacity
+        self.size = min(self.size + 1, self.capacity)
+
+    def sample(self, batch):
+        indices = self.rng.integers(self.size, size=batch)
+        return [torch.as_tensor(x[indices]) for x in (self.s, self.a, self.r, self.ns, self.term)]
+
+
+def soft_update(target, source, tau=0.005):
+    with torch.no_grad():
+        for t, p in zip(target.parameters(), source.parameters()):
+            t.mul_(1 - tau).add_(p, alpha=tau)
+
+
+def make_env(name):
+    if name == &quot;PointRobot-v0&quot;:
+        from lesson_48 import PointRobotEnv
+        return PointRobotEnv()
+    return gym.make(name)
+
+
+def evaluate(actor, seed, episodes, scale, center, env_name):
+    env = make_env(env_name)
+    scores = []
+    for episode in range(episodes):
+        state, _ = env.reset(seed=seed + episode)
+        score = 0.0
+        while True:
+            with torch.no_grad():
+                action, _ = actor(torch.tensor(state, dtype=torch.float32), deterministic=True)
+            state, reward, term, trunc, _ = env.step(center + scale * action.numpy())
+            score += reward
+            if term or trunc:
+                break
+        scores.append(score)
+    env.close()
+    return scores
+
+
+def run(mode):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--steps&quot;, type=int, default=50000)
+    parser.add_argument(&quot;--seed&quot;, type=int, default=7)
+    parser.add_argument(&quot;--env&quot;, choices=[&quot;Pendulum-v1&quot;, &quot;PointRobot-v0&quot;], default=&quot;Pendulum-v1&quot;)
+    parser.add_argument(&quot;--smoke&quot;, action=&quot;store_true&quot;)
+    parser.add_argument(&quot;--plot&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    steps = min(args.steps, 256) if args.smoke else args.steps
+    if steps &lt; 1:
+        parser.error(&quot;--steps must be positive&quot;)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.set_num_threads(1)
+    rng = np.random.default_rng(args.seed)
+    env = make_env(args.env)
+    state, _ = env.reset(seed=args.seed)
+    obs_dim, action_dim = env.observation_space.shape[0], env.action_space.shape[0]
+    scale = (env.action_space.high - env.action_space.low) / 2
+    center = (env.action_space.high + env.action_space.low) / 2
+    log_scale = float(np.log(scale).sum())
+    actor = Actor(obs_dim, action_dim, mode == &quot;sac&quot;)
+    actor_target = copy.deepcopy(actor)
+    q1, q2 = Critic(obs_dim, action_dim), Critic(obs_dim, action_dim)
+    t1, t2 = copy.deepcopy(q1), copy.deepcopy(q2)
+    critics = list(q1.parameters()) + ([] if mode == &quot;ddpg&quot; else list(q2.parameters()))
+    actor_opt = torch.optim.Adam(actor.parameters(), lr=3e-4)
+    critic_opt = torch.optim.Adam(critics, lr=3e-4)
+    log_alpha = torch.tensor(np.log(0.2), dtype=torch.float32, requires_grad=True)
+    alpha_opt = torch.optim.Adam([log_alpha], lr=3e-4)
+    target_entropy = -action_dim + log_scale  # entropy target in physical coordinates
+    replay = Replay(obs_dim, action_dim, args.seed)
+    warmup = min(1000, max(1, steps // 4))
+    batch, gamma = 64, 0.99
+    updates, episode_return, returns = 0, 0.0, []
+    for step in range(steps):
+        if step &lt; warmup:
+            action = rng.uniform(-1, 1, action_dim).astype(np.float32)
+        else:
+            with torch.no_grad():
+                action, _ = actor(torch.tensor(state, dtype=torch.float32))
+            action = action.numpy()
+            if mode != &quot;sac&quot;:
+                action = np.clip(action + rng.normal(0, 0.1, action_dim), -1, 1).astype(np.float32)
+        nxt, reward, term, trunc, _ = env.step(center + scale * action)
+        replay.add(state, action, reward, nxt, term)
+        state = nxt
+        episode_return += reward
+        if term or trunc:
+            returns.append(episode_return)
+            episode_return = 0.0
+            state, _ = env.reset()
+        if step &lt; warmup or replay.size &lt; batch:
+            continue
+        s, a, r, ns, terminated = replay.sample(batch)
+        alpha = log_alpha.exp().detach()
+        with torch.no_grad():
+            if mode == &quot;sac&quot;:
+                na, next_log_prob = actor(ns)
+                next_log_prob = next_log_prob - log_scale
+                bootstrap = torch.minimum(t1(ns, na), t2(ns, na)) - alpha * next_log_prob
+            else:
+                na, _ = actor_target(ns)
+                if mode == &quot;td3&quot;:
+                    noise = (torch.randn_like(na) * 0.2).clamp(-0.5, 0.5)
+                    na = (na + noise).clamp(-1, 1)
+                    bootstrap = torch.minimum(t1(ns, na), t2(ns, na))
+                else:
+                    bootstrap = t1(ns, na)
+            target = r + gamma * (1 - terminated) * bootstrap
+        loss = (q1(s, a) - target).square().mean()
+        if mode != &quot;ddpg&quot;:
+            loss = loss + (q2(s, a) - target).square().mean()
+        critic_opt.zero_grad()
+        loss.backward()
+        critic_opt.step()
+        updates += 1
+        if mode != &quot;td3&quot; or updates % 2 == 0:
+            for parameter in critics:
+                parameter.requires_grad_(False)
+            pa, log_prob = actor(s)
+            if mode == &quot;sac&quot;:
+                log_prob = log_prob - log_scale
+                actor_loss = (alpha * log_prob - torch.minimum(q1(s, pa), q2(s, pa))).mean()
+            else:
+                actor_loss = -q1(s, pa).mean()
+            actor_opt.zero_grad()
+            actor_loss.backward()
+            actor_opt.step()
+            for parameter in critics:
+                parameter.requires_grad_(True)
+            if mode == &quot;sac&quot;:
+                alpha_loss = -(log_alpha * (log_prob.detach() + target_entropy)).mean()
+                alpha_opt.zero_grad()
+                alpha_loss.backward()
+                alpha_opt.step()
+            soft_update(actor_target, actor)
+            soft_update(t1, q1)
+            if mode != &quot;ddpg&quot;:
+                soft_update(t2, q2)
+    env.close()
+    scores = evaluate(actor, args.seed + 10000, 1 if args.smoke else 5, scale, center, args.env)
+    print(f&quot;{mode}: steps={steps}, critic_updates={updates}, alpha={float(log_alpha.exp().detach()):.4f}&quot;)
+    print(&quot;Independent deterministic evaluation:&quot;, scores, &quot;mean=&quot;, float(np.mean(scores)))
+    print(&quot;A smoke run checks execution; compare learning using multiple training seeds.&quot;)
+    if args.plot:
+        import matplotlib.pyplot as plt
+        plt.plot(returns)
+        plt.xlabel(&quot;Completed training episode&quot;)
+        plt.ylabel(&quot;Undiscounted episode reward&quot;)
+        plt.title(f&quot;{mode}, seed {args.seed}&quot;)
+        plt.show()
+</code></pre></details>
+<h3>8. 与已有知识的联系</h3><p>DDPG把DQN的回放与目标网络接到确定性策略梯度上，是两条课程主线的交汇。它使用学习critic近似连续动作优化，和在MPC中直接对模型预测代价优化动作序列不同。后者依赖模型，前者依赖交互数据学出的价值，二者的误差与计算成本需要分别统计。</p>
+<h3>9. 常见误区</h3><ul><li>把环境物理力矩与归一化动作混用，导致critic训练输入不一致。</li><li>回放存的是加噪前动作，实际环境执行了另一个动作。</li><li>终止遮罩使用terminated or truncated，无条件把所有时间截断清零。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>为什么评估时通常去掉探索噪声？</li><li><strong>Level 2：</strong>若τ=1或τ=0，目标网络分别会怎样变化？</li><li><strong>Level 3：</strong>设计实验检验actor是否在利用critic的外推误差。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>评估目标是所学确定性控制器的表现；额外行为噪声改变了被评估策略。若任务要求随机策略，应另行定义评估。</p><p><strong>Level 2 参考：</strong>τ=1直接复制在线权重；τ=0永不更新。两者都不同于缓慢跟踪。</p><p><strong>Level 3 参考：</strong>比较高预测Q动作在真实环境中的回报，检查回放覆盖，固定actor或替换为数据附近动作作对照。</p></details>
+<h3>11. 本节知识总结</h3><p>DDPG用回放学习critic，再沿其动作梯度学习确定性actor。执行动作记录、梯度路径、目标网络与终止边界构成最小实现的关键。</p>
+<h3>12. 下一节预告</h3><p>actor总能找到critic的乐观误差，怎么办？下一课用双critic、延迟更新和动作平滑拆解TD3。</p>
+</section>

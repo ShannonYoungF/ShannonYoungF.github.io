@@ -1,0 +1,48 @@
+<h2 id="lecture-07">第 7 讲：机器人只知道当前位置，真的足够做决定吗？</h2>
+<h3>2. 开场故事</h3>
+<p>两台小车都在离墙一米处。第一台静止，第二台正以每秒两米向墙冲去。屏幕上它们的“状态”都显示为位置一米，控制器因此给了相同动作。你立刻能指出问题：位置相同不代表未来相同，速度被藏起来了。</p><p>状态不是传感器恰好读到什么就算什么，也不是越多变量越好。本课用“给定这些信息，还需不需要回看过去才能预测后果”作为标准，判断状态是否足够。这个标准将决定后面贝尔曼方程能否只写成当前位置的函数。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>马尔可夫性质到底在约束什么条件分布？</li><li>状态、观测与历史分别是什么？</li><li>怎样给一个失败的位置表示补足信息，同时承认真实传感器的不完备？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>一个充分状态像可以交接给下一位驾驶员的简报：读完后，不必重放整段录像，也能预测采取某个动作后的下一步。它不要求世界没有惯性，而是要求惯性需要的信息已经包含在简报里。位置加速度未必够，位置加速度历史也未必是最简；对普通二阶小车，位置与速度往往更自然。</p><p>观测是传感器提供的读数，可能只是状态的一部分，也可能带噪声。历史包含过去观测和动作。若不能直接获得充分状态，可以构造估计或信念，但这会引入部分可观测建模，后续再深入；本课先辨认信息遗漏，不把所有问题都塞进一张位置表。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="相同位置、不同速度，产生不同下一位置" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="30" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="62" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">x=0.5，v=0</text><rect x="480" y="30" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="555.0" y="62" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">下一位置 0.5</text><path d="M170 55 L480 55" stroke="var(--accent)"/><text x="325.0" y="32" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">相同动作 u=0</text><rect x="20" y="145" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="95.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">x=0.5，v=2</text><rect x="480" y="145" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="555.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">下一位置 1.5</text><path d="M170 170 L480 170" stroke="var(--warm)"/><text x="325.0" y="145" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">Δt=0.5 秒</text></g></svg><figcaption>相同位置、不同速度，产生不同下一位置</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>记历史 \(H_t=(S_0,A_0,R_1,\ldots,S_t)\)。受控过程的马尔可夫性质写为</p>
+\[\Pr(S_{t+1},R_{t+1}\mid H_t,A_t)=\Pr(S_{t+1},R_{t+1}\mid S_t,A_t).\tag{7.1}\]
+<p>该等式对可达历史成立，意思是给定当前状态与动作，过去不再提供额外预测信息。以时间步长 \(\Delta t\) 的简单离散动力学为例：</p>
+\[x_{t+1}=x_t+v_t\Delta t,\qquad v_{t+1}=v_t+u_t\Delta t.\tag{7.2}\]
+<p>动作 \(u_t\) 是加速度，状态选 \(S_t=(x_t,v_t)\) 时，下一状态由当前二元组与动作确定。如果只选 \(S_t=x_t\)，同一 \(x_t\) 可对应不同 \(v_t\)，从而下一位置不同，历史中的前一位置仍能帮助推断速度，式 (7.1) 一般不成立。</p><p>在无噪声、确实满足式 (7.2) 的模型中，还可利用 \(x_t-x_{t-1}=v_{t-1}\Delta t\) 以及已知的上一动作，得到 \(v_t=(x_t-x_{t-1})/\Delta t+u_{t-1}\Delta t\)。这说明历史可以帮助补足状态，但有观测噪声时差分会放大噪声，不能当成精确速度传感器。</p>
+<h3>6. 完整手算示例</h3>
+<p>取 \(\Delta t=0.5\) 秒，两车当前位置都为零点五米，动作都为零。若速度为零，下一位置仍为零点五米；若速度为二米每秒，下一位置为一点五米。将位置、速度一起给出后，就能分别预测两种后果。若墙在一米处，碰撞风险不同也随之显现；仅凭位置作同一动作并不代表策略实现有错，问题可能首先在状态表示。</p>
+<h3>7. Python 实验</h3>
+<p>脚本枚举同一位置的两种速度，打印在相同动作下的下一位置，并画出未来四个采样点的轨迹。随后用两帧位置和上一动作重建速度。修改时间步长，检查单位与重建公式。它是已知模型的反例实验，不能凭两条轨迹就宣称某个复杂真实系统已被证明马尔可夫。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_07.py</code>。下面展示完整脚本；固定种子用于复现，随机结果仍应通过重复实验评估。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)  # deterministic example
+DT = 0.5
+
+def step(state, acceleration):
+    x, v = state
+    return np.array([x+v*DT, v+acceleration*DT])
+
+for velocity in [0.0, 2.0]:
+    state = np.array([0.5, velocity]); positions = [state[0]]
+    for _ in range(4):
+        state = step(state, 0.0); positions.append(state[0])
+    print(&#x27;initial velocity:&#x27;, velocity, &#x27;next position:&#x27;, positions[1])
+    plt.plot(np.arange(5)*DT, positions, marker=&#x27;o&#x27;, label=f&#x27;v={velocity}&#x27;)
+x_previous, x_current, u_previous = 0.0, 0.5, 2.0
+v_reconstructed = (x_current-x_previous)/DT + u_previous*DT
+print(&#x27;Current velocity reconstructed from history:&#x27;, v_reconstructed)
+plt.axhline(1.0, linestyle=&#x27;--&#x27;, color=&#x27;gray&#x27;, label=&#x27;wall position&#x27;)
+plt.xlabel(&#x27;Time (s)&#x27;); plt.ylabel(&#x27;Position (m)&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与动力学建模中的状态空间表示直接相连：二阶方程通过引入速度改写成一阶系统。状态估计器试图根据观测恢复可用于控制的信息。马尔可夫性质是关于选定表示与过程分布的数学条件，不是“机器人记忆力好”的心理比喻。</p>
+<h3>9. 常见误区</h3>
+<p>马尔可夫不等于随机，也不等于完全确定：加入只依赖当前状态动作的独立噪声仍可满足它。传感器读数不自动是状态，简单堆叠最近两帧也不保证足够。有限时域中若奖励取决于剩余时间，把时间遗漏也会造成“同一状态”下决策标准变化。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>位置相同是否意味着满足马尔可夫条件？<br><strong>Level 2：</strong>上一位置零、当前位置零点五、步长零点五、上一加速度二，当前速度是多少？<br><strong>Level 3：</strong>设计一个“位置和速度仍不充分”的机器人例子，并说明遗漏变量如何影响后果。</p><details><summary>参考答案与检查方向</summary><p>L1：不是，要检查给定状态动作后历史是否仍改变后果分布。L2：旧速度为一，当前速度为二米每秒。L3：例如同一位置速度下电量不同导致最大驱动力不同；把电量纳入状态，或显式建模其不确定性。不能只列更多变量，必须说明它改变了什么转移或奖励。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>状态应保留预测下一步所需的信息，观测则是我们实际拿到的读数。先检查信息是否充分，再建立价值表；否则后续算法可能只是在努力拟合一个没有稳定规律的表示。</p>
+<h3>12. 下一课预告</h3>
+<p>位置、速度、动作和奖励都有了，怎样把它们装进一个统一的决策模型？下一课制作机器人的 MDP 说明书。</p>

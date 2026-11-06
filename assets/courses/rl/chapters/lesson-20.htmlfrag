@@ -1,0 +1,90 @@
+<section class="rl-lesson" id="lesson-20">
+<h2>第 20 讲：一边乱试，一边学会最优路线，为什么可能？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>教练允许机器人练习时到处试路，却要求它在笔记里记录：“如果下一步开始都作最佳选择，这条路值多少？”执行并不完美，笔记评价的却是贪心未来。Q-Learning把行为与目标分开，这既是它的力量来源，也是许多误解的起点。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>最优贝尔曼备份如何变成一次经验更新？</li><li>行为策略与目标策略为何可以不同？</li><li>不需要模型是否意味着不需要探索？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>SARSA接上实际下一动作的价值；Q-Learning接上下一状态所有动作价值的最大值。它仍需要经历告诉自己本次动作到了哪里、拿到什么奖励，只是不按实际下一动作评价未来。探索负责收集知识，最大值负责表达贪心目标，两者承担不同角色。</p>
+<p>在有限表格世界，充分采样每个状态动作对，经验更新可逐渐逼近最优贝尔曼方程的解。然而没有模型不等于不需要数据；从未执行的动作，无法凭空知道后果。神经网络还会引入额外不稳定性，不能把表格定理直接搬到深度强化学习。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="行为收集经验，目标评价贪心未来；无模型仍需覆盖。"><title>一边乱试，一边学会最优路线，为什么可能？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">行为策略采样</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">记录真实转移</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">后继动作取max</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">更新贪心目标</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">行为收集经验，目标评价贪心未来；无模型仍需覆盖。</text></svg><figcaption>行为收集经验，目标评价贪心未来；无模型仍需覆盖。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>最优动作价值等于即时奖励加最优后继价值的条件期望。用一次转移替代环境期望，用当前表替代未知真值，可得：</p>
+<p>\[q_*(s,a)=\mathbb E[R_{t+1}+\gamma\max_bq_*(S_{t+1},b)\mid s,a],\tag{20.1}\]</p>
+<p>\[Q(S_t,A_t)\leftarrow Q(S_t,A_t)+\alpha_t[R_{t+1}+\gamma(1-d_t)\max_bQ(S_{t+1},b)-Q(S_t,A_t)].\tag{20.2}\]</p>
+<p>奖励和后继来自行为策略，max对应目标中的贪心选择。本一步表格目标不含实际下一动作，因此不需要下一动作的重要性权重。有限折扣MDP中，每对状态动作无限访问、奖励有界，且每对步长满足以下条件，才可援引经典收敛结论：</p>
+<p>\[\sum_t\alpha_t(s,a)=\infty,\qquad\sum_t\alpha_t(s,a)^2&lt;\infty.\tag{20.3}\]</p>
+<p>实验用无折扣回合任务和常数步长，只是机制演示，并非上述定理所有前提的直接实例。</p>
+<h3>6. 手算示例</h3>
+<p>当前值−5，奖励−1，折扣1，下一状态动作值为−3与−20，步长0.5。Q-Learning目标恒为−1+max(−3,−20)=−4，新值−4.5，与下一步是否探索危险动作无关。上一讲危险采样时得到−13，两者不同源于后续策略目标不同，不是哪个算式漏了奖励。</p>
+<h3>7. Python 实验</h3>
+<p>使用与SARSA相同的悬崖规则，代码保持独立运行。输出总坠落数、末100幕训练回报和取消探索后的贪心路线。公平比较时改成相同种子集合，并按实际环境交互次数控制预算；幕数相同不代表步数相同。分别比较探索代价与最终贪心性能，贴边造成训练回报差，不代表最终路线更长。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_20.py</code>。<a href="../assets/courses/rl/examples/lesson_20.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Off-policy Q-learning in a cliff grid. Install: pip install numpy."""
+import argparse
+import numpy as np
+START, GOAL = 36, 47
+
+def step(s, a):
+    r, c = divmod(s, 12)
+    dr, dc = [(-1, 0), (0, 1), (1, 0), (0, -1)][a]
+    ns = int(np.clip(r + dr, 0, 3) * 12 + np.clip(c + dc, 0, 11))
+    if 37 &lt;= ns &lt;= 46:
+        return START, -100.0, False
+    return ns, -1.0, ns == GOAL
+
+def action(q, s, eps, rng):
+    if rng.random() &lt; eps:
+        return int(rng.integers(4))
+    return int(rng.choice(np.flatnonzero(q[s] == q[s].max())))
+
+def run(episodes, seed):
+    rng = np.random.default_rng(seed)
+    q, rewards, falls = np.zeros((48, 4)), [], 0
+    for _ in range(episodes):
+        s, total = START, 0.0
+        for t in range(1000):
+            a = action(q, s, 0.1, rng)
+            ns, r, done = step(s, a)
+            target = r if done else r + q[ns].max()
+            q[s, a] += 0.5 * (target - q[s, a])
+            falls += int(r == -100)
+            total += r
+            s = ns
+            if done:
+                break
+        rewards.append(total)
+    s, path = START, [START]
+    for _ in range(100):
+        s, _, done = step(s, action(q, s, 0.0, rng))
+        path.append(s)
+        if done:
+            break
+    print('mean final training return:', np.mean(rewards[-100:]))
+    print('all training cliff falls:', falls)
+    print('greedy route:', [divmod(s, 12) for s in path])
+    print('greedy success:', path[-1] == GOAL)
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=1500)
+    p.add_argument('--seed', type=int, default=20)
+    a = p.parse_args()
+    run(a.episodes, a.seed)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>Q-Learning与价值迭代共享最优贝尔曼备份；前者以单条经验作随机近似，后者以模型计算所有后继的期望。它们不是相同的有限样本过程。最优控制常用最小代价表述，转换时应同时改变奖励符号和max/min方向，不能只换一个名称。</p>
+<h3>9. 常见误区</h3>
+<p>离策略不等于离线学习，本课仍持续与环境交互。max只比较已有估计，不能自动补足数据覆盖。行为长期完全贪心可能永远漏掉更好动作。常数步长实验不能声称满足递减步长条件；学会一条最优路线，也不意味着探索执行过程已经受到安全保护。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：为什么更新不需要实际下一动作？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>目标直接枚举下一状态动作并取最大值，实际下一动作不参与这个一步目标。</p></details>
+<p><strong>Level 2：若下一状态最大值为2，折扣0.9，其余数值不变，新值是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>目标−1+0.9×2=0.8，新值−5+0.5×5.8=−2.1。</p></details>
+<p><strong>Level 3：构造一个从不探索就永远发现不了最佳动作的环境。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>起点一动作奖励1并结束，另一动作初估较差却可获得10；若永远按初始贪心选择第一个，第二个就没有数据。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>Q-Learning用采样转移逼近最优备份，允许探索行为与贪心目标分离。它简化了控制学习，却没有消除数据覆盖与执行安全问题。</p>
+<h3>12. 下一节预告</h3>
+<p>如果拿另一种策略留下的完整录像评价目标策略，直接平均还正确吗？下一讲用概率比率修正数据来源。</p>
+</section>

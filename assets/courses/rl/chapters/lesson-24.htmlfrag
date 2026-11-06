@@ -1,0 +1,73 @@
+<section class="rl-lesson" id="lesson-24">
+<h2>第 24 讲：没去过的位置，机器人怎样也能估计价值？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>仓库长十米，机器人位置却能精确到毫米，再加速度和电量，表格很快膨胀到无法存储。你自然想到拟合一个函数：附近位置也许共享价值变化规律。一次经历不只更新一个格子，而是改变一组参数，从而影响许多状态。泛化带来了效率，也带来了新的风险。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>特征如何把巨大状态空间压缩成参数？</li><li>半梯度TD为什么只对当前预测求导？</li><li>表示误差与数据不足怎样区分？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>把每个状态转换成特征向量φ(s)，例如常数项、归一化位置和速度，再以参数w加权求和。w是全局旋钮，调一个旋钮会同时改变许多状态的价值。表格其实是特殊特征：每个状态对应一个独立的独热分量，更新互不干扰。</p>
+<p>共享参数使未访问状态也会变化，但若两个不同状态被映射成同样特征，就无法区分它们。此时增加数据不能弥补表达能力缺失。先用线性模型隔离特征与更新的作用，再进入神经网络，才容易分辨问题来自哪里。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="共享表示带来泛化；特征相同的状态也失去可区分性。"><title>没去过的位置，机器人怎样也能估计价值？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">状态转为特征</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">共享参数w</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">计算TD误差</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">半梯度更新</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">共享表示带来泛化；特征相同的状态也失去可区分性。</text></svg><figcaption>共享表示带来泛化；特征相同的状态也失去可区分性。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>定义d维特征φ(s)与参数w，近似价值为：</p>
+<p>\[\widehat v_w(s)=w^\top\phi(s),\qquad\nabla_w\widehat v_w(s)=\phi(s).\tag{24.1}\]</p>
+<p>先冻结目标y，将单样本平方误差写为ℓ=½(y−v̂)²，链式法则得到梯度−(y−v̂)φ。梯度下降因此等于沿误差方向加αδφ。若把y设为一步TD目标并仅对当前预测求导，得到：</p>
+<p>\[\delta_t=R_{t+1}+\gamma(1-d_t)w^\top\phi(S_{t+1})-w^\top\phi(S_t),\qquad w\leftarrow w+\alpha\delta_t\phi(S_t).\tag{24.2}\]</p>
+<p>目标也依赖w，却在这次求导中被当作常数，因此叫半梯度。它一般不是对完整贝尔曼残差平方作梯度下降。以访问分布D加权，期望更新为0对应：</p>
+<p>\[\Phi^\top D[r+\gamma P_\pi\Phi w-\Phi w]=0.\tag{24.3}\]</p>
+<p>这里Φ按状态排列特征，Pπ为策略转移矩阵，r为期望奖励。适当满秩等条件下，这联系投影贝尔曼方程，而非自动等于真价值的最小二乘拟合。</p>
+<h3>6. 手算示例</h3>
+<p>特征为φ(s)=[1,0.5]，w=[2,1]，当前预测2.5；下一状态特征[1,1]，预测3。奖励1，折扣0.9，TD目标3.7，误差1.2。步长0.1时w更新为[2.12,1.06]，当前预测变为2.65。另一个特征[1,0]的状态也从2变成2.12，即使本次没访问它。</p>
+<h3>7. Python 实验</h3>
+<p>随机游走以两个参数表示五个状态，特征为常数和缩放位置，终止特征为0。该真实价值恰为线性，因此模型有能力表达它；程序打印参数、预测与误差。再看只有常数特征时的最小二乘基线，所有状态只能取同一个值。它用于展示表示限制，不要把这条监督拟合基线误称为TD解。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_24.py</code>。<a href="../assets/courses/rl/examples/lesson_24.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Linear semi-gradient TD prediction with deliberately aliased features."""
+import argparse
+import numpy as np
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=4000)
+    p.add_argument('--seed', type=int, default=24)
+    a = p.parse_args()
+    rng = np.random.default_rng(a.seed)
+    # Two coefficients represent five state values; terminal features are zero.
+    features = np.zeros((7, 2))
+    features[1:6, 0] = 1
+    features[1:6, 1] = np.linspace(-1, 1, 5)
+    w = np.zeros(2)
+    for ep in range(a.episodes):
+        s = 3
+        while s not in (0, 6):
+            ns = s + rng.choice([-1, 1])
+            r = float(ns == 6)
+            delta = r + features[ns] @ w - features[s] @ w
+            # Detach the bootstrap target: only differentiate current prediction.
+            alpha = 0.03 / (1 + ep / 1000)
+            w += alpha * delta * features[s]
+            s = ns
+    pred, truth = features[1:6] @ w, np.arange(1, 6)/6
+    print('weights:', np.round(w, 3))
+    print('predictions:', np.round(pred, 3))
+    print('RMSE:', np.sqrt(np.mean((pred-truth)**2)))
+    alias = np.ones((5, 1))
+    best_constant = np.linalg.lstsq(alias, truth, rcond=None)[0]
+    print('constant-feature least-squares prediction:', best_constant[0])
+    print('Feature choice limits what can be represented, regardless of data volume.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与线性回归共享函数族和梯度计算，但TD的目标来自后继估计，数据又由策略生成，形成额外反馈环。与控制中的近似值函数和基函数法直接相连。表格到函数逼近的真正变化是参数耦合；后面离策略、自举与函数逼近同时出现时会特别需要稳定性分析。</p>
+<h3>9. 常见误区</h3>
+<p>半梯度并非随意漏算一个无关项，而是有意定义不同更新。特征维数越多不必然越好，还要看尺度、相关性与数据覆盖。小训练误差不保证未访问区域可靠。线性、同策略情况下的特定收敛结论，不能推广为任意离策略或非线性逼近都稳定。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：为何一次更新会改变没访问过的状态？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>多个状态共享同一组参数，更新改变整个函数，而非独立表项。</p></details>
+<p><strong>Level 2：用更新后的w计算特征[1,−0.5]状态的价值。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>2.12−0.5×1.06=1.59。</p></details>
+<p><strong>Level 3：如何区分特征表达不足与尚未训练充分？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>在小环境先求真价值，再计算特征族的最佳监督投影误差；该下限大说明表示不足，下限小而学习误差大则继续检查更新、数据与优化。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>线性特征让经验在状态间共享。半梯度TD保留自举目标、只微分当前预测，其固定点与特征和采样分布密切相关。</p>
+<h3>12. 下一节预告</h3>
+<p>固定特征要人工设计，如果价值曲面很弯，能否让网络自己学习特征？下一讲先拆开神经网络的预测与梯度。</p>
+</section>

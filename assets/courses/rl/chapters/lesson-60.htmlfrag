@@ -1,0 +1,41 @@
+<h2>第 60 讲：同样叫 PPO，为什么两份代码可能训练出完全不同的结果？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>两份PPO代码都只有几百行，一份迅速学会倒立摆，另一份训练十次失败七次。它们的公式看似一样，却可能在优势标准化、bootstrap、旧概率缓存、更新轮数和奖励处理上作了不同选择。复现从这些具体接口开始。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>PPO哪些量必须在采样后固定？</li><li>实现核对与效果复现有什么区别？</li><li>怎样设计最小复现实验而不反复挑选好种子？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>先检查计算是否正确，再研究学习表现。一个概率比等于1的恒等测试，往往比盯十分钟奖励曲线更快发现错误。计算正确后，再固定环境版本、预算、网络和评估方式。</p><p>第39讲已经实现算法，本讲使用同一份代码做研究级核对。先复现一个小规模可检验结论，例如不同更新轮数对KL和样本效率的影响；复现论文大规模表格则需要对应环境、资源与协议。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="同样叫 PPO，为什么两份代码可能训练出完全不同的结果？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第60讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">冻结采样快照</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">旧概率与优势</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">算子一致性</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">比率与裁剪符号</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">固定训练协议</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">预算与超参数</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">重复评估</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">报告全部种子</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>对采样时冻结的旧参数 \(\theta_{\rm old}\)，概率比为 \(r_t(\theta)=\exp(\log\pi_\theta(a_t|s_t)-\log\pi_{\theta_{\rm old}}(a_t|s_t))\)。同一参数、同一动作与状态、相同分布处理下应有r=1。旧log概率、回报和优势估计一般作为固定训练数据，不从actor损失反向穿过旧策略或GAE计算。</p><p>代理项为 \[L_t=\min(r_t A_t,\operatorname{clip}(r_t,1-\epsilon,1+\epsilon)A_t).\tag{60.1}\]当A为正，过大的r停止增加代理收益；当A为负，过小的r停止增加代理收益，但另一些方向仍存在梯度。裁剪不是对所有概率比的硬投影。</p><p>在旧策略采样的数据上，\(\mathbb E[\log\pi_{\rm old}-\log\pi_\theta]\) 估计相应状态分布下的动作KL；有限批均值可以略负。KL监控、目标KL提前停止、价值损失裁剪等是要明确报告的实现选择，不是式60.1自动包含的内容。</p>
+<h3>6. 手算示例</h3>
+<p>旧动作概率0.4、新概率0.6，则r=1.5。ε=0.2、A=2时，未裁剪项3，裁剪项2.4，取2.4；A=−2时分别−3和−2.4，取−3。若错误地在每个梯度步骤重新计算并覆盖旧概率，r会不断回到1，目标的参照就改变了。</p>
+<h3>7. Python 实验</h3>
+<p>安装NumPy后运行 <code>python lesson_60.py</code>，检查比率恒等式、裁剪符号及精确类别KL；这是确定性算子核对，不会训练PPO。真实训练使用<a href="#lecture-39">第39讲PPO</a>：下载<a href="../assets/courses/rl/examples/lesson_39.py" download>训练入口</a>与 <a href="../assets/courses/rl/examples/rl_policy_common.py" download>rl_policy_common.py</a> 到同一目录，并安装NumPy、PyTorch与Gymnasium，再运行 <code>python lesson_39.py --steps 20000 --seed 7</code>。</p><pre><code class="language-python">import numpy as np
+old_logp = np.log(np.array([0.4, 0.6]))
+new_logp = old_logp.copy()
+ratio = np.exp(new_logp-old_logp)
+assert np.allclose(ratio, 1), &quot;Identity ratio failed&quot;
+def objective(r, advantage, eps=0.2):
+    return np.minimum(r*advantage, np.clip(r, 1-eps, 1+eps)*advantage)
+assert np.isclose(objective(1.5, 2), 2.4)
+assert np.isclose(objective(1.5, -2), -3)
+print(&quot;ratio identity and clipping sign checks passed&quot;)
+new_prob = np.array([0.6, 0.4])
+old_prob = np.exp(old_logp)
+exact_kl = np.sum(old_prob*(old_logp-np.log(new_prob)))
+print(&quot;exact categorical KL(old||new):&quot;, exact_kl)
+# Training implementation already supplied in lesson 39.
+print(&quot;Next: python lesson_39.py --smoke&quot;)
+print(&quot;For a full study, fix a budget and repeat --seed 0,1,2,...&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这相当于数值优化代码中的一致性检验：检查目标值、梯度方向与缓存语义，再比较收敛。奖励曲线是系统级结果，不能替代单个算子的正确性。</p><p>实验先跑本讲断言，再运行第39讲。设置至少三个独立训练种子作教学复现，并保留所有结果；主结论由预先约定指标决定。扩大更新轮数前先预测KL和过拟合采样批次的风险。</p>
+<p>核对共享实现会发现：优势在采样后冻结并标准化，PPO默认更新4轮、裁剪区间为[0.8,1.2]，但没有输出KL或clip比例。若研究更新轮数，应先在副本中加入诊断日志；不能把本讲计算出的两动作精确KL当作训练实测KL。--smoke仅检查短路径执行，完整预算也仍需逐个种子报告结果。</p>
+<h3>9. 常见误区</h3>
+<ul><li>每个minibatch重算旧策略会改变算法。</li><li>连续动作被裁剪后若未同步定义概率，概率比可能失真。</li><li>挑选最佳种子与报告典型表现是不同统计对象。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>为什么旧log概率需要冻结？</li><li><strong>Level 2：</strong>计算r=0.5、ε=0.2、A分别为±2的代理项。</li><li><strong>Level 3：</strong>制定一个只改变更新轮数的PPO消融协议。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>它定义产生数据的参照策略；改变参照会破坏既定重加权目标。</p><p><strong>Level 2：</strong>A=2取min(1,1.6)=1；A=−2取min(−1,−1.6)=−1.6。</p><p><strong>Level 3：</strong>固定环境步数、架构、学习率和种子集合，报告额外梯度计算成本、KL、回报及失败比例，测试集不参与挑选。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>PPO复现需要计算一致性、实现选择透明和固定评估协议。名字相同不保证实验对象相同。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：SAC中一个少写的符号，可能怎样改变熵、目标值和最终控制行为？</p>

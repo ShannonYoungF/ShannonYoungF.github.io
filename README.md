@@ -88,6 +88,12 @@ DeepONet–EKI 课程的十讲各有一个中英文互动实验，用小车、�
 
 ## 生成网站
 
+强化学习课程阅读稿由 scripts/rl_course.py 在全站构建时组装。编辑正文应修改
+assets/courses/rl/chapters/lesson-XX.htmlfrag，对应实验在 assets/courses/rl/examples/；
+修改代码后同步本讲代码块。构建检查65讲齐全并生成完整实验ZIP。
+课程支持逐讲与连续阅读、浏览器本地学习记录、7个可调教学实验和本地MathJax公式渲染，
+不依赖第三方CDN。发布前运行 python scripts/verify_rl_course.py 并做浏览器检查。
+
 ```powershell
 cd D:\0Postdoctoral\05NoteSpace\personal-site
 python build.py

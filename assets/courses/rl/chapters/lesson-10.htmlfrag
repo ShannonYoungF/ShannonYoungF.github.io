@@ -1,0 +1,55 @@
+<h2 id="lecture-10">第 10 讲：为什么未来的一长串奖励，可以压缩成一步递推？</h2>
+<h3>2. 开场故事</h3>
+<p>你让一位熟悉医院的同事评价每个路口。他不愿把从此处到交班的所有可能路线全部复述，只说：“这一段预计花一分，走完通常到二号路口；二号路口以后的事，我已经评过了。”听起来像把困难推给下一站，但只要所有路口的说法彼此一致，它们就能共同描述整个未来。</p><p>贝尔曼期望方程正是这种一致性。它没有凭空消灭未来，而是把未来浓缩进下一状态的价值。我们会从已经会算的回报递推与条件期望出发，指出马尔可夫性质在哪一步真正发挥作用。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>回报递推怎样转变成价值函数递推？</li><li>全期望公式和马尔可夫性质各负责哪一步？</li><li>为什么贝尔曼期望方程评价固定策略，而没有自动寻找最佳动作？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>把未来树先在第一步切开：先根据策略选动作，再由环境产生下一状态和奖励；抵达下一状态后，用该处既定策略的平均后续分数替代更远的整棵子树。每个分支依然需要按概率加权，只是远端细节被下一状态的价值总结。</p><p>终止状态是递推的边界，后续价值为零；进入终止状态时发出的奖励留在当前一步。动作价值与状态价值是一套相互连接的表达：前者把动作固定，后者再对策略平均。理解这两个平均的层次，能够避免在代码中把动作概率乘两遍。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="一步分支与后续价值：终止后价值为零" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">走廊 C：v(C)</text><rect x="450" y="20" width="200" height="50" rx="9" stroke="var(--warm)"/><text x="550.0" y="52" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">终点：v=0</text><rect x="450" y="145" width="200" height="50" rx="9" stroke="var(--accent)"/><text x="550.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">仍在 C：v(C)</text><path d="M170 100 L450 45" stroke="var(--accent)"/><text x="310.0" y="35" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">0.8：+5</text><path d="M170 125 L450 170" stroke="var(--accent)"/><text x="310.0" y="195" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">0.2：−1</text></g></svg><figcaption>一步分支与后续价值：终止后价值为零</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>先由第二课的 \(G_t=R_{t+1}+\gamma G_{t+1}\)，以及期望的线性性，得到</p>
+\[v_\pi(s)=\mathbb E_\pi[R_{t+1}+\gamma G_{t+1}\mid S_t=s].\tag{10.1}\]
+<p>接着对 \(A_t,S_{t+1},R_{t+1}\) 条件分组。给定后续状态 \(s'\)，如果状态充分且之后继续执行马尔可夫策略 \(\pi\)，更早的历史不再改变后续回报分布，故其条件期望可写为 \(v_\pi(s')\)。代入联合核得</p>
+\[v_\pi(s)=\sum_a\pi(a\mid s)\sum_{s',z}p(s',z\mid s,a)\big[z+\gamma v_\pi(s')\big].\tag{10.2}\]
+<p>这一步依赖马尔可夫性质与策略的定义，不是仅靠代数分组就能完成。若有限时域而时间未增广，价值应带时刻下标。固定第一步动作，则有</p>
+\[q_\pi(s,a)=\sum_{s',z}p(s',z\mid s,a)\left[z+\gamma\sum_b\pi(b\mid s')q_\pi(s',b)\right].\tag{10.3}\]
+<p>括号内先收到一次奖励，再从下一状态执行策略；两项相加是在同一分支内，之后才跨分支平均。所有公式的 \(\pi\) 都是给定的，尚无最大化。</p>
+<h3>6. 完整手算示例</h3>
+<p>策略始终选择前进。走廊 \(C\) 以前进动作以零点八概率到终点得五分，以零点二概率留在原处得负一分，终点价值零，折扣零点九。于是 \(v(C)=0.8(5+0)+0.2(-1+0.9v(C))=3.8+0.18v(C)\)。移项得 \(v(C)=3.8/0.82\approx4.634146\)。这个值大于一步期望三点八，因为本次失败后还可以继续尝试；它仍不是每次都收到的分数。</p>
+<h3>7. Python 实验</h3>
+<p>实验一方面直接求解单变量方程，另一方面重复模拟完整回合，用折扣回报的样本均值核对。模拟设置很大的保险上限，统计触及上限的回合数，诚实区分终止与被截断的数据。修改成功概率时，先重写递推再看结果，尤其要关注保险上限是否仍足够。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_10.py</code>。下面展示完整脚本；固定种子用于复现，随机结果仍应通过重复实验评估。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+p_success, gamma = 0.8, 0.9
+exact = (p_success*5-(1-p_success))/(1-(1-p_success)*gamma)
+returns, capped = [], 0
+for episode in range(20000):
+    total, discount = 0.0, 1.0
+    for step in range(1000):  # numerical guard, not task termination
+        success = rng.random() &lt; p_success
+        reward = 5.0 if success else -1.0
+        total += discount*reward
+        if success:
+            break
+        discount *= gamma
+    else:
+        capped += 1
+    returns.append(total)
+returns = np.array(returns)
+print(&#x27;Bellman solution:&#x27;, exact)
+print(&#x27;Simulated mean:&#x27;, returns.mean(), &#x27;capped episodes:&#x27;, capped)
+print(&#x27;Sample mean standard error:&#x27;, returns.std(ddof=1)/np.sqrt(len(returns)))
+plt.plot(np.cumsum(returns)/np.arange(1, len(returns)+1), label=&#x27;mean return&#x27;)
+plt.axhline(exact, color=&#x27;gray&#x27;, linestyle=&#x27;--&#x27;, label=&#x27;Bellman solution&#x27;)
+plt.xlabel(&#x27;Independent episodes&#x27;); plt.ylabel(&#x27;Estimated value&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是动态规划“把子问题答案作为当前问题信息”的核心结构；与最优性原理的关系还要等到最大化进入方程。概率上，它是嵌套条件期望的塔性质；控制上，它把长期代价分解成当前阶段与后续代价，后面可以直接通向 LQR。</p>
+<h3>9. 常见误区</h3>
+<p>贝尔曼方程不是“奖励等于价值”，也不是把下一状态最好的动作随手插入固定策略评价。若状态表示不充分，当前价值可能无法只按该表示闭合。终点价值零不代表成功奖励零。回报递推在轨迹层成立，价值方程还要对策略和环境的随机性取平均。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>式中为什么同时有策略概率和转移概率？<br><strong>Level 2：</strong>上例改为成功概率二分之一，计算 \(v(C)\)。<br><strong>Level 3：</strong>解释如果机器人失败后改用另一套策略，原递推需要怎样修改。</p><details><summary>参考答案与检查方向</summary><p>L1：分别平均选哪个动作和动作产生什么后果。L2：\(v=2+0.45v\)，得 \(40/11\approx3.63636\)。L3：后续价值要对应改变后的策略；若策略改变依赖“是否曾失败”，应把该信息纳入状态，不能仍用同一个位置价值代表两种未来习惯。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>贝尔曼期望方程来自回报分解、全期望与马尔可夫充分状态。它是一组关于同一固定策略的自洽关系；下一课把这组关系真正解出来，并解释反复更新为什么可靠。</p>
+<h3>12. 下一课预告</h3>
+<p>所有路口都说“我值一分加下一站的价值”，这听起来会不会循环论证？下一课用线性代数与收缩性打破疑惑。</p>

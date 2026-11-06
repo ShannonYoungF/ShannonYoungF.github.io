@@ -1,0 +1,40 @@
+<h2>第 56 讲：把碰撞罚得很重，就等于保证不会碰撞吗？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你把碰撞扣分从10改成一万，机器人果然少撞了。但如果一次违规能换来足够高的任务奖励，它仍可能认为值得冒险。另一个策略平均碰撞很少，却可能总在某一类初始状态碰撞。想把“不能撞”说清楚，首先要明确是哪一种约束。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>奖励惩罚与约束优化有什么区别？</li><li>期望约束能保证每条轨迹安全吗？</li><li>安全过滤器的保证依赖什么？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>把风险放进奖励，给出了可以交换的代价；约束问题则先规定允许的风险预算。即使写成期望约束，它控制的仍是分布平均量，不是每个状态或每条轨迹。</p><p>安全过滤器可以在策略提出动作后修改它，例如把即将越界的加速度改到可行范围。这个保证依赖状态估计、动力学和可行控制集合；如果模型错了，或已经没有可行动作，代数形式本身救不了系统。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="把碰撞罚得很重，就等于保证不会碰撞吗？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第56讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">定义成本预算</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">期望 / 逐状态</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">约束优化</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">策略与乘子更新</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">动作过滤</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">模型与可行性</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">真实验证</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">误差与干预率</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>令奖励目标 \(J_r(\theta)=\mathbb E\sum_t\gamma^t r_t\)，成本 \(J_c(\theta)=\mathbb E\sum_t\gamma^t c_t\)，风险预算d。约束MDP求 \[\max_\theta J_r(\theta)\quad\mathrm{s.t.}\quad J_c(\theta)\le d.\tag{56.1}\]这里未采用 \((1-\gamma)\) 归一化，预算也应按相同定义设置。拉格朗日函数为 \[L(\theta,\lambda)=J_r(\theta)-\lambda(J_c(\theta)-d),\quad\lambda\ge0.\tag{56.2}\]原问题可写为 \(\max_\theta\inf_{\lambda\ge0}L(\theta,\lambda)\)：违规策略的内层下确界为负无穷。实践交替执行策略梯度上升，乘子用 \(\lambda\leftarrow[\lambda+\eta(J_c-d)]_+\) 更新。神经网络与有限样本使实际优化存在误差，通常没有一般全局收敛保证。</p><p>若关心状态安全集合 \(h(x)\ge0\)，离散模型下可以要求 \(h(f(x,u))\ge(1-\alpha)h(x)\)，\(0&lt;\alpha\le1\)。从安全初值开始，如果每步准确满足该条件，则下一步仍有h非负；递推可得前向不变性。这个简单论证需要模型准确、状态可知且每步约束可行。</p><p>过滤器常求最小改动：\[\min_u\|u-u_{\mathrm{RL}}\|^2,\quad h(f(x,u))\ge(1-\alpha)h(x).\tag{56.3}\]这属于控制设计与策略组合，不能把过滤后安全归因于原始RL策略本身。</p>
+<h3>6. 手算示例</h3>
+<p>设 \(x'=x+u\)，要求 \(x'\le1\)，取 \(h(x)=1-x,\alpha=1\)，当前位置x=0.8，策略提出u=0.5。可行控制要求u≤0.2，最小二次改动给出u=0.2。若真实动力学额外有扰动+0.1，结果变为1.1，原保证失效；已知扰动上界0.1时可使用u≤0.1保留裕度。再看期望风险：99%轨迹成本0、1%轨迹成本100，期望为1，却显然不代表所有轨迹安全。</p>
+<h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_56.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+u_rl = 0.5; x = 0.8
+for assumed_disturbance_bound in [0.0, 0.1]:
+    upper = min(1.0, 1-x-assumed_disturbance_bound)
+    if upper &lt; -1.0:
+        raise RuntimeError(&quot;No feasible action under the assumptions&quot;)
+    u = np.clip(u_rl, -1.0, upper)
+    actual_next = x+u+0.1
+    print(&quot;assumed bound&quot;, assumed_disturbance_bound,
+          &quot;filtered action&quot;, u, &quot;actual next&quot;, actual_next)
+lam = 0.0
+for cost_estimate in [2.0, 1.5, 0.8, 0.6]:
+    lam = max(0.0, lam+0.2*(cost_estimate-1.0))
+    print(&quot;cost&quot;, cost_estimate, &quot;multiplier&quot;, lam)
+print(&quot;Multiplier updates alone do not guarantee safe trajectories.&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>代码中的成本序列由人手工给定，只演示乘子超标上升、低于预算下降的方向；它并没有训练一个满足预算的策略。过滤器则只检验一步上边界。改变真实扰动与假定上界，逐项记录原动作、修改后动作、边界余量和不可行次数。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>第47课建立稳定性与安全的区别，本课把安全目标具体写成CMDP与动作约束。你熟悉的控制屏障、鲁棒控制和可行域分析，可用于构造过滤器与分析假设。</p><p>脚本展示一次动作投影和乘子方向，并不是完整安全RL训练器。研究分支需同时报告原策略、过滤后策略、过滤干预率和模型误差，才能知道性能来自哪里。</p>
+<h3>9. 常见误区</h3>
+<ul><li>期望成本约束不等于逐轨迹零违规。</li><li>固定大惩罚不是自动求解某个预定约束预算。</li><li>过滤器可行性、模型误差和执行延迟都是保证的一部分。</li></ul>
+<p><strong>理论边界：</strong>一般非凸策略优化不能随意交换最大化与最小化的顺序，也不能凭乘子稳定就宣称强对偶成立。若任务要求上下两侧安全，两条约束都要写进可行集合；可行集为空时，简单裁剪无法创造物理上不存在的安全动作。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>平均成本1能说明每次成本≤1吗？</li><li><strong>Level 2：</strong>用式56.2说明成本超标时乘子为何增加。</li><li><strong>Level 3：</strong>设计有界模型误差下的鲁棒安全过滤。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>不能，罕见的大成本可以被大量零成本平均。</p><p><strong>Level 2：</strong>成本超标使乘子梯度下降方向增加λ，策略侧对成本施加更大权重。</p><p><strong>Level 3：</strong>对所有允许扰动要求下一状态安全；若可行集合为空，必须定义后备行为并报告保证失效。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>安全需要先定义约束语义，再分析优化与控制的保证条件。奖励、期望风险和逐状态不变性对应不同问题。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：即使仿真安全，真实地面的摩擦、传感器和时延发生变化后，哪些结论还站得住？</p>

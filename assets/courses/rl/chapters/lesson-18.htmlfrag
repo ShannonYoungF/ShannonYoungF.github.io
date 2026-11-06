@@ -1,0 +1,72 @@
+<section class="rl-lesson" id="lesson-18">
+<h2>第 18 讲：应该先看一步、十步，还是看到结局再判断？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>三位导航助手预测到达时间：第一位每过路口就用旧地图修正，第二位观察一段路再说，第三位坚持走完全程。谁可靠，取决于地图多准、路况多随机，以及你能等多久。强化学习也有同样的选择，多步回报就是三种习惯之间的一座桥。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>n步目标怎样组合真实奖励与价值估计？</li><li>偏差和方差应相对于什么对象定义？</li><li>为什么n越大越好不是普遍规律？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>一步TD观察一个奖励，剩余全部交给估计；n步TD先收集n个奖励，再接上第n步后继的价值。n增大意味着更晚自举，对当前价值误差的依赖通常减弱，但会暴露于更多随机奖励与转移。途中真正终止时，就只用实际剩余回报，不得穿过终点继续采样。</p>
+<p>讨论偏差—方差必须先固定对象。本课冻结一份不准确的价值表，从同一状态反复采样，研究目标分布。这不同于完整训练中表不断改变、数据相互关联的学习曲线；把两者区分开，才能判断一张图真正证明了什么。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="目标误差要同时看偏差与方差，冻结估计使比较更清楚。"><title>应该先看一步、十步，还是看到结局再判断？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">一步：早自举</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">累积n步奖励</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">末端价值补偿</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">终点：完整回报</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">目标误差要同时看偏差与方差，冻结估计使比较更清楚。</text></svg><figcaption>目标误差要同时看偏差与方差，冻结估计使比较更清楚。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设T为终止时刻，m=min(n,T−t)，γ为折扣；V是冻结的末端价值估计，真正终点价值设为0。n步目标为：</p>
+<p>\[G_t^{(n)}=\sum_{k=0}^{m-1}\gamma^kR_{t+k+1}+\mathbf1_{t+n&lt;T}\gamma^nV(S_{t+n}).\tag{18.1}\]</p>
+<p>令估计误差e(s)=V(s)−vπ(s)。把真实价值的n步贝尔曼展开式与上式作差；未提前终止时，得到：</p>
+<p>\[\mathbb E[G_t^{(n)}\mid S_t=s]-v_\pi(s)=\gamma^n\mathbb E[e(S_{t+n})\mid S_t=s].\tag{18.2}\]</p>
+<p>提前终止路径的误差项为0。再令随机目标Y的均值为μ，真值为v，将Y−v写成(Y−μ)+(μ−v)，平方后取期望。交叉项由于E[Y−μ]=0消失，因此：</p>
+<p>\[\mathbb E[(Y-v)^2]=\operatorname{Var}(Y)+(\mathbb E[Y]-v)^2.\tag{18.3}\]</p>
+<p>偏差下降并不足以保证总误差下降，且目标方差也不保证在每种环境中随n单调增加。</p>
+<h3>6. 手算示例</h3>
+<p>奖励依次为1、2、3，折扣0.9，一步后继估计4，第2步后继估计5。一步目标为1+0.9×4=4.6；两步目标为1+0.9×2+0.81×5=6.85。若第3步真正终止，完整回报为1+1.8+2.43=5.23。目标不同源于实际观察和估计信息的占比不同。</p>
+<h3>7. Python 实验</h3>
+<p>程序冻结随机游走价值为真值加0.2，从中间状态重复抽取n步目标，打印偏差、方差与均方误差。n很大时几乎总能等到终点，偏差接近0；短目标则受偏高估计影响。增大--draws提升统计精度，修改误差幅度研究价值表质量。这是隔离目标机制的实验，不是完整n步控制训练器。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_18.py</code>。<a href="../assets/courses/rl/examples/lesson_18.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""n-step target bias and variance with a deliberately imperfect bootstrap."""
+import argparse
+import numpy as np
+
+def sample_targets(n, draws, rng):
+    # States 0 and 6 are absorbing; v_true(i)=i/6 under a fair random walk.
+    estimate = np.arange(7, dtype=float) / 6 + 0.2
+    out = np.empty(draws)
+    for j in range(draws):
+        s, g, terminal = 3, 0.0, False
+        for _ in range(n):
+            s += rng.choice([-1, 1])
+            if s in (0, 6):
+                g = float(s == 6)
+                terminal = True
+                break
+        out[j] = g if terminal else g + estimate[s]
+    return out
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--draws', type=int, default=10000)
+    p.add_argument('--seed', type=int, default=18)
+    a = p.parse_args()
+    rng = np.random.default_rng(a.seed)
+    for n in (1, 2, 4, 8, 32, 256):
+        targets = sample_targets(n, a.draws, rng)
+        bias = targets.mean() - 0.5
+        var = targets.var()
+        mse = np.mean((targets - 0.5)**2)
+        print(f'n={n:3d} bias={bias:+.4f} variance={var:.4f} MSE={mse:.4f}')
+    print('MSE = squared bias + variance for this fixed target distribution.')
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>蒙特卡洛对应看到结局的一端，TD(0)对应n=1的一端。与滚动时域控制相比，两者都可能在有限展开末端使用剩余价值；本课是在构造学习信号，MPC却使用动力学模型优化动作序列，因此只有结构联系，不能把算法直接等同。</p>
+<h3>9. 常见误区</h3>
+<p>n决定何时自举，γ决定远期奖励权重，二者不是同一旋钮。单条轨迹不能估计方差，必须重复采样。若价值已准确，短目标也可无偏；若奖励确定，长目标未必更吵。冻结价值下的误差分解始终成立，但它不直接提供神经网络训练稳定性保证。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：n步方法在什么位置使用自举？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>未提前终止时，在第n步后继接上估计；提前终止则没有自举。</p></details>
+<p><strong>Level 2：把手算例子的第2步估计改成1，两步目标是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>1+0.9×2+0.81×1=3.61。</p></details>
+<p><strong>Level 3：设计两种环境，让长目标分别更有利和更不利。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>稀疏且确定的末端奖励、差初值可能有利于长目标；高噪声奖励且价值已好时短目标可能更稳。需要重复实验，而不是只凭直觉宣称。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>多步回报管理实测信息与自举预测的分工。n的选择依赖任务噪声、估计质量与反馈延迟，没有对所有任务都最佳的固定值。</p>
+<h3>12. 下一节预告</h3>
+<p>已经会评价驾驶习惯，怎样边开车边改进习惯？下一讲让价值表参与动作选择，并把探索风险写进学到的价值。</p>
+</section>

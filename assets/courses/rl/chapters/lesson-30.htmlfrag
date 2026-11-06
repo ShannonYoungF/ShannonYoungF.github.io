@@ -1,0 +1,30 @@
+<section class="rl-lesson" data-lesson="30">
+<h2>第 30 讲：为什么一定要先给动作打分，能否直接学习动作概率？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>在一个十字路口，机器人有向左和向右两个选择。你已经会让它学习两张动作价值表，再挑分数大的动作。现在换个思路：控制器直接输出“向右概率为多少”，成功后调整这个概率。它学的对象由动作评分变成了行动规则。这个改变看似微小，却让连续控制和复杂随机策略进入了可优化的范围。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>怎样用一组实数参数表示一个合法的策略？</li><li>一条轨迹的概率由哪些因素组成？</li><li>优化单次动作概率与优化期望回报有什么区别？</li></ul>
+<h3>4. 直觉解释</h3><p>想象有一个可以旋转的概率旋钮。旋钮不直接写“永远右转”，而是把右转概率从 0.4 调到 0.6。要学习的是旋钮转动方向；环境仍会随机产生结果，因此一次成功不能证明这个方向正确，需要对期望表现负责。</p><p>策略网络输入状态，输出离散动作的 logits。logits 是未归一化偏好，可以是任何实数；softmax 把它们变成非负且总和为一的概率。价值网络回答“可能有多好”，策略网络回答“怎样随机行动”。先把两者分清，下一课才能讨论梯度来自哪里。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="为什么一定要先给动作打分，能否直接学习动作概率？"><text x="24" y="30" fill="var(--text)" font-size="18">为什么一定要先给动作打分，能否直接学习动作概率？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">状态 s</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">输入观测</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">偏好 zθ</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">任意实数</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">策略 πθ</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">softmax 概率</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">轨迹回报</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">长期评价</text></svg><figcaption>策略决定动作概率；目标评价的是由这些动作共同形成的轨迹。</figcaption></figure>
+<h3>5. 数学原理</h3><p>设状态为 s，动作集合为有限集合 A，参数向量为 θ，网络对动作 a 输出偏好 zθ(s,a)。定义：</p><div class="rl-equation">\[\pi_\theta(a\mid s)=\frac{\exp z_\theta(s,a)}{\sum_{b\in\mathcal A}\exp z_\theta(s,b)}.\tag{30.1}\]</div><p>分母保证概率之和为一。为了数值稳定，可把所有偏好减去同一个最大值，比例不会改变。对有限时域 T，轨迹 τ=(s₀,a₀,r₁,…,sT) 的概率密度或质量由链式法则给出：</p><div class="rl-equation">\[p_\theta(\tau)=\rho_0(s_0)\prod_{t=0}^{T-1}\pi_\theta(a_t\mid s_t)p(s_{t+1},r_{t+1}\mid s_t,a_t).\tag{30.2}\]</div><p>ρ₀ 是初始状态分布，p 是环境转移—奖励规律，假定它们不直接依赖 θ。动作会改变后续状态，所以修改早期概率会改变整条轨迹分布。令 R(τ)=Σt γᵗrₜ₊₁，目标是：</p><div class="rl-equation">\[J(\theta)=\mathbb E_{\tau\sim p_\theta}[R(\tau)]=\sum_\tau p_\theta(\tau)R(\tau).\tag{30.3}\]</div><p>连续轨迹把求和换成积分。这里先只定义目标，不假装能直接对未知环境求导。确定性 argmax 对参数通常不可导，训练时采样动作与评估时选最大概率动作也是两种不同策略。</p>
+<h3>6. 手算示例</h3><p>只有一次决策，向左奖励 1，向右奖励 3。设右转偏好 θ=ln 3，左转偏好为 0，则 π右=3/(1+3)=0.75，π左=0.25。期望奖励为 0.25×1+0.75×3=2.5。若将 θ 改为 0，则两动作各占一半，期望变成 2。</p><p>右转概率 p 的导数为 p(1−p)，因此 J=1+2p 对 θ 的导数为 2p(1−p)=0.375。注意它既不是“右转奖励 3”，也不是“本次抽到的动作”；它描述参数微小变化时平均表现的变化速度。</p>
+<h3>7. Python 实验</h3><p>运行 <code>python lesson_30.py</code>，先比较解析期望 2.5 与样本平均。把右转偏好改成 −2、0、2，观察概率和平均奖励。再把采样数降到 20：概率没有变，样本表现却明显波动，这正是下一课需要随机梯度估计的原因。</p><p>挑战：画出 θ 从 −6 到 6 时的概率、期望奖励与梯度。两端概率接近 0 或 1 时，梯度会变小；这与参数化的几何有关，不能解释为那个动作的真实收益差距消失了。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_30.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+rng = np.random.default_rng(7)
+logits = np.array([0.0, np.log(3.0)])
+weights = np.exp(logits - logits.max())
+prob = weights / weights.sum()
+reward = np.array([1.0, 3.0])
+actions = rng.choice(2, size=20000, p=prob)
+print(&quot;policy:&quot;, prob)
+print(&quot;exact expected reward:&quot;, prob @ reward)
+print(&quot;sample average:&quot;, reward[actions].mean())
+p = prob[1]
+print(&quot;dJ/dtheta:&quot;, 2 * p * (1-p))</code></pre>
+<h3>8. 与已有知识的联系</h3><p>从数值优化看，θ 是决策变量，J 是目标函数；难点在于目标由受 θ 影响的随机轨迹决定。从监督学习看，softmax 的形式相同，但强化学习没有逐状态给定的正确动作标签，训练信号来自交互结果。与你熟悉的反馈控制 u=κθ(x) 相比，随机策略输出的是动作分布；确定性控制律可以视为另一类参数化，而不是把 softmax 随便取极限就解决所有问题。</p>
+<h3>9. 常见误区</h3><ul><li>把 logits 当成概率：它们无需非负，也无需和为一。</li><li>把一条高回报轨迹当成确定的正确标签，忽略随机性与后续状态分布。</li><li>认为策略学习必然比价值学习更好；两类方法有不同估计误差和优化困难。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>两个 logits 同时增加 100，动作概率会变吗？</li><li><strong>Level 2：</strong>独立推导一维 sigmoid 的导数，并计算 θ=0 时本例的目标梯度。</li><li><strong>Level 3：</strong>设计一个两步任务，使得立即奖励较小的动作具有更大期望回报。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>不会；分子分母同时乘以 exp(100)，比例不变。实现仍应减最大值避免溢出。</p><p><strong>Level 2 参考：</strong>p=eθ/(1+eθ)，求导得 p(1−p)。θ=0 时 p=0.5，目标梯度为 2×0.25=0.5。</p><p><strong>Level 3 参考：</strong>例如左转立即得 0，下一步必得 5；右转立即得 2 后结束。γ=0.9 时左转总回报 4.5，大于 2。</p></details>
+<h3>11. 本节知识总结</h3><p>参数化策略给行动概率提供可优化坐标。轨迹概率把策略与环境串起来，期望轨迹回报才是学习目标。我们已经定义了要优化什么，下一步才是构造不知道环境导数也能计算的梯度。</p>
+<h3>12. 下一节预告</h3><p>如果只给你实际走过的轨迹和得到的奖励，你能否判断概率旋钮应该往哪边转？下一课从一个概率恒等式推导 REINFORCE。</p>
+</section>

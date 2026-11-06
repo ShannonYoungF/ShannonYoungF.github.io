@@ -1,0 +1,41 @@
+<h2>第 51 讲：世界模型是在记录像，还是在理解可以发生什么？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>机器人摄像头每秒带来几十万像素。真正影响下一步行动的，可能主要是位置、速度和障碍关系。如果它能把图像压缩成一个小状态，就可以在这个小世界里做很多次便宜的试跑。但漂亮的重建图像，未必保留了决定碰撞的那一点细节。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>潜状态必须保留什么信息？</li><li>重建、预测与控制目标有何区别？</li><li>想象轨迹怎样参与策略学习？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>世界模型通常包含表示、动力学，以及奖励或终止预测。表示负责把历史观测转成潜状态；动力学回答不同动作会导致什么；奖励模型回答这些后果是否值得。</p><p>静态编码一帧图像可能漏掉速度，因此历史或递归状态很重要。本文用线性降维作最小原型，帮助分清接口；Dreamer 等现代方法还涉及随机潜变量、递归推断和在想象轨迹上的策略优化。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="世界模型是在记录像，还是在理解可以发生什么？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第51讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">观测历史</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">编码潜状态</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">动作条件模型</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">预测不同后果</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">想象轨迹</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">规划 / 策略学习</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">真实任务</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">核验模型偏差</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3><p>记观测为 \(o_t\)，历史表示为 \(z_t=e_\phi(o_{\le t},a_{&lt;t})\)。一个模型可包含 \[p_\theta(z_{t+1}\mid z_t,a_t),\quad p_\theta(r_t\mid z_t,a_t),\quad p_\theta(o_t\mid z_t).\tag{51.1}\]它们分别描述潜动力学、奖励与观测重建，必须由数据估计。</p><p>在线性原型中令 \(z=W^\top(o-\bar o)\)，重建 \(\hat o=\bar o+Wz\)，约束 \(W^\top W=I\)。对中心化观测矩阵O，正交投影满足 \(\|O-OWW^\top\|_F^2=\|O\|_F^2-\|OW\|_F^2\)，因此最小化重建误差等价于最大化保留方差，W可取O的前几个右奇异向量。随后拟合 \(z'=Az+Ba\)。这是PCA与线性辨识，不能等同于现代递归随机世界模型。</p><p>若潜状态近似保留未来奖励相关的马尔可夫信息，可在模型中优化 \[\hat J=\mathbb E_{\hat p,\pi}\sum_{k=0}^{H-1}\gamma^k\hat r(z_k,a_k).\tag{51.2}\]此处期望基于学习模型；真实目标基于真实转移。重建误差小不能直接控制两个目标之差，还需检查任务相关信息与多步预测。</p><h3>6. 手算示例</h3><p>观测 \(o=(p,v,c)\)，位置p和速度v方差各为1，背景亮度c方差为100。只保留一个主成分时，PCA可能优先保留亮度，显著降低重建误差，却丢掉刹车所需的速度信息。这构成“重建更好不保证控制更好”的反例，应额外测试潜状态能否恢复任务相关变量。</p><h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_51.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+rng = np.random.default_rng(51)
+n = 1000
+state = rng.normal(size=(n, 2))  # position, velocity
+background = rng.normal(0, 10, (n, 1))
+obs = np.hstack([state, background])
+mean = obs.mean(0)
+_, _, vt = np.linalg.svd(obs-mean, full_matrices=False)
+for rank in [1, 2, 3]:
+    W = vt[:rank].T
+    z = (obs-mean) @ W
+    reconstruction = z @ W.T + mean
+    # Check whether a linear readout recovers control-relevant variables.
+    X = np.column_stack([z, np.ones(n)])
+    coef = np.linalg.lstsq(X[:700], state[:700], rcond=None)[0]
+    pred = X[700:] @ coef
+    print(&quot;latent rank&quot;, rank,
+          &quot;reconstruction MSE&quot;, np.mean((reconstruction-obs)**2),
+          &quot;held-out state MSE&quot;, np.mean((pred-state[700:])**2))
+print(&quot;Large background variance can dominate a small PCA representation.&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>这里代码只做PCA与状态读出，没有训练潜动力学或想象策略。PCA使用了全部观测，留出的只是线性读出器后30%的状态标签，因此输出不是表示端严格独立的测试。把均值和奇异向量都改为仅用前700条拟合，再比较结果。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>这与你熟悉的降阶建模有共同结构：保留少量坐标以降低预测和规划成本。控制相关的降阶还必须关心可观测性、可控性和任务信息。</p><p>实验改变背景方差，观察重建误差与控制状态恢复误差。若表示依赖动作历史，则评估数据切分还需避免同一轨迹相邻帧泄漏到训练与测试两边。</p>
+<h3>9. 常见误区</h3>
+<ul><li>世界模型不等于任何视频预测模型。</li><li>潜维数小不能保证获得了马尔可夫状态。</li><li>模型里的高回报需要真实环境验证。</li></ul>
+<p><strong>反例检查：</strong>背景方差很大时，增加潜维数可能先改善像素重建，却仍丢掉一个控制方向。额外预测速度符号、碰撞和动作后果，才能检查任务信息；单独标准化各维也会改变PCA所优化的尺度，需要说明理由。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>一帧位置图为什么不足以判断刹车？</li><li><strong>Level 2：</strong>解释手算反例中PCA为何偏向背景。</li><li><strong>Level 3：</strong>设计能发现潜状态丢失障碍信息的测试。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>相同位置可能对应不同速度，未来取决于尚未观测的变量。</p><p><strong>Level 2：</strong>PCA优先减少方差最大的重建项；目标中没有控制相关性。</p><p><strong>Level 3：</strong>构造背景近似但障碍不同的成对观测，测试表示区分、碰撞预测与闭环任务成功率。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>世界模型应当保留动作后果与任务相关信息。表示、预测、想象和真实执行是四个需要分别检验的环节。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：如果有人已经会开车，机器人能否直接模仿？为什么跟着老师的数据学，自己上路仍然会偏？</p>

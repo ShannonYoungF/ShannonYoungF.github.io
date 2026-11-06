@@ -1,0 +1,41 @@
+<h2>第 55 讲：两个都在学习的机器人，为什么会让彼此的环境不停变化？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>两台机器人同时到窄门前。昨天对方总是让路，你学会了直接通过；今天对方也学会了直接通过，于是双方碰在一起。每台机器人的代码都没改环境物理规律，但从各自的视角看，动作后果的分布已经变化。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>为什么单智能体稳定环境的假设会失效？</li><li>集中训练、分散执行分别能使用什么信息？</li><li>合作任务怎样进行信用分配？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>另一台学习者是环境的一部分，而且它的策略会更新。单个机器人如果只把对方当固定噪声，就可能发现旧经验不再匹配当前世界。</p><p>集中训练可以让critic看到联合状态和动作，从而更清楚地解释后果；部署时每个actor只使用自身可获得的信息。这种信息分工需要明确执行约束，不能把训练时额外信息悄悄送给actor。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="两个都在学习的机器人，为什么会让彼此的环境不停变化？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第55讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">联合动作</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">共同决定转移</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">他人更新</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">等效环境改变</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">集中训练</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">联合信息critic</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">分散执行</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">局部观测actor</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>马尔可夫博弈包含状态s、各智能体动作 \(a^1,\ldots,a^n\)、联合转移 \(p(s'|s,a^1,\ldots,a^n)\) 和各自奖励。先假设各观测 \(o^j\) 由当前联合状态确定，且各actor独立抽样动作；对智能体i，其等效转移为 \[p_i^{\pi_{-i}}(s'|s,a^i)=\sum_{a^{-i}}p(s'|s,a^i,a^{-i})\prod_{j\ne i}\pi_j(a^j|o^j).\tag{55.1}\]只要其他策略 \(\pi_{-i}\) 改变，这个转移就改变；这就是独立学习视角下的非平稳来源。若策略依赖观测历史，应纳入相应历史状态；共享随机信号会产生相关动作，届时不能继续用各策略概率的乘积。</p><p>一个集中critic可写为 \(Q_i(s,a^1,\ldots,a^n)\)，分散actor为 \(\pi_i(a^i|o^i)\)。这体现CTDE的信息结构，而不是特定单一算法。若所有人共享团队奖励，也仍然需要分辨某个动作对结果的贡献。</p><p>反事实baseline的一种思想是固定别人动作，对自身可能动作求平均：\[b_i=\sum_{\tilde a^i}\pi_i(\tilde a^i|o^i)Q(s,(\tilde a^i,a^{-i})).\tag{55.2}\]于是优势 \(Q-b_i\) 比较“这次自己的动作”与“在相同他人动作下自己通常会怎样”。baseline不能依赖所采样的自身动作，才能沿用相应无偏性论证。</p>
+<h3>6. 手算示例</h3>
+<p>窄门中对方以概率q前进。自己前进：对方等待时奖励1，同时前进时奖励−2；自己等待奖励0。因此 \(Q(\mathrm{go})=(1-q)1+q(-2)=1-3q\)。q=0.1时为0.7，q=0.8时为−1.4。同一个自身动作的价值随对方策略变化，在阈值q=1/3两侧应作出不同选择。</p>
+<h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_55.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(55)
+q_values = np.linspace(0, 1, 101)
+go_value = 1-3*q_values
+for q in [0.1, 0.8]:
+    other_go = rng.random(100000) &lt; q
+    reward = np.where(other_go, -2.0, 1.0)
+    print(&quot;other go probability&quot;, q,
+          &quot;empirical own-go value&quot;, reward.mean(), &quot;exact&quot;, 1-3*q)
+plt.plot(q_values, go_value, label=&quot;Q(go)&quot;)
+plt.axhline(0, color=&quot;gray&quot;, linestyle=&quot;--&quot;, label=&quot;Q(wait)&quot;)
+plt.axvline(1/3, color=&quot;gray&quot;, linestyle=&quot;:&quot;)
+plt.xlabel(&quot;other agent go probability&quot;)
+plt.ylabel(&quot;expected one-step reward&quot;)
+plt.legend(); plt.tight_layout(); plt.savefig(&quot;lesson55_game.png&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>脚本固定自己的动作是前进，仅改变对方前进概率，并没有同时训练两个actor。先核对经验奖励与解析直线，再冻结对方作为基线。若增加双方更新，记录两者策略概率随时间的变化，才能分辨收敛、周期振荡与一次偶然协调。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>这与多机器人协调、博弈论和分布式控制相连。共享全局状态的集中规划器与只看局部观测的分散策略，信息条件不同，比较时必须写清。</p><p>实验只是单步博弈，用来隔离非平稳来源，并未训练多智能体算法。进阶可以让双方同时更新q，观察振荡；再研究通信、协调奖励或集中critic是否改变结果。</p>
+<h3>9. 常见误区</h3>
+<ul><li>共享奖励不意味着每个个体都能识别自身贡献。</li><li>集中训练不表示执行时允许访问所有信息。</li><li>单智能体Q-Learning收敛结论不能直接搬到同时学习的博弈。</li></ul>
+<p><strong>理论边界：</strong>集中critic改善信息利用，却不会让所有博弈变成具有唯一最优策略的单智能体问题；团队最优、个体最佳响应和均衡是不同目标。共享团队奖励也可能让“谁该为失败负责”无法从单次结果中识别。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>其他机器人策略改变为什么会影响自己的转移？</li><li><strong>Level 2：</strong>求前进动作优于等待的q范围。</li><li><strong>Level 3：</strong>怎样区分学习不稳定来自对方更新，还是来自价值网络？</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>等效转移对他人动作求了加权平均，权重就是他人策略。</p><p><strong>Level 2：</strong>1−3q&gt;0，故q&lt;1/3。</p><p><strong>Level 3：</strong>冻结对方策略作对照；固定数据测试critic；再逐步恢复同时更新，并对齐其他条件。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>多智能体学习新增了策略相互影响、信息限制与信用分配。建模时必须明确谁能看到什么、谁在改变什么。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：如果碰撞绝不希望发生，能否把“安全”写成奖励之外的正式约束？</p>

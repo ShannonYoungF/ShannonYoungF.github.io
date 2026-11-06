@@ -1,0 +1,33 @@
+<section class="rl-lesson" data-lesson="36">
+<h2>第 36 讲：优势究竟该看一步、十步，还是整段经历？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>教练评价一次转弯，可以只看紧接着的状态，也可以等车辆走完一条街。前者反馈及时却依赖经验判断，后者证据更多但掺入许多后续随机因素。GAE把不同观察长度联系起来，让你用一个参数调节对短期自举和长期采样的依赖。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>一串TD误差怎样组成多步优势？</li><li>λ到底控制了什么，是否等于折扣因子？</li><li>为什么重置边界和自举边界需要两个遮罩？</li></ul>
+<h3>4. 直觉解释</h3><p>每个TD误差都是一次局部“惊喜”。靠近当前动作的惊喜权重较大，远处惊喜按γλ衰减。γ来自任务目标，λ来自估计器设计；把两者混为一谈，会把“我们重视多远未来”与“我们怎样估计它”混在一起。</p><p>GAE不是凭空发明另一种价值，而是对不同长度优势估计作加权。λ=0只用一步TD；λ接近1使用更长范围，但critic误差、有限rollout截断与采样分布仍会影响结果。不能脱离这些条件简单说哪个λ永远更好。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="优势究竟该看一步、十步，还是整段经历？"><text x="24" y="30" fill="var(--text)" font-size="18">优势究竟该看一步、十步，还是整段经历？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">δt</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">局部惊喜</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">γλδt+1</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">近期证据</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">(γλ)²δt+2</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">远期证据</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">加权优势</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">反向递推</text></svg><figcaption>远期权重同时受任务折扣γ与估计参数λ影响；环境重置切断递推。</figcaption></figure>
+<h3>5. 数学原理</h3><p>先令δt=rₜ₊₁+γV(st₊₁)−V(st)。展开两步残差：δt+γδt₊₁=rₜ₊₁+γrₜ₊₂+γ²V(st₊₂)−V(st)，中间价值相消。因此n-step优势等于Σl=0…n−1 γˡδt₊l。对不同长度按几何权重混合，交换求和得到：</p><div class="rl-equation">\[\widehat A_t^{\mathrm{GAE}(\gamma,\lambda)}=\sum_{l=0}^{\infty}(\gamma\lambda)^l\delta_{t+l}.\tag{36.1}\]</div><p>在长度T的实际片段中反向递推。记dt为真实终止，bt为真实终止或发生环境重置，则：</p><div class="rl-equation">\[\delta_t=r_{t+1}+\gamma(1-d_t)V(s_{t+1})-V(s_t),\quad \widehat A_t=\delta_t+\gamma\lambda(1-b_t)\widehat A_{t+1}.\tag{36.2}\]</div><p>外部TimeLimit截断时dt=0而bt=1：末观测仍可自举，迹却不能穿过重置。rollout末端设后续优势为0，保留δ中的末状态值。若时间限制属于任务本身，则应按有限时域建模并相应处理终止。</p><p>当V准确且边界正确时，各有限n-step优势具有相应条件期望；实际近似V使较小λ通常更依赖critic。λ=1在真正终止片段会望远到MC回报减baseline；外部截断片段则仍含末值，不是完整MC。</p>
+<h3>6. 手算示例</h3><p>给定三个连续非重置的TD残差δ0=1、δ1=2、δ2=3，γ=0.9，λ=0.8，则γλ=0.72。末端A2=3，A1=2+0.72×3=4.16，A0=1+0.72×4.16=3.9952。</p><p>若第0步后发生外部截断并重置，第0步δ仍包含正确末观测的自举，但A0只能等于δ0=1，不能把新一局的2与3接上。这个区别不改变公式形式，却决定数据是否来自同一段未来。</p>
+<h3>7. Python 实验</h3><p>先用脚本核对手算，再把公共A2C或PPO实现中的λ改成0、0.5、0.95、1。固定γ、总交互量和评估条件，比较优势尺度、价值误差与独立评估回报。仅比较优势方差不足以判断最好λ，因为偏差和策略优化效果也重要。</p><p>可以构造一个可枚举小MDP，先使用精确V，再给V加入已知误差。在大量固定策略轨迹上比较估计优势与真实优势，分别报告偏差和方差，这比直接在神经网络训练曲线上猜测机制更有解释力。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_36.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+
+def gae(delta, boundary, gamma=0.9, lam=0.8):
+    advantage = np.zeros_like(delta, dtype=float)
+    trace = 0.0
+    for t in range(len(delta)-1, -1, -1):
+        trace = delta[t] + gamma*lam*(1-boundary[t])*trace
+        advantage[t] = trace
+    return advantage
+
+delta = np.array([1.0, 2.0, 3.0])
+print(&quot;continuous:&quot;, gae(delta, np.array([0,0,0])))
+print(&quot;reset after t=0:&quot;, gae(delta, np.array([1,0,0])))
+for lam in [0, 0.5, 0.8, 1]:
+    print(&quot;lambda&quot;, lam, gae(delta, np.zeros(3), lam=lam))</code></pre>
+<h3>8. 与已有知识的联系</h3><p>GAE与前面的资格迹共享几何加权结构，但用途不同：TD(λ)用于价值学习，GAE用于给actor提供优势权重。它也联系了n-step回报。对你熟悉的信号处理而言，反向递推像一种几何加权滤波，但这里的信号具有策略评估含义，不能仅凭滤波直觉推断其偏差。</p>
+<h3>9. 常见误区</h3><ul><li>把λ当作另一种任务折扣，随意代替γ。</li><li>只使用一个done遮罩，同时清零截断自举与迹。</li><li>说λ=1总是完整MC，忽略rollout末端仍可能自举。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>γ与λ在概念上分别属于问题还是估计器？</li><li><strong>Level 2：</strong>令λ=1，展开三个残差并展示价值项相消。</li><li><strong>Level 3：</strong>设计“精确critic”和“带偏critic”两组实验，检验λ的作用。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>γ属于回报目标的定义；λ主要控制优势估计混合方式。</p><p><strong>Level 2 参考：</strong>δ0+γδ1+γ²δ2=r1+γr2+γ²r3+γ³V(s3)−V(s0)，中间价值项抵消。</p><p><strong>Level 3 参考：</strong>固定策略和相同轨迹分布，改变critic误差，比较各λ的优势均值、方差和均方误差，避免训练中其他变量混杂。</p></details>
+<h3>11. 本节知识总结</h3><p>GAE是TD残差的几何加权和。它把多步估计统一为一个可反向计算的优势估计器，边界处理和critic准确性与λ本身同样重要。</p>
+<h3>12. 下一节预告</h3><p>已经花代价采来的轨迹，只用一次是否可惜？下一课检查旧策略数据能怎样参与新策略更新。</p>
+</section>

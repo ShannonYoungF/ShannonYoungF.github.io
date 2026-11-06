@@ -1,0 +1,47 @@
+<h2>第 57 讲：仿真里百战百胜，真实机器人为什么还是会摔倒？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>仿真机器人每次都能及时刹车，真机却总多滑半米。也许真实摩擦更小，也许电机慢一拍，也许速度估计落后了。把训练次数翻倍，可能只让策略更擅长那个理想世界。要跨过仿真与现实的差距，需要先说清哪些东西变了。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>模型、观测与执行差距如何分类？</li><li>域随机化优化的是什么分布？</li><li>怎样检验范围外泛化与延迟影响？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>系统辨识尝试把仿真调得更接近目标机器人；域随机化让策略见过许多可能世界。前者缩小差距，后者扩大适应范围，可以互补。</p><p>随机化不是随意把所有参数抖得很大。过宽的分布可能让目标过难，过窄则漏掉现实。训练时知道某个摩擦参数，而执行时无法观测它，会产生信息泄漏；要么策略不直接使用它，要么明确提供可用的在线估计。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="仿真里百战百胜，真实机器人为什么还是会摔倒？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第57讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">识别差距</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">参数·观测·延迟</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">构造训练分布</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">辨识与随机化</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">独立测试</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">范围内 / 范围外</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">真实控制</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">接口与安全</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>令动力学参数为 \(\xi\)，仿真分布为 \(p_{\mathrm{train}}(\xi)\)。域随机化目标是 \[\max_\theta \mathbb E_{\xi\sim p_{\mathrm{train}}}J(\pi_\theta;\xi).\tag{57.1}\]它优化训练参数分布上的平均表现，不自动优化真实分布、更不自动保证最坏情形。鲁棒目标 \(\max_\theta\min_{\xi\in\Xi}J(\pi_\theta;\xi)\) 则是另一个问题。</p><p>延迟可写为 \(x_{t+1}=f(x_t,u_{t-d})\)。若原状态只含x，当前动作不能立即决定下一状态，系统看似失去马尔可夫性；加入动作队列 \(\tilde s_t=(x_t,u_{t-d},\ldots,u_{t-1})\) 可在已知固定延迟模型下恢复状态描述。</p><p>标量例子 \(x'=ax+bu,u=-kx\) 的闭环系数是 \(a-bk\)，离散渐近稳定要求 \(|a-bk|&lt;1\)。无延迟与有延迟系统的状态维数不同，不能把这个单状态判据直接套到延迟系统。</p>
+<h3>6. 手算示例</h3>
+<p>标称a=1.05、b=0.5、k=2，闭环系数0.05，稳定。若真实控制增益b=1.2，则系数−1.35，状态交替发散。同一个反馈律在更强的电机上反而不稳定。若训练参数只覆盖b∈[0.4,0.6]，就没有证据保证b=1.2；报告范围外表现时必须把它与范围内测试区分。</p>
+<h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_57.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(57)
+a = 1.05; k = 2.0
+def simulate(b, delay=0):
+    x = 1.0; history = [x]; queue = [0.0]*delay
+    for _ in range(25):
+        proposed = -k*x
+        if delay:
+            applied = queue.pop(0); queue.append(proposed)
+        else: applied = proposed
+        x = a*x+b*applied
+        history.append(x)
+    return np.array(history)
+for b, delay in [(0.5, 0), (1.2, 0), (0.5, 1)]:
+    path = simulate(b, delay)
+    print(&quot;b, delay&quot;, b, delay, &quot;max |x|&quot;, abs(path).max())
+    plt.plot(path, label=f&quot;b={b}, delay={delay}&quot;)
+test_b = rng.uniform(0.4, 0.6, 100)
+print(&quot;in-range stable fraction:&quot;, np.mean(np.abs(a-test_b*k)&lt;1))
+plt.xlabel(&quot;step&quot;); plt.ylabel(&quot;state&quot;)
+plt.legend(); plt.tight_layout(); plt.savefig(&quot;lesson57_gap.png&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>当前脚本没有训练域随机化策略，只测试同一反馈律的迁移。特别地，\(b=0.5,d=1\) 时满足 \(x_{t+1}=1.05x_t-x_{t-1}\)，特征方程为 \(\lambda^2-1.05\lambda+1=0\)。共轭根模为1，因此是持续振荡的边界情形，不能因25步未爆炸就判为渐近稳定。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>与你熟悉的鲁棒控制和系统辨识直接相关，但域随机化的平均目标与最坏情形控制目标应分别陈述。部分可观测参数还可以通过历史推断，连接到递归策略与信念状态。</p><p>实验依次改变动力学增益和延迟，每次只改变一个因素。脚本使用无饱和线性系统，是为了隔离稳定性机制；真机设计还必须加入执行器限幅、估计误差和安全保护。</p>
+<h3>9. 常见误区</h3>
+<ul><li>仿真随机化范围不是现实覆盖的证明。</li><li>平均成功率可能掩盖某个参数区域持续失败。</li><li>执行时不可用的真实参数不能作为策略输入。</li></ul>
+<p><strong>反例检查：</strong>把有延迟时的增益改为零点六，特征根模会大于一；它却仍在原无延迟测试区间。分别报告无延迟、固定延迟和变化延迟结果，比只给一个平均稳定比例更能指出仿真接口遗漏了什么。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>域随机化与系统辨识分别改变什么？</li><li><strong>Level 2：</strong>求手算系统对正b的无延迟稳定区间。</li><li><strong>Level 3：</strong>如何设计互不泄漏的训练、验证、真实目标测试分布？</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>前者训练跨多个模型的策略，后者估计更符合目标系统的模型。</p><p><strong>Level 2：</strong>−1&lt;1.05−2b&lt;1，故0.025&lt;b&lt;1.025。</p><p><strong>Level 3：</strong>训练用于更新，验证用于调参，最终固定测试不参与选择；额外单列范围外与现实测量条件。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>Sim-to-Real要分析参数、观测和执行接口。泛化结论依赖测试分布；真实约束还要求控制和安全机制。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：如果机器人已经从海量演示中学到通用动作，强化学习应当从哪一层继续改进？</p>

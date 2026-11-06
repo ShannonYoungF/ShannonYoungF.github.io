@@ -1,0 +1,28 @@
+<section class="rl-lesson" data-lesson="33">
+<h2>第 33 讲：减去一个与动作无关的数，为什么能让学习更稳定？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>两位司机分别完成了十分简单和十分困难的任务，都得到80分。若只按绝对分数奖励，你会忽略任务本身的难度。机器人也需要一条“在这里通常能做到什么”的参考线：比预期好就增加该行动的倾向，比预期差就减少。baseline 正是这条参考线，但它为何不会偷偷改变原来的目标？</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>什么样的 baseline 不改变梯度期望？</li><li>优势为何比绝对回报更适合比较动作？</li><li>减去 baseline 是否一定降低方差？</li></ul>
+<h3>4. 直觉解释</h3><p>baseline 把回报从绝对成绩改成相对成绩。我们并没有改变环境奖励，只改变用于估计梯度的权重。只要基线在给定状态时不依赖当前采样动作，它与 score 相乘的平均贡献就是零。</p><p>状态价值 Vπ是一种自然参考：当前策略在此处的平均前景。Qπ−Vπ告诉我们某动作比平均好多少。它不是“这个动作比全局平均奖励好多少”，也不意味着负优势动作永远不好；策略变化后参考线也会变化。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="减去一个与动作无关的数，为什么能让学习更稳定？"><text x="24" y="30" fill="var(--text)" font-size="18">减去一个与动作无关的数，为什么能让学习更稳定？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">动作回报</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">1 或 3</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">状态基线</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">平均前景 2</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">相对优势</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">−1 或 +1</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">梯度样本</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">都为 +0.5</text></svg><figcaption>此处的零方差是特定单步数值结构产生的，不是 baseline 的普遍保证。</figcaption></figure>
+<h3>5. 数学原理</h3><p>给定状态 s，设 b(s)不依赖当前动作 a。条件期望展开为：</p><div class="rl-equation">\[\mathbb E_{a\sim\pi}[b(s)\nabla\log\pi(a\mid s)]=b(s)\sum_a\nabla\pi(a\mid s)=b(s)\nabla 1=0.\tag{33.1}\]</div><p>因此原策略梯度中的 Qπ或采样回报可以减去 b(s)。对独立于当前动作的状态价值，定义优势：</p><div class="rl-equation">\[A^\pi(s,a)=Q^\pi(s,a)-V^\pi(s),\qquad \sum_a\pi(a\mid s)A^\pi(s,a)=0.\tag{33.2}\]</div><p>actor 损失中要把优势作为固定权重。即使 baseline 来自含参数的网络，也应在 actor 项中停止它的梯度，再通过独立价值损失训练该网络。若 baseline 用当前动作或同一采样噪声构造，其条件独立性需重新检查。</p><p>“任何 baseline 都降低方差”不成立。令 z=∇logπ，在固定状态最小化 E[‖z‖²(G−b)²]，对 b 求导并令零，得到：</p><div class="rl-equation">\[b^*(s)=\frac{\mathbb E[G\|z\|^2\mid s]}{\mathbb E[\|z\|^2\mid s]}.\tag{33.3}\]</div><p>分母非零时这是标量基线的最小二阶矩选择。Vπ=E[G|s]只有在额外条件下与它相同；工程上学习 Vπ常常有用，也因为它容易通过 Bellman 学习。</p>
+<h3>6. 手算示例</h3><p>仍用左右各半、奖励1与3的单步问题。score分别为−0.5和0.5。无基线时梯度样本为−0.5与1.5，均值0.5、方差1。取常数 b=2 后，两种样本分别为(1−2)×(−0.5)=0.5和(3−2)×0.5=0.5：期望仍0.5，方差恰好为0。</p><p>如果错误地取“基线等于当前动作的奖励”，每个样本都变成0，虽然极其稳定，却把真实梯度也抹掉了。这个反例说明低方差并不等于正确。取 b=100 仍无偏，却产生巨大波动，因此基线质量确实重要。</p>
+<h3>7. Python 实验</h3><p>先验证 b=2 的特殊零方差例子，再把右转概率改成0.8，修改 score为a−0.8并按该概率采样。此时状态价值基线与最优加权基线通常不同。绘制 b从−2到6时的样本方差，寻找最小点并与公式核对。</p><p>本实验可以把动作枚举出来计算精确方差；采样只是帮助看见有限样本波动。后来使用神经网络 baseline 时，拟合误差、共享参数和数据复用还会引入新的工程问题，不能从这个单步例子直接推断所有训练稳定性。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_33.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+rng = np.random.default_rng(7)
+a = rng.integers(0, 2, 20000)
+r = np.array([1.0, 3.0])[a]
+score = a - 0.5
+for baseline in [0.0, 2.0, 100.0]:
+    g = (r-baseline)*score
+    print(&quot;b=&quot;, baseline, &quot;mean=&quot;, g.mean(), &quot;var=&quot;, g.var())
+wrong = (r-r)*score  # action-dependent baseline: biased
+print(&quot;wrong action-dependent baseline:&quot;, wrong.mean())</code></pre>
+<h3>8. 与已有知识的联系</h3><p>这与 Monte Carlo 中的控制变量思想直接相关：减去一个期望为零的随机项，保持目标期望同时改变方差。与你熟悉的优化联系在于，梯度估计的信噪比会影响步长选择；baseline没有改变最优控制问题本身。它也不同于奖励整形，后者真正修改了环境的奖励序列，必须另行讨论策略不变性。</p>
+<h3>9. 常见误区</h3><ul><li>认为负优势表示负奖励；它表示低于该状态参考水平。</li><li>让 actor 损失沿 baseline 反向传播，额外优化了未推导的项。</li><li>认为把优势归一化和减去任意依赖动作的函数都具有同一无偏证明。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>为什么 baseline 可以依赖状态，却不能任意依赖当前动作？</li><li><strong>Level 2：</strong>求 p=0.8、左右奖励1和3时，状态价值基线与最优标量基线。</li><li><strong>Level 3：</strong>构造一个无偏但方差比不使用 baseline 更大的例子。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>证明在状态条件下对动作求和；依赖状态的量能提出，依赖动作的量不能一般地提出。</p><p><strong>Level 2 参考：</strong>V=2.6。E[z²]=0.16，E[Gz²]=0.2×1×0.64+0.8×3×0.04=0.224，所以最优基线为1.4。</p><p><strong>Level 3 参考：</strong>使用本例的 b=100；它保持期望但让两个梯度样本大幅远离均值。</p></details>
+<h3>11. 本节知识总结</h3><p>动作无关基线利用 score 的零均值保持梯度期望。优势以状态价值为参考比较动作；它通常改善估计，却没有自动消除所有偏差或保证最小方差。</p>
+<h3>12. 下一节预告</h3><p>既然要学习状态价值作为参考，能否让它进一步替代完整回合回报？下一课把 actor 与 critic 接在一起。</p>
+</section>

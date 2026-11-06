@@ -1,0 +1,34 @@
+<h2>第 53 讲：只有旧日志、禁止新试错，为什么普通强化学习容易出错？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你拿到一年的机器人日志，却暂时不能使用机器人。日志里司机总是轻踩油门。价值网络对从未出现过的极大油门给了一个很高分数，策略便毫不犹豫地选择它；之后的自举更新又把这个高分传回其他动作。真实世界没有提供过一次证据支持这个判断。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>固定数据为什么让最大化特别危险？</li><li>CQL 与 IQL 分别限制了什么？</li><li>离线策略评估需要哪些覆盖假设？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>在线算法做错之后还可以通过新交互纠正，离线算法没有这个机会。数据里缺失的动作并不是“奖励为零”，而是“我们不知道”。网络外推与策略最大化结合，会把不知道误当成最好的机会。</p><p>CQL让未被数据支持的动作估值更保守；IQL通过数据动作的优势加权回归提取策略，减少训练时对任意候选动作进行最大化的依赖。两者解决的是同一类分布偏移风险，但目标和假设不同。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="只有旧日志、禁止新试错，为什么普通强化学习容易出错？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第53讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">固定日志</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">覆盖不完整</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">策略最大化</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">可能选外推动作</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">保守 / 隐式约束</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">限制证据外决策</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">离线评估</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">核对可识别性</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3><p>固定数据上若Bellman目标包含 \(\max_a Q(s',a)\)，未覆盖动作的任意高外推值可能被最大化选中并传播。一个离散CQL形式为 \[\min_Q L_{\mathrm{TD}}(Q)+\alpha\mathbb E_{s\sim\mathcal D}\left[\log\sum_a e^{Q(s,a)}-\mathbb E_{a\sim\mathcal D(\cdot|s)}Q(s,a)\right].\tag{53.1}\]log-sum-exp对高值动作敏感，减去数据动作均值，使相对未被支持的动作受到更大压低压力。具体保守界需要另行核对假设。</p><p>IQL用数据动作的Q拟合V：\[L_V=\mathbb E_{\mathcal D}|\tau-\mathbf1_{\{Q-V&lt;0\}}|(Q-V)^2.\tag{53.2}\]当τ大于0.5时，正残差权重更大，得到expectile而不是quantile。策略可使用 \(\exp(\beta(Q-V))\) 加权行为克隆提取，常采用权重截断作为工程处理。</p><p>离线评估必须关注目标策略相关状态—动作的覆盖，以及转移、奖励、行为概率或估计模型的假设。如果未访问动作在两个可能环境中的后果不同，而日志相同，则新策略价值可能不可识别；更多优化步骤无法凭空补回缺失反事实。</p><h3>6. 手算示例</h3><p>一个状态两个动作，日志只有A且奖励1。环境甲中B奖励10，环境乙中B奖励−10，日志完全相同，无法据此确定B优劣。初始化Q=[0,5]后只拟合A，可得Q=[1,5]，贪心选B。保守正则可降低无证据的B，但也可能错过甲中的真正好动作，这是信息约束下的权衡。</p><h3>7. Python 实验</h3>
+<p>安装：<code>python -m pip install numpy matplotlib</code>；使用 Python 3.11–3.12。以下脚本为本讲最小实验，保存后运行 <code>python lesson_53.py</code>。含有 PyTorch 的脚本另需 <code>python -m pip install torch</code>。图像保存到运行目录；随机实验使用显式种子。</p><pre><code class="language-python">import numpy as np
+def softmax(q):
+    z = np.exp(q-q.max()); return z/z.sum()
+for alpha in [0.0, 0.5, 2.0]:
+    q = np.array([0.0, 5.0])
+    for _ in range(1000):
+        # Logged action is A with deterministic reward 1.
+        grad = np.array([2*(q[0]-1), 0.0])
+        # Gradient of logsumexp(q)-q[A].
+        grad += alpha*(softmax(q)-np.array([1.0, 0.0]))
+        q -= 0.02*grad
+    print(&quot;alpha&quot;, alpha, &quot;Q&quot;, q, &quot;chosen&quot;, [&quot;A&quot;, &quot;B&quot;][q.argmax()])
+print(&quot;True reward of B is unidentifiable from this dataset.&quot;)
+</code></pre>
+<p><strong>实验观察与修改：</strong>代码精确优化单步平方误差加保守正则，不含状态转移、目标网络或IQL。其正则梯度为softmax(Q)减数据动作的独热向量，所以B会被压低。比较不同alpha时同时记录A的拟合误差和B的估计，不要仅以选择了A断言价值已经校准。</p>
+<h3>8. 与已有知识的联系</h3>
+<p>这与离策略学习有关，但离线学习额外限制了后续数据收集；经验回放里有旧数据，并不自动等于Offline RL。</p><p>本实验是单状态无自举的保守估值示范，专门隔离覆盖问题，并非完整CQL基准实现。尝试加入少量B数据，观察信息增加与正则强度的关系；正式选择该分支时再扩展到小MDP及离线评估。</p>
+<h3>9. 常见误区</h3>
+<ul><li>固定数据上的SAC不能自动成为可靠离线算法。</li><li>Expectile不是quantile。</li><li>保守估值可以降低外推风险，也可能牺牲真实好动作。</li></ul>
+<p><strong>理论边界：</strong>只有A数据时，让B趋于负无穷会使正则趋零，因此这个无约束玩具目标甚至未必有有限最小点。有限次梯度更新给出的是一个迭代结果。甲乙两个环境无法从日志区分，也就不能靠该结果证明新策略一定更优。</p>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>日志缺少B意味着B奖励为零吗？</li><li><strong>Level 2：</strong>计算Q=[1,2]且日志动作为A时CQL正则值。</li><li><strong>Level 3：</strong>怎样构造两个日志相同但新策略价值不同的环境？</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>意味着未观察到，没有足够证据确定其后果。</p><p><strong>Level 2：</strong>log(e+e²)−1=log(1+e)≈1.3133。</p><p><strong>Level 3：</strong>让未访问动作的奖励或后继状态不同；保持所有已访问转移相同即可。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>Offline RL把信息覆盖放到中心位置。策略改进、价值外推与评估可信度必须一起考虑。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：一个动作能否持续几秒、完成一个小目标，再把决定权交回来？</p>

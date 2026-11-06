@@ -1,0 +1,56 @@
+<h2>第 63 讲：强化学习和 MPC，到底应该怎样公平比赛？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你发现RL控制器比MPC快很多，却忘了把RL训练的几百万次交互算进去。另一次MPC表现更好，但它直接拿到了真实动力学，而RL只能从数据猜。比较可以很有价值，前提是它回答了一个定义清楚的问题。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>模型先验与交互数据怎样记账？</li><li>在线延迟与离线训练怎样分别报告？</li><li>控制指标如何超越奖励分数？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>公平比较并不要求所有方法内部完全相同，而是明确允许什么资源、测量什么结果。可以研究“已知模型条件下谁控制得更好”，也可以研究“给定数据预算谁适应失配更快”；这两种实验的信息条件不同。</p><p>训练成本、样本成本、在线计算和性能最好分别列出。如果一定要合成一个总指标，就需公开各项权重，否则单一数字会隐藏决定结论的取舍。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="强化学习和 MPC，到底应该怎样公平比赛？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第63讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">定义信息条件</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">模型与观测</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">对齐任务约束</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">动作与控制周期</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">分别记录资源</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">交互·训练·延迟</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">比较任务指标</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">性能与适用范围</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>离散控制任务的阶段成本可定义为 \(\ell(x,u)=x^\top Qx+u^\top Ru\)，并附加约束违反计数、成功率和每步耗时。对比基线应共享任务初始分布、观测、动作限制和控制周期。</p><p>训练预算可记为 \(N_{\rm env}\)、梯度更新数与训练时间，执行预算记每步延迟分布。若想比较“使用n次交互后可达到的效果”，则模型辨识、模仿预训练和RL数据都要进入对应的数据账目。</p><p>残差控制写为 \[u=\operatorname{clip}(u_{\rm base}(x)+\Delta u_\theta(x),u_{\min},u_{\max}).\tag{63.1}\]它给学习提供已有结构，但基线自身的稳定性不自动传给残差闭环。对标量 \(x'=ax+bu\)、残差为kx，闭环系数从 \(a-bK\) 变为 \(a-bK+bk\)，仍需重新检查模小于1的条件。这项系数检验暂忽略饱和与扰动，只描述线性闭环；带动作限幅的系统不能直接继承其全局结论。</p>
+<h3>6. 手算示例</h3>
+<p>标称控制 \(u=-1.5x\)，真实a=1.1、b=0.5，闭环系数0.35。加入残差 \(kx\)：k=0.2时系数0.45，仍稳定；k=2时系数1.35，发散。即使残差某几次试验回报更高，也不能用原始控制器的稳定性证明为它背书。</p>
+<h3>7. Python 实验</h3>
+<p>安装NumPy后运行 <code>python lesson_63.py</code>。脚本只比较限幅标称LQR与离散动作枚举MPC，打印成本和平均计算延迟；它没有RL策略、训练过程或学习曲线。</p><pre><code class="language-python">import numpy as np
+import time
+rng = np.random.default_rng(63)
+a_nom, b, R = 1.0, 0.5, 0.1
+P = 1.0
+for _ in range(200):
+    P = 1+a_nom*a_nom*P-(a_nom*b*P)**2/(R+b*b*P)
+K = b*P*a_nom/(R+b*b*P)
+def mpc(x):
+    # Deterministic discrete-action shooting: fixed and explicit compute budget.
+    actions = np.array([-1., -0.5, 0., 0.5, 1.])
+    plans = np.array(np.meshgrid(*([actions]*4))).T.reshape(-1, 4)
+    z = np.full(len(plans), x); cost = np.zeros(len(plans))
+    for j in range(4):
+        cost += z*z+R*plans[:, j]**2
+        z = a_nom*z+b*plans[:, j]
+    return plans[np.argmin(cost+P*z*z), 0]
+for name in [&quot;nominal LQR&quot;, &quot;nominal MPC&quot;]:
+    costs, latencies = [], []
+    for seed in range(10):
+        noise = np.random.default_rng(seed).normal(0, .01, 30)
+        x = 2.0; total = 0.0
+        for w in noise:
+            start = time.perf_counter()
+            u = float(np.clip(-K*x, -1, 1)) if name.endswith(&quot;LQR&quot;) else mpc(x)
+            latencies.append(time.perf_counter()-start)
+            total += x*x+R*u*u
+            x = 1.1*x+b*u+w
+        costs.append(total)
+    print(name, &quot;mean cost&quot;, np.mean(costs),
+          &quot;mean latency ms&quot;, 1000*np.mean(latencies))
+print(&quot;Both controllers use the nominal model; this script trains no RL policy.&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>LQR、轨迹优化、MPC和RL各自适合不同信息与计算条件。轨迹优化可以作为离线基线，MPC提供在线反馈，RL可以学习快速策略或残差；混合系统仍需说明哪一部分贡献了性能。</p><p>本脚本提供两个明确预算的控制基线，不伪装为RL对照。扩展时可参照第48讲把标量系统封装为统一接口，在此系统重新训练策略后接入评估；另一状态动作维度的策略不能直接移植。各方法保留相同扰动序列。</p>
+<p>MPC每步枚举5⁴=625条长度4的计划，加相同终端代价；LQR增益先做200次Riccati迭代，执行时直接反馈。当前计时包含MPC重建候选数组的开销，因此只比较这份实现。若缓存计划或更换求解器，需重新报告延迟；两基线均用a=1.0预测、在a=1.1上测试，结论只适用于指定失配条件。</p>
+<h3>9. 常见误区</h3>
+<ul><li>只比较在线推理时间会漏掉训练成本。</li><li>真实模型与未知模型条件下的比较回答不同问题。</li><li>残差幅值小也需根据系统稳定裕度分析。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>何时可以让MPC拥有真实模型？</li><li><strong>Level 2：</strong>求手算系统关于残差k的稳定区间。</li><li><strong>Level 3：</strong>设计“相同数据预算下适应动力学失配”的比较。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>当问题明确研究已知模型条件或把它作为信息更充分的参照，并公开说明。</p><p><strong>Level 2：</strong>−1&lt;0.35+0.5k&lt;1，得−2.7&lt;k&lt;1.3。</p><p><strong>Level 3：</strong>固定失配与观测、动作条件，给各学习方法相同真实数据量；分别统计辨识与策略训练成本，独立测试性能和延迟。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>比较应服务具体研究问题。模型信息、数据、计算与约束共同决定结果的含义。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：我们怎样从一个具体失败现象，提出足够小、能够被实验推翻的研究假设？</p>

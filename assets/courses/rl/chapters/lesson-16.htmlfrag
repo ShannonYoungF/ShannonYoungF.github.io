@@ -1,0 +1,75 @@
+<section class="rl-lesson" id="lesson-16">
+<h2>第 16 讲：只看完整冒险的结局，能学会判断路口吗？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>一台送货机器人反复穿过走廊，每次经过三个岔口，最后才知道有没有把包裹送到。工程师没有地图，也无法为每个岔口贴上正确价值标签，却保存了完整行驶录像。能不能把结局反过来作为沿途状态的学习材料？这就是蒙特卡洛预测的出发点：不先猜测环境规律，先认真统计真实经历。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>怎样从完整轨迹得到状态价值的样本？</li><li>同一状态在一幕中出现多次，应该记一次还是每次都记？</li><li>为什么无需转移概率，仍然可以评估固定策略？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>状态价值回答“从这个路口出发，按目前驾驶习惯继续走，通常能得到多少总收益”。一次成功只提供一个样本，并不能证明路口必然安全。蒙特卡洛让机器人反复出发，把每次剩余行程的收益取平均，环境和策略的随机性已经包含在这些真实样本里。</p>
+<p>首次访问方法在每幕只采用状态第一次出现后的回报；每次访问方法采用所有出现。它们的数据组织不同，后者同幕样本通常相关，不能把访问次数直接当成独立试验次数。这里先固定策略，只学会评价，不同时改变驾驶习惯。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="固定策略下，完整经历提供回报样本，统计平均估计价值。"><title>只看完整冒险的结局，能学会判断路口吗？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">完整一幕</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">反向算回报</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">保留首次访问</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">增量求平均</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">固定策略下，完整经历提供回报样本，统计平均估计价值。</text></svg><figcaption>固定策略下，完整经历提供回报样本，统计平均估计价值。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设一幕在时刻T真正终止，轨迹包含状态S、动作A与随后奖励R，折扣因子为γ。从时刻t开始的回报与所要估计的策略价值定义为：</p>
+<p>\[G_t=\sum_{k=t}^{T-1}\gamma^{k-t}R_{k+1},\qquad v_\pi(s)=\mathbb E_\pi[G_t\mid S_t=s].\tag{16.1}\]</p>
+<p>分离回报第一项得到 \(G_t=R_{t+1}+\gamma G_{t+1}\)，末端 \(G_T=0\)，因此可从录像末端向前扫描一次。对状态s收集首次访问回报g₁至gₙ，增量平均来自直接整理分子：</p>
+<p>\[V_n(s)=\frac{(n-1)V_{n-1}(s)+g_n}{n}=V_{n-1}(s)+\frac1n[g_n-V_{n-1}(s)].\tag{16.2}\]</p>
+<p>这里n是该状态被用于更新的幕数。固定策略、适当独立分幕采样、有限期望与足够访问，是统计一致性讨论的前提；不断变化的策略数据不能直接视为同一个价值函数的样本。</p>
+<h3>6. 手算示例</h3>
+<p>取折扣0.9，轨迹依次为A、B、A、终点，奖励为0、2、4。反向计算得最后A的回报4，B的回报5.6，首个A的回报5.04。首次访问法对A只记5.04；每次访问法本幕记5.04与4。若此前A已有两个首次访问样本、均值3，新均值为3+(5.04−3)/3=3.68。</p>
+<h3>7. Python 实验</h3>
+<p>实验使用五个非终止位置的公平随机游走。左端终止奖励0，右端终止奖励1，中间奖励0，真实价值恰等于到达右端的概率。程序打印学习值、解析值、均方根误差和有效访问幕数。比较--episodes 300与30000；增加数据通常降低总体统计误差，但单个随机种子的误差不保证单调下降。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_16.py</code>。<a href="../assets/courses/rl/examples/lesson_16.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""First-visit Monte Carlo prediction. Install: pip install numpy."""
+import argparse
+import numpy as np
+
+def run(episodes=3000, seed=16):
+    rng = np.random.default_rng(seed)
+    values, counts = np.zeros(7), np.zeros(7, dtype=int)
+    for _ in range(episodes):
+        state, trajectory = 3, []
+        while state not in (0, 6):
+            next_state = state + rng.choice([-1, 1])
+            trajectory.append((state, float(next_state == 6)))
+            state = next_state
+        # First collect all returns, then update only a state's first visit.
+        returns, g = np.zeros(len(trajectory)), 0.0
+        for t in reversed(range(len(trajectory))):
+            g = trajectory[t][1] + g
+            returns[t] = g
+        seen = set()
+        for (s, _), g in zip(trajectory, returns):
+            if s not in seen:
+                seen.add(s)
+                counts[s] += 1
+                values[s] += (g - values[s]) / counts[s]
+    truth = np.arange(1, 6) / 6
+    print('first-visit values:', np.round(values[1:6], 3))
+    print('analytical values :', np.round(truth, 3))
+    print('RMSE:', np.sqrt(np.mean((values[1:6] - truth)**2)))
+    print('state visit counts:', counts[1:6])
+    return values
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--episodes', type=int, default=3000)
+    p.add_argument('--seed', type=int, default=16)
+    a = p.parse_args()
+    run(a.episodes, a.seed)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>动态规划使用转移模型对可能后继求期望，本课以真实结局替代模型积分，学习目标仍是固定策略价值。与你熟悉的系统辨识相比，这里甚至不必先拟合动力学，而是直接估计性能指标；代价是必须等待幕结束，长任务会推迟反馈。</p>
+<h3>9. 常见误区</h3>
+<p>终止后没有未来回报，不能再加一个终点价值。首次访问不是整段学习只更新一次，而是每幕最多一次。必须按正向时间判断首次出现；从后往前第一次遇见，其实是原轨迹的最后一次访问。失败轨迹也是有效样本，只保留成功录像会系统性高估价值。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：一次经过A得到高回报，能否把该数当成真实价值？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>不能，它只是条件回报分布的一个随机样本，需要重复经历判断均值。</p></details>
+<p><strong>Level 2：把手算例子的折扣改为0.5，计算首次访问A的回报。</strong></p>
+<details><summary>参考答案与验证思路</summary><p>最后A为4，B为2+0.5×4=4，首A为0+0.5×4=2。</p></details>
+<p><strong>Level 3：如果仓库任务永不自然结束，如何改造实验并说明代价？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>可定义有意义的有限任务边界，或截取有限回报；直接丢弃后续收益会改变原目标。若以末端价值补偿，就引入了自举。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>蒙特卡洛把完整经历转成回报样本，再以平均逼近策略价值。它不需要环境模型，也不使用后继价值估计，但要为等待结局和样本方差付出代价。</p>
+<h3>12. 下一节预告</h3>
+<p>如果还没送到终点，机器人就发现下一条走廊比预计安全，能不能立刻更新当前路口？下一讲让学习从等结局变成走一步就修正。</p>
+</section>

@@ -1,0 +1,44 @@
+<h2>第 64 讲：怎样把“我想改进 SAC”变成一个可证伪的问题？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>“我想做一个更好的SAC”听起来雄心勃勃，却很难判断下一步该做什么。你观察到机器人在摩擦突变后恢复得慢，这个具体失败反而提供了方向：慢在哪里？已有控制先验是否能减少需要重新学习的内容？什么结果会让你承认这个想法没有帮助？</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>研究假设怎样同时包含机制和适用范围？</li><li>主要指标、消融和否定条件如何提前确定？</li><li>如何避免把调参成功误当成机制创新？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>一个可工作的假设包括对象、条件、干预、结果与机制。例如：“在给定交互预算内，受限残差SAC相对从零SAC减少动力学失配后的跟踪误差，原因是基线保留了可用反馈结构。”它也应写出可能失败的条件，例如基线方向错误或残差容量不足。</p><p>机制消融要拿走你认为起作用的那一部分，同时控制其他资源。把网络变小、奖励改掉、数据量增加后再宣称优势来自“控制先验”，就无法隔离原因。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="怎样把“我想改进 SAC”变成一个可证伪的问题？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第64讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">观察失败</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">定位具体条件</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">提出机制</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">形成可证伪假设</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">提前定协议</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">指标·预算·消融</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">允许否定</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">收缩或修正结论</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>把主要效果定义为 \(\Delta=\mathbb E[M_{\rm baseline}-M_{\rm method}]\)，若M是跟踪误差则正值表示改善。设置具有任务意义的最小改善 \(\delta_{\min}\)，并单列安全成本差 \(\Delta_c\) 的可接受范围；不要只优化一个可交换的混合分数。</p><p>配对差值标准差为 \(\sigma_D\)，独立训练单元n下均值标准误约为 \(\sigma_D/\sqrt n\)。若希望正态近似的95%区间半宽不超过h，则粗规划 \[n\approx(1.96\sigma_D/h)^2.\tag{64.1}\]这是已知方差或较大样本的精度估计，不是小样本的严格功效保证；研究中需先做预实验估计方差，并考虑非正态和失败分布。</p><p>研究链条应把机制变量与结果联系起来：例如更小的动作修正、更快恢复和更少交互，是否同时出现？如果只看到奖励增加，却没看到预测机制，那么结论应收缩为经验表现，而不是机制已证实。</p>
+<h3>6. 手算示例</h3>
+<p>预实验估计配对差值标准差为8，希望均值区间半宽约4，则 \(n\approx(1.96\times8/4)^2=15.37\)，向上取16个独立训练单元。若预算只允许3个，就应该把它定位为探索性证据，或缩小问题、降低单次成本，而不是把每个策略多跑几回合当成16次训练。</p>
+<h3>7. Python 实验</h3>
+<p>本讲仅用Python标准库。运行 <code>python lesson_64.py</code>，生成 <code>lesson64_research_plan.json</code>，打印精度粗规划所需的独立单元数；脚本没有采样、训练或实证结论。</p><pre><code class="language-python">import json
+import math
+from pathlib import Path
+plan = {
+    &quot;hypothesis&quot;: &quot;Bounded residual SAC improves adaptation under specified mismatch&quot;,
+    &quot;mechanism&quot;: &quot;A useful feedback baseline reduces what must be relearned&quot;,
+    &quot;training_budget_env_steps&quot;: 100000,
+    &quot;training_seeds&quot;: list(range(5)),
+    &quot;primary_metric&quot;: &quot;held-out integrated tracking error&quot;,
+    &quot;safety_metric&quot;: &quot;constraint violation rate, reported separately&quot;,
+    &quot;baselines&quot;: [&quot;fixed controller&quot;, &quot;SAC from scratch&quot;, &quot;residual SAC&quot;],
+    &quot;ablations&quot;: [&quot;remove residual bound&quot;, &quot;replace useful baseline&quot;],
+    &quot;test_conditions&quot;: [&quot;held-out mismatch values&quot;, &quot;held-out disturbances&quot;],
+    &quot;falsification&quot;: &quot;no meaningful improvement or unacceptable safety degradation&quot;
+}
+sigma, half_width = 8.0, 4.0
+print(&quot;rough independent units needed:&quot;, math.ceil((1.96*sigma/half_width)**2))
+Path(&quot;lesson64_research_plan.json&quot;).write_text(
+    json.dumps(plan, indent=2), encoding=&quot;utf-8&quot;)
+print(&quot;The five-seed example plan is exploratory, not the calculated precision target.&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这与你已有科研方法相通。RL特有的难点是训练过程本身也很随机，且方法往往同时改变数据分布和优化过程，因此需要清晰的预算与机制消融。</p><p>本讲脚本生成研究计划，不生成研究结论。请把示例里的预算、种子和否定条件改成你的任务协议；修改后先检查计划是否能在可用算力内执行。</p>
+<p>计划示例仍只列五个训练种子，因此它是探索性方案，没有达到手算中16单元的精度目标。应把单次交互上限乘训练单元与方法数，再加调参和消融预算。若不确定恢复时间能否稳定测量，先在预实验完善定义；最终测试后才换指标，会把原假设变成事后解释。</p>
+<h3>9. 常见误区</h3>
+<ul><li>提出新组件并不等于建立创新机制。</li><li>预实验与最终测试混用会影响证据独立性。</li><li>没有达到预设改善也应保留并分析，而不是不断换指标。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>研究假设为什么需要否定条件？</li><li><strong>Level 2：</strong>若σ=8、希望半宽2，粗规划需多少独立单元？</li><li><strong>Level 3：</strong>写出一个残差控制失败的条件并设计测试。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>否则任何结果都能被事后解释为成功，无法区分主张对错。</p><p><strong>Level 2：</strong>ceil((1.96×8/2)²)=62。</p><p><strong>Level 3：</strong>例如基线在某类失配中控制方向错误；对照有用、无用、错误基线，固定数据和残差容量检查适应与安全。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>研究问题来自具体失败，假设需要可证伪，证据需要提前设计。研究价值也可能来自清晰揭示方法失效的条件。</p>
+<h3>12. 下一节预告</h3>
+<p>最后一课：把所有假设、代码、资源和失败案例装进一个别人能复现的研究包。</p>

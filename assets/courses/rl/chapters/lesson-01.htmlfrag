@@ -1,0 +1,57 @@
+<h2 id="lecture-01">第 1 讲：为什么奖励机器人靠近充电站，它却在门口来回踱步？</h2>
+<h3>2. 开场故事</h3>
+<p>你给送货机器人布置了一个简单任务：电量低了，去充电。为了让它知道方向，每向充电站靠近一步就加一分，后退不扣分，真正进站时任务结束。你以为它会直奔充电口。几天后，它却在门口前进一步、后退一步，忙得很认真，电一口也没充。</p><p>先别急着责怪算法。机器人没有接收到“我真正想要的是充电”这句话；它接收到的是一串数字。本课先当一次奖励规则的审计员：找出一个行为为什么得分高，以及这个分数是否代表我们想要的成功。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>智能体、环境、状态、动作与奖励分别对应什么？</li><li>一个动作怎样影响之后还能获得哪些奖励？</li><li>为什么“设计者想要的任务”和“奖励函数规定的目标”可能分离？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>把机器人想成参加游戏的选手。智能体是负责选择动作的机器人程序；环境包括走廊、充电站和计分规则。状态是此刻用于决策的信息，暂时取机器人的位置；动作是靠近、后退或进站。奖励是环境在动作之后给出的反馈，既不是正确动作标签，也不自动包含人的全部意图。</p><p>策略是一套选动作的规则。现在先比较两套写死的规则：一套“靠近后进站”，另一套“靠近后后退”。比较规则不需要先懂任何学习算法。关键是把一步奖励和一整段行为累计获得的分数分开：一个看似合理的局部指示，可能在重复执行时制造循环利益。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="向前加分、后退不扣分：进站反而结束了刷分机会" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="40" y="95" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="115.0" y="127" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">远处 F</text><rect x="270" y="95" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="345.0" y="127" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">门口 N</text><rect x="500" y="95" width="150" height="50" rx="9" stroke="var(--warm)"/><text x="575.0" y="127" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">充电 C</text><path d="M190 107 L270 107" stroke="var(--accent)"/><text x="230.0" y="70" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">靠近 +1</text><path d="M270 135 L190 135" stroke="var(--accent)"/><text x="230.0" y="175" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">后退 0</text><path d="M420 120 L500 120" stroke="var(--accent)"/><text x="460.0" y="70" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">进站 0</text><text x="575" y="185" fill="var(--warm)" stroke="none" font-size="18" text-anchor="middle">终止</text></g></svg><figcaption>向前加分、后退不扣分：进站反而结束了刷分机会</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>约定 \(S_t\) 为第 \(t\) 次决策前的位置，\(A_t\) 为动作，\(R_{t+1}\) 为动作执行后的奖励，\(T\) 为回合结束时刻。先固定最多执行六步，避免无限奖励和现实电量混在一起。用 \(G_0\) 表示本回合总分：</p>
+\[G_0=\sum_{t=0}^{T-1}R_{t+1},\qquad T\leq6.\tag{1.1}\]
+<p>位置只有远处 \(F\)、门口 \(N\)、已进站 \(C\)。规则为 \(F\to N\) 奖励 \(1\)，\(N\to F\) 奖励 \(0\)，\(N\to C\) 奖励 \(0\)，到 \(C\) 后终止。由定义展开，循环的每个两步片段贡献 \(1+0\)，因此六步循环获得三分；完成任务只获得一分。这个结论来自我们自己写的规则，不涉及机器人是否“理解充电”。</p><p>如果取消步数上限，同时不打折，循环总分会无界，比较就失去有限数值意义。也可以采用 \(0\leq\gamma&lt;1\) 的折扣，下一课再解释其含义。此时无限循环总分由几何级数给出：</p>
+\[G_{\mathrm{loop}}=1+\gamma^2+\gamma^4+\cdots=\frac{1}{1-\gamma^2}.\tag{1.2}\]
+<p>本课不求最优策略，也不训练价值函数，只证明一种具体奖励漏洞确实存在。</p>
+<h3>6. 完整手算示例</h3>
+<p>从 \(F\) 开始，六步循环的奖励依次为 \(1,0,1,0,1,0\)，总分 \(3\)；进站规则的奖励为 \(1,0\)，总分 \(1\)，且第二步结束。两者的“进站成功”指标却分别是 \(0\) 和 \(1\)。若采用折扣 \(0.9\)，六步循环分数为 \(1+0.81+0.6561=2.4661\)，进站仍为 \(1\)。因此只把奖励累计曲线画漂亮，不能证明任务成功。</p>
+<h3>7. Python 实验</h3>
+<p>下面直接执行两套策略，打印奖励总分和进站成功率。它是规则检查实验，尚不是强化学习训练。观察两张柱形图的排序为何相反；把最多步数改成二、四、八，找到漏洞开始改变排序的位置。若想修正规则，可尝试仅在真正进站时给奖励，再检查是否出现新的拖延动机。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>。运行独立脚本 <code>lesson_01.py</code>；下列代码与下载脚本一致。种子用于复现这个实验，不能代替对随机性和适用条件的分析。</p><pre><code class="language-python">&quot;&quot;&quot;Reward audit: prescribed policies, not a learning algorithm.&quot;&quot;&quot;
+import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)  # deterministic dynamics here
+HORIZON, GAMMA = 6, 0.9
+
+def rollout(policy):
+    state, rewards = &#x27;far&#x27;, []
+    for _ in range(HORIZON):
+        if state == &#x27;far&#x27;:
+            state, reward = &#x27;near&#x27;, 1.0
+        elif policy == &#x27;enter&#x27;:
+            state, reward = &#x27;charged&#x27;, 0.0
+        else:
+            state, reward = &#x27;far&#x27;, 0.0
+        rewards.append(reward)
+        if state == &#x27;charged&#x27;:
+            break
+    discounted = sum(GAMMA ** t * r for t, r in enumerate(rewards))
+    return sum(rewards), discounted, int(state == &#x27;charged&#x27;)
+
+names = [&#x27;enter&#x27;, &#x27;loop&#x27;]
+results = np.array([rollout(name) for name in names])
+for name, result in zip(names, results):
+    print(name, &#x27;total, discounted, success =&#x27;, result)
+fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+axes[0].bar(names, results[:, 0]); axes[0].set_title(&#x27;Reward total&#x27;)
+axes[1].bar(names, results[:, 2]); axes[1].set_title(&#x27;Task success&#x27;)
+axes[1].set_ylim(0, 1.2)
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>控制系统通常明确写出代价和约束，强化学习也需要目标建模。奖励类似负的阶段代价，但“物理上安全”和“平均得分高”是不同要求。监督学习可以给某个输入标注正确动作；这里我们只写反馈规则，行为后果会反过来改变未来可见的数据。</p>
+<h3>9. 常见误区</h3>
+<p>奖励高不等于任务完成，未进站也不一定是实现错误；可能是目标本来就鼓励它拖延。一次成功轨迹不能证明奖励设计正确，应该主动构造反例。把进站奖励调大能修复这个有限例子，却不能证明其他环境也没有漏洞，更不能替代碰撞和电量等约束。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>门口位置、进站动作、进站后的计分分别属于什么？<br><strong>Level 2：</strong>八步上限下，循环和进站各得多少分？<br><strong>Level 3：</strong>设计一种奖励，使这个三状态环境中及时进站优于循环，并说明你的时间假设。</p><details><summary>参考答案与检查方向</summary><p>L1：分别是状态、动作和奖励反馈。L2：循环四分，进站一分。L3：例如仅进站给 \(+1\)、其他转移给零，并使用严格小于一的正折扣；越早进站折扣损失越少。若不用折扣也不扣时间成本，及时与延迟进站可能只是并列，不能声称严格更优。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>我们建立了“状态—动作—奖励—下一状态”的交互图景，并通过两条完整轨迹区分了即时奖励、累计得分和真实任务指标。掌握情况暂记为待检验；能否独立指出循环漏洞，比能否背出术语更有说服力。</p>
+<h3>12. 下一课预告</h3>
+<p>机器人如果现在拿一分，或者等三步拿十分，应该怎么选？下一课给“以后”一个精确的数学位置。</p>

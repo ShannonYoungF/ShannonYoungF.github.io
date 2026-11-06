@@ -1,0 +1,40 @@
+<h2>第 61 讲：SAC 跑通以后，怎样确认它真的实现了论文里的算法？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你的SAC训练损失一直下降，机器人却把油门顶在边界。检查后发现，策略通过tanh压缩了动作，却仍用压缩前高斯密度计算熵。另一个版本把目标中的熵项符号写反，学到的是尽快消除随机性。两者都能运行，目标却已经改变。</p>
+<h3>3. 本节要解决的核心问题</h3>
+<ul><li>怎样核对变换后的动作概率？</li><li>critic目标与actor目标的熵符号如何一致？</li><li>温度更新和动作单位有什么联系？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>复现SAC可按数据流审查：观测进入actor，产生高斯样本；样本变成有界动作；计算这个动作的log密度；双critic估值；构造目标；分别更新critic、actor与温度。</p><p>每条箭头都可以单独做数值检查。少量训练只能说明程序能工作，不能说明训练充分或达到论文效果；复现实验需要固定预算、独立评估和多个种子。</p><figure class="rl-figure"><svg viewBox="0 0 680 210" role="img" aria-label="SAC 跑通以后，怎样确认它真的实现了论文里的算法？的概念链"><text x="12" y="28" fill="var(--muted)" font-size="16">第61讲 · 把问题变成可以检查的结构</text><rect x="10" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="86" y="98" text-anchor="middle" fill="var(--text)" font-size="17">采样与动作变换</text><text x="86" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">修正概率密度</text><path d="M163 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="179" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="255" y="98" text-anchor="middle" fill="var(--text)" font-size="17">critic目标</text><text x="255" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">min Q − α logπ</text><path d="M332 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="348" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="424" y="98" text-anchor="middle" fill="var(--text)" font-size="17">actor与温度</text><text x="424" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">分别控制梯度</text><path d="M501 111h15m-6-5 6 5-6 5" stroke="var(--accent)" fill="none" stroke-width="2"/><rect x="517" y="60" width="153" height="105" rx="8" fill="var(--accent-soft)" stroke="var(--line)"/><text x="593" y="98" text-anchor="middle" fill="var(--text)" font-size="17">独立多次训练</text><text x="593" y="133" text-anchor="middle" fill="var(--accent)" font-size="16">评估真实表现</text></svg><figcaption>沿箭头检查每一个假设和数据来源；这张概念图不代表实验测量。</figcaption></figure>
+<h3>5. 数学原理与逐步推导</h3>
+<p>令 \(z=\mu+\sigma\epsilon,\epsilon\sim\mathcal N(0,I)\)，其中μ、σ为高斯参数，ε为标准噪声；动作 \(a=c+d\tanh z\)，其中 \(d_j=(a_{\max,j}-a_{\min,j})/2&gt;0\)。变量代换给出 \[\log\pi(a|s)=\log\mathcal N(z;\mu,\sigma)-\sum_j\log[d_j(1-\tanh^2z_j)].\tag{61.1}\]概率密度有单位，缩放改变微分熵；对称边界也仍需考虑d。数值实现使用稳定Jacobian公式，避免饱和时直接求log零。</p><p>双critic的目标为 \[y=r+\gamma(1-\mathrm{terminated})[\min_i Q_{\bar\phi_i}(s',a')-\alpha\log\pi(a'|s')].\tag{61.2}\]外部时间截断通常仍对后继状态自举，但若时限属于任务终止定义则需按有限时域问题处理。actor最小化 \(\mathbb E[\alpha\log\pi(a|s)-\min_iQ_{\phi_i}(s,a)]\)，因此会同时偏好高Q和较高熵。</p><p>一种常用log温度实现以 \(-\log\alpha(\log\pi+\mathcal H_{\rm target})\) 为损失，并停止log概率的温度梯度分支。这是使用相同定点方向的工程参数化；需写清目标熵的符号约定，不能只抄变量名字。</p>
+<p>变换还意味着 \(\mathcal H_{\rm physical}=\mathcal H_{\rm normalized}+\sum_j\log d_j\)。第45讲实现将critic动作输入保持在[−1,1]，在环境端缩放，并在log概率中减去log尺度；目标熵相应加上该常数。统一坐标约定后这些步骤相容，不能只改动作单位而漏改熵约定。</p>
+<h3>6. 手算示例</h3>
+<p>一维标准高斯取z=0，a=tanh0=0，Jacobian为1，log密度为−0.91894；若动作范围从[−1,1]变为[−2,2]，d=2，log密度应再减log2，得到−1.61209。若r=1、γ=0.9、minQ=3、α=0.2、logπ=−1，则目标为 \(1+0.9(3+0.2)=3.88\)。</p>
+<h3>7. Python 实验</h3>
+<p>运行 <code>python lesson_61.py</code> 只需NumPy，脚本检查Jacobian数值有限性、动作缩放常数与目标符号，不训练策略。真实训练转到<a href="#lecture-45">第45讲SAC</a>，将<a href="../assets/courses/rl/examples/lesson_45.py" download>训练入口</a>和 <a href="../assets/courses/rl/examples/rl_continuous_common.py" download>rl_continuous_common.py</a> 放在同一目录，安装NumPy、PyTorch、Gymnasium后运行 <code>python lesson_45.py --steps 50000 --seed 7</code>。</p><pre><code class="language-python">import numpy as np
+def normal_logp(z): return -0.5*z*z-0.5*np.log(2*np.pi)
+def stable_log_jacobian(z):
+    return 2*(np.log(2)-z-np.logaddexp(0, -2*z))
+z = np.array([0.0, 1.0, 10.0])
+for scale in [1.0, 2.0]:
+    logp = normal_logp(z)-stable_log_jacobian(z)-np.log(scale)
+    assert np.isfinite(logp).all()
+    print(&quot;action scale&quot;, scale, &quot;transformed logp&quot;, logp)
+assert np.isclose(normal_logp(0)-np.log(2), -1.612085713764618)
+target = 1+0.9*(3-0.2*(-1))
+assert np.isclose(target, 3.88)
+print(&quot;critic target sign check:&quot;, target)
+print(&quot;Next: python lesson_45.py --smoke&quot;)
+print(&quot;Then repeat the fixed training budget over independent seeds.&quot;)
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是概率变量代换、重参数化梯度和熵正则Bellman方程的交汇点。复现时从这些独立数学事实检查代码，比靠超参数掩盖错误更有效。</p><p>本讲脚本做稳定性与符号核对，完整SAC训练来自第45讲。进阶比较固定温度与自动温度、不同动作尺度和不同目标更新速率；每次只改变一个研究变量。</p>
+<p>观察z=10时，直接计算log(1−tanh²z)可能丢失精度，稳定表达式仍保持有限。这个检查不验证actor梯度或全部训练逻辑；还要核对目标分支无梯度、actor可经Q对动作求导、温度更新对log概率detach。评估使用确定性均值动作，与训练随机策略的熵正则目标分开报告。</p>
+<h3>9. 常见误区</h3>
+<ul><li>tanh之后直接使用高斯log概率会漏Jacobian。</li><li>目标网络参数应停止critic目标分支的梯度。</li><li>熵与动作缩放有关，温度超参数跨单位迁移需谨慎。</li></ul>
+<h3>10. 思考题与挑战任务</h3>
+<ol><li><strong>Level 1：</strong>为什么动作变换需要概率密度修正？</li><li><strong>Level 2：</strong>minQ=2、α=0.1、logπ=−2、r=0、γ=0.95时计算目标。</li><li><strong>Level 3：</strong>设计检测熵项符号错误的独立测试。</li></ol><details class="rl-answers"><summary>先尝试，再展开参考答案</summary><p><strong>Level 1：</strong>映射改变局部体积，密度要除Jacobian行列式以保持总概率。</p><p><strong>Level 2：</strong>目标为0.95×(2+0.2)=2.09。</p><p><strong>Level 3：</strong>固定相同Q值，比较两种熵分布下目标和actor损失的变化方向，验证目标偏好与熵正则定义一致。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>SAC的正确性依赖动作概率、熵符号、梯度边界和终止语义的一致性。运行成功只是复现流程的一步。</p>
+<h3>12. 下一节预告</h3>
+<p>下一课：算法正确以后，怎样判断结果改善超出了随机波动？</p>

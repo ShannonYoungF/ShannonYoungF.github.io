@@ -1,0 +1,17 @@
+import numpy as np
+rng = np.random.default_rng(7)
+z = rng.normal(size=100000)
+a = 2*np.tanh(z)
+grid = np.linspace(-1.999, 1.999, 4000)
+latent = np.arctanh(grid/2)
+normal = np.exp(-latent**2/2)/np.sqrt(2*np.pi)
+density = normal/(2*(1-(grid/2)**2))
+print("density integral:", np.trapezoid(density, grid))
+print("log density at zero:", -0.5*np.log(2*np.pi)-np.log(2))
+print("sample range:", a.min(), a.max())
+import matplotlib.pyplot as plt
+plt.hist(a, bins=80, density=True, alpha=.4, label="samples")
+plt.plot(grid, density, label="change-of-variables density")
+plt.xlabel("Physical action a")
+plt.ylabel("Density")
+plt.legend(); plt.show()

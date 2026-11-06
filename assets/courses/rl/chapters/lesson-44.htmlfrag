@@ -1,0 +1,29 @@
+<section class="rl-lesson" data-lesson="44">
+<h2>第 44 讲：一个优秀机器人，为什么还要保留一点随机性？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>两条路线平均同样好，普通贪心策略可能只保留一条；一旦环境改变，它会失去另一条选择。最大熵强化学习把保持选择余地写进目标：不仅奖励完成任务，也奖励策略分布的熵。它不是“随便加点动作噪声”，而是一个会改变最优策略的明确优化问题。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>熵奖励怎样进入长期目标？</li><li>软价值与普通价值有何不同？</li><li>为什么离散最优策略会出现softmax和log-sum-exp？</li></ul>
+<h3>4. 直觉解释</h3><p>熵度量分布的不确定程度。相同状态下，动作概率分得越平均，离散熵通常越大。温度α决定任务奖励与随机性之间的权衡：α小更接近贪心，α大更重视分散。策略仍偏向高价值动作，只是不把其他动作过早压到零。</p><p>随机性可能帮助探索和多解覆盖，但它也有任务代价。若某个动作危险，不能用“熵越大越好”忽视约束；最大熵目标不是安全保证。连续微分熵还依赖动作坐标与单位，必须沿用上一课的密度约定。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="一个优秀机器人，为什么还要保留一点随机性？"><text x="24" y="30" fill="var(--text)" font-size="18">一个优秀机器人，为什么还要保留一点随机性？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">任务奖励 r</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">完成目标</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">策略熵 αH</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">保留选择</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">软 Bellman</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">Q 与软 V</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">温度 α</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">明确权衡</text></svg><figcaption>软价值包含熵贡献；它与环境原始奖励的单位和含义需要分别解释。</figcaption></figure>
+<h3>5. 数学原理</h3><p>定义熵正则化目标，α&gt;0是温度：</p><div class="rl-equation">\[J_\alpha(\pi)=\mathbb E\sum_{t\geq0}\gamma^t\left[r_{t+1}-\alpha\log\pi(a_t\mid s_t)\right].\tag{44.1}\]</div><p>选取Q只包含当前环境奖励及下一状态软价值，则软Bellman评估关系为：</p><div class="rl-equation">\[Q^\pi(s,a)=\mathbb E[r+\gamma V^\pi(s^\prime)\mid s,a],\quad V^\pi(s)=\mathbb E_{a\sim\pi}[Q^\pi(s,a)-\alpha\log\pi(a\mid s)].\tag{44.2}\]</div><p>给定有限动作Q，求maxπΣaπaQa−αΣaπalogπa，约束Σaπa=1。拉格朗日驻点Qa−α(logπa+1)+λ=0，因此πa与exp(Qa/α)成正比。归一化并代回目标：</p><div class="rl-equation">\[\pi^*(a\mid s)=\frac{e^{Q(s,a)/\alpha}}{\sum_b e^{Q(s,b)/\alpha}},\qquad V(s)=\alpha\log\sum_a e^{Q(s,a)/\alpha}.\tag{44.3}\]</div><p>这是一状态的严格优化解；动态问题需同时满足最优软Bellman关系。连续动作求和换积分，归一化常数通常难算，SAC用参数化策略近似优化。不能把离散枚举的闭式解直接当连续高维实现。</p>
+<h3>6. 手算示例</h3><p>两动作Q=(0,2)，α=1，最优概率为(1/(1+e²),e²/(1+e²))≈(0.1192,0.8808)。软价值ln(1+e²)≈2.1269，比最高Q=2略高，多出的部分来自熵正则化。</p><p>若采用均匀策略，环境Q期望为1，熵为ln2≈0.6931，正则目标为1.6931。若确定选择高值动作，目标为2。softmax策略在两者之间取到更大的2.1269；这不表示它的原始环境奖励也超过2。</p>
+<h3>7. Python 实验</h3><p>运行脚本比较温度、原始Q期望、熵和软价值。α变小时，策略更集中于高值动作；软价值与原始奖励应分别报告。将两个Q同时增加常数c，概率不变而软价值增加c，可以用来检查实现。</p><p>进阶画出概率随α变化，并构造有一个极低价值危险动作的例子。熵正则可能给它非零概率，说明安全限制必须进入问题或执行层，而不能靠最大熵名称获得。离散例子可完全枚举，连续SAC的优化则具有近似误差。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_44.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">import numpy as np
+q = np.array([0., 2.])
+for alpha in [.1, .5, 1., 2.]:
+    z = q/alpha
+    weight = np.exp(z-z.max())
+    p = weight/weight.sum()
+    entropy = -np.sum(p*np.log(p))
+    regularized = p@q+alpha*entropy
+    soft_value = alpha*(z.max()+np.log(weight.sum()))
+    print(&quot;alpha&quot;,alpha,&quot;policy&quot;,p,&quot;reward&quot;,p@q,&quot;H&quot;,entropy,&quot;soft V&quot;,soft_value)
+    assert np.isclose(regularized,soft_value)</code></pre>
+<h3>8. 与已有知识的联系</h3><p>它是Bellman框架上的新目标，而非与动态规划脱离的技巧。softmax解与统计物理的Gibbs分布、优化中的熵正则有数学联系。温度还改变了奖励尺度的含义：环境奖励乘常数时，相对固定α会改变最优随机性，因此比较实验要说明奖励缩放。</p>
+<h3>9. 常见误区</h3><ul><li>把soft价值高于max Q解释为原始任务奖励超过所有动作。</li><li>把行为探索噪声与目标中的熵奖励视为同一件事。</li><li>忽略连续微分熵依赖动作单位。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>所有动作Q相同，有限动作最优熵策略是什么？</li><li><strong>Level 2：</strong>推导两个动作Q差为Δ时高值动作概率与α的关系。</li><li><strong>Level 3：</strong>设计一个任务说明最大熵策略与最安全策略可以不同。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>α>0时均匀策略最大化熵；原始Q相同使奖励项不偏好任何动作。</p><p><strong>Level 2 参考：</strong>高值概率为1/(1+exp(−Δ/α))。</p><p><strong>Level 3 参考：</strong>一个动作安全但略低奖，另一个有小概率灾难；若只按期望奖励加熵优化，可能仍给危险动作非零概率。</p></details>
+<h3>11. 本节知识总结</h3><p>最大熵RL优化奖励与熵的共同目标。软Bellman关系、softmax与log-sum-exp来自同一个正则化优化问题，温度控制权衡而不提供安全保证。</p>
+<h3>12. 下一节预告</h3><p>连续动作下无法枚举softmax归一化常数，怎样训练近似最优随机策略？下一课组合重参数化与双critic得到SAC。</p>
+</section>

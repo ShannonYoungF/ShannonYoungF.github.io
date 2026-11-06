@@ -1,0 +1,103 @@
+<section class="rl-lesson" data-lesson="48">
+<h2>第 48 讲：把倒立摆算法搬到移动机器人上，哪些地方会失效？</h2>
+<h3>2. 一个有趣的开场故事</h3><p>你已经能训练SAC控制倒立摆，现在把动作换成机器人平面加速度。算法名称没变，系统问题却立刻出现：位置够不够描述状态？撞到障碍算结束还是截断？控制频率变了，奖励是否也要变化？这一课把训练器放进你真正能解释的动力学实验底座。</p>
+<h3>3. 本节课要解决的核心问题</h3><ul><li>怎样把连续动力学离散成Gymnasium环境？</li><li>观测、奖励、动作尺度与终止分别怎样设计？</li><li>怎样让SAC与PD/LQR、规划跟踪器有可比较的指标？</li></ul>
+<h3>4. 直觉解释</h3><p>环境接口不仅是把step函数写出来，它是对任务的数学声明。本课用二维双积分器作为移动机器人的简化动力学：状态包含位置与速度，动作是有界加速度。目标固定在原点、障碍固定，因而它们无需作为每次变化的观测；若目标或障碍随机化，则必须加入观测或明确部分可观测结构。</p><p>成功不仅是位置靠近目标，还要求速度小，避免机器人高速掠过就被判成功。每步代价按Δt缩放，近似连续时间积分。碰撞和越界是真实失败终止，采样时间上限则是外部截断，训练器应保留相应末值自举。</p>
+<figure class="rl-figure"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 220" role="img" aria-label="把倒立摆算法搬到移动机器人上，哪些地方会失效？"><text x="24" y="30" fill="var(--text)" font-size="18">把倒立摆算法搬到移动机器人上，哪些地方会失效？</text><rect x="20" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="91.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">动力学状态</text><text x="91.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">位置 + 速度</text><path d="M164 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="180" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="251.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">有界控制</text><text x="251.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">二维加速度</text><path d="M324 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="340" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="411.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">任务接口</text><text x="411.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">奖励与边界</text><path d="M484 108h16m-6-5 6 5-6 5" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="500" y="58" width="143" height="98" rx="9" fill="var(--paper)" stroke="var(--line)"/><text x="571.5" y="96" text-anchor="middle" fill="var(--text)" font-size="18">系统评估</text><text x="571.5" y="129" text-anchor="middle" fill="var(--accent)" font-size="16">成功 / 安全 / 代价</text></svg><figcaption>同一个简化动力学环境连接强化学习、PD/LQR、规划跟踪与后续MPC研究。</figcaption></figure>
+<h3>5. 数学原理</h3><p>设位置p∈R²、速度v∈R²、加速度控制a∈[−1,1]²，在每个采样间隔Δt内零阶保持动作：</p><div class="rl-equation">\[p_{t+1}=p_t+\Delta t\,v_t+\tfrac12\Delta t^2a_t,\qquad v_{t+1}=v_t+\Delta t\,a_t.\tag{48.1}\]</div><p>因此状态x=(p,v)，矩阵A具有位置—速度耦合ΔtI，B由½Δt²I和ΔtI堆叠。它与你熟悉的离散线性模型严格对应；加入障碍、终止和动作限制后，任务不再是无约束无限域LQR。</p><div class="rl-equation">\[r_t=-\Delta t\left(\|p_{t+1}\|^2+0.05\|a_t\|^2\right)+20\mathbf1_{\mathrm{success}}-20\mathbf1_{\mathrm{failure}}.\tag{48.2}\]</div><p>成功要求‖p‖&lt;0.1且‖v‖&lt;0.2；失败包括碰撞或位置越界。代码检查一小步的运动线段与圆障碍的距离，减少只检查端点造成的穿透漏洞。固定dt与每步γ定义了有效时间尺度；改变dt时若要保持相同连续折扣率β，应令γ=exp(−βΔt)，不能只改物理积分。</p><p>可选噪声加入加速度，默认0。训练初始分布、独立评估初始集和扰动测试应分别定义，避免只在一个容易起点验收。</p>
+<h3>6. 手算示例</h3><p>Δt=0.1，p=(1,0)，v=(0.2,0)，a=(−1,0)。下一位置p′=(1+0.02−0.005,0)=(1.015,0)，下一速度v′=(0.1,0)。尽管加速度朝目标，惯性仍让机器人暂时离目标更远；仅靠奖励每步距离减小可能惩罚必要制动行为。</p><p>本步无终止事件，运行代价为−0.1×(1.015²+0.05)=−0.1080225。若真实成功发生，还会加20。评价能耗累计为ΣΔt‖a‖²，与奖励中的0.05权重分开报告，方便比较实际控制代价。</p>
+<h3>7. Python 实验</h3><p>运行 <code>python lesson_48.py --plot</code> 查看PD基线轨迹；<code>--smoke</code>只走16步。将本文件与连续训练公共模块放在同目录后，可运行 <code>python lesson_45.py --env PointRobot-v0 --steps 50000 --plot</code>，用SAC训练同一环境；TD3/DDPG的入口也支持相同env参数。</p><p>首先用Gymnasium的 <code>check_env(PointRobotEnv())</code>检查接口，再用已知一步动力学核对数值。正式实验固定一批评估起点，统计成功率、碰撞率、到达时间、控制能量和推理延迟。PD没有障碍规划能力；自由空间可和LQR比较，障碍任务需要规划跟踪器或MPC作为更合理基线。</p><p>挑战依次增加噪声、改变质量等效控制增益、随机目标和移动障碍。每次只添加一种困难，记录观测是否仍满足Markov假设，避免把所有失败都归咎于算法。</p>
+<p>安装依赖：<code>python -m pip install numpy matplotlib</code>。使用神经网络或 Gymnasium 的本课另需 <code>python -m pip install torch gymnasium</code>。种子用于复现实验条件；跨平台浮点运算仍可能有细微差别。</p>
+<p><a href="../assets/courses/rl/examples/lesson_48.py" download>下载本课 Python 脚本</a></p>
+<pre><code class="language-python">&quot;&quot;&quot;A standalone planar double-integrator Gymnasium environment.
+
+python lesson_48.py --smoke
+python lesson_48.py --plot
+python lesson_45.py --env PointRobot-v0 --steps 50000 --plot
+&quot;&quot;&quot;
+import argparse
+import numpy as np
+import gymnasium as gym
+from gymnasium import spaces
+
+
+class PointRobotEnv(gym.Env):
+    metadata = {&quot;render_modes&quot;: []}
+
+    def __init__(self, dt=0.05, noise=0.0, horizon=200):
+        super().__init__()
+        self.dt, self.noise, self.horizon = dt, noise, horizon
+        self.action_space = spaces.Box(-1, 1, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(4,), dtype=np.float32)
+        self.obstacle = np.array([0.65, 0.0])
+        self.radius = 0.25
+        self.state = np.zeros(4, dtype=np.float32)
+        self.elapsed = 0
+
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        position = np.asarray((options or {}).get(&quot;position&quot;, self.np_random.uniform(-2, 2, 2)))
+        # Reject initial positions already inside the obstacle or goal region.
+        while np.linalg.norm(position-self.obstacle) &lt;= self.radius or np.linalg.norm(position) &lt; .2:
+            position = self.np_random.uniform(-2, 2, 2)
+        self.state = np.concatenate([position, np.zeros(2)]).astype(np.float32)
+        self.elapsed = 0
+        return self.state.copy(), {&quot;success&quot;: False, &quot;collision&quot;: False}
+
+    def step(self, action):
+        acceleration = np.clip(np.asarray(action, dtype=np.float32), -1, 1)
+        acceleration = acceleration + self.np_random.normal(0, self.noise, 2)
+        previous = self.state[:2].astype(float).copy()
+        position = previous + self.state[2:]*self.dt + .5*acceleration*self.dt**2
+        velocity = self.state[2:] + acceleration*self.dt
+        self.state = np.concatenate([position, velocity]).astype(np.float32)
+        self.elapsed += 1
+        segment = position-previous
+        fraction = np.clip(np.dot(self.obstacle-previous, segment)/(segment@segment+1e-12), 0, 1)
+        collision = bool(np.linalg.norm(previous+fraction*segment-self.obstacle) &lt;= self.radius)
+        success = bool(np.linalg.norm(position)&lt;.1 and np.linalg.norm(velocity)&lt;.2)
+        outside = bool(np.linalg.norm(position)&gt;5)
+        terminated = success or collision or outside
+        truncated = self.elapsed &gt;= self.horizon and not terminated
+        energy = self.dt*float(acceleration@acceleration)
+        reward = -self.dt*(float(position@position)+.05*float(acceleration@acceleration))
+        reward += 20*success - 20*(collision or outside)
+        info = {&quot;success&quot;: success, &quot;collision&quot;: collision, &quot;outside&quot;: outside,
+                &quot;control_energy&quot;: energy, &quot;distance&quot;: float(np.linalg.norm(position))}
+        return self.state.copy(), float(reward), terminated, truncated, info
+
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(&quot;--smoke&quot;, action=&quot;store_true&quot;)
+    parser.add_argument(&quot;--plot&quot;, action=&quot;store_true&quot;)
+    args = parser.parse_args()
+    env = PointRobotEnv()
+    obs, _ = env.reset(seed=7, options={&quot;position&quot;: [-1.6, 1.2]})
+    trajectory, score, energy = [obs[:2].copy()], 0.0, 0.0
+    for _ in range(16 if args.smoke else env.horizon):
+        action = np.clip(-1.2*obs[:2]-1.0*obs[2:], -1, 1)  # PD baseline
+        obs, reward, term, trunc, info = env.step(action)
+        trajectory.append(obs[:2].copy())
+        score += reward
+        energy += info[&quot;control_energy&quot;]
+        if term or trunc:
+            break
+    print(&quot;PD baseline:&quot;, info, &quot;return=&quot;,score,&quot;energy=&quot;,energy)
+    if args.plot:
+        import matplotlib.pyplot as plt
+        xy = np.asarray(trajectory)
+        fig, ax = plt.subplots()
+        ax.plot(xy[:,0], xy[:,1], label=&quot;PD trajectory&quot;)
+        ax.add_patch(plt.Circle(env.obstacle, env.radius, alpha=.4, color=&quot;tab:red&quot;))
+        ax.scatter([0],[0],marker=&quot;*&quot;,s=120,label=&quot;goal&quot;)
+        ax.set(xlabel=&quot;x (m)&quot;,ylabel=&quot;y (m)&quot;,aspect=&quot;equal&quot;)
+        ax.legend(); plt.show()
+    env.close()</code></pre><p>本实验使用同目录公共模块 <a href="../assets/courses/rl/examples/rl_continuous_common.py" download>rl_continuous_common.py</a>。将它与本课脚本放在同一文件夹；公共模块包含网络、采样、全部更新与独立评估，未调用强化学习框架。</p>
+<h3>8. 与已有知识的联系</h3><p>这一环境直接使用你的动力学、状态空间与规划知识，使强化学习能与控制方法在同一个系统上比较。代价积分、终端事件与安全约束需要共同解释。它是简化质点模型，不包含真实移动机器人的非完整约束、轮胎接触和执行延迟；后续研究可逐步增加这些因素并检查算法结论是否迁移。</p>
+<h3>9. 常见误区</h3><ul><li>只给位置不给速度，却仍把双积分器当完全观测MDP。</li><li>随机改变目标或障碍却不把变化提供给策略。</li><li>只看累计奖励，不记录碰撞、能耗和成功标准。</li></ul>
+<h3>10. 思考题与挑战任务</h3><ol><li><strong>Level 1：</strong>为什么本课成功条件同时包含位置和速度？</li><li><strong>Level 2：</strong>独立写出A、B矩阵，并核对手算的一步更新。</li><li><strong>Level 3：</strong>把目标随机化，提出新的观测、评估集和泛化测试方案。</li></ol>
+<details class="rl-answers"><summary>展开参考答案与验证思路</summary><p><strong>Level 1 参考：</strong>位置接近但速度过大可能只是掠过，不能代表可保持的到达。</p><p><strong>Level 2 参考：</strong>A=[[I,ΔtI],[0,I]]，B=[[0.5Δt²I],[ΔtI]]，按x′=Ax+Ba可得相同结果。</p><p><strong>Level 3 参考：</strong>可用相对目标位置、速度和障碍相对几何作为观测，分离训练目标区域与未见测试区域，报告成功、碰撞与路径效率。</p></details>
+<h3>11. 本节知识总结</h3><p>完整机器人RL系统由动力学、观测、动作、奖励、边界和评估共同定义。先验证环境，再比较算法，才能把学习曲线解释为控制结论。</p>
+<h3>12. 下一节预告</h3><p>阶段六完成后，机器人已经能从真实交互学习。下一阶段先问：如果它先学会预测动力学，能否用脑中的试跑减少真实试错？</p>
+</section>

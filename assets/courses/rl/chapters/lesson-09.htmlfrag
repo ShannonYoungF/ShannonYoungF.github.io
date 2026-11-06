@@ -1,0 +1,46 @@
+<h2 id="lecture-09">第 9 讲：“这个位置很好”和“这个动作很好”，有什么区别？</h2>
+<h3>2. 开场故事</h3>
+<p>机器人站在一间有两扇门的房间里。左门通向拥堵走廊，右门通向充电站。你问“这个房间值多少分”，同伴却反问：“你进去以后会走哪扇门？”如果驾驶习惯总挑拥堵那扇，位置再有潜力也未必带来好结果。</p><p>这正是价值函数需要带策略标记的原因。我们分别评价“来到这里后按既定习惯行动”与“先指定一个动作，再按既定习惯行动”。两者只差第一步，但这一步足以区分评价一套驾驶习惯与尝试改进它。</p>
+<h3>3. 本节核心问题</h3>
+<ul><li>状态价值与动作价值各对哪些随机性取平均？</li><li>为什么同一个位置的价值依赖策略？</li><li>如何用动作价值和策略概率还原状态价值？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>状态价值像“把车交给指定驾驶员后，从这里出发的平均总分”；动作价值像“先替驾驶员指定第一脚怎么踩，然后把车交还给他”的平均总分。它们都评价从现在起的回报，不评价已经花掉的成本。未来随机性包括策略抽样和环境转移，不是只平均第一步奖励。</p><p>输入是固定策略、环境与当前状态，或再加指定动作；输出是期望回报。期望是理论对象，可以通过模型求，也可以以后用数据估；它不是每次轨迹都会取得的确定得分。本课先建立定义与两者关系，下一课才推导跨状态的一步递推。</p><figure><svg viewBox="0 0 680 220" role="img" aria-label="状态价值是当前策略对动作价值的加权平均" style="width:100%;height:auto;background:var(--paper)"><g fill="none" stroke="var(--line)" stroke-width="2"><rect x="20" y="85" width="150" height="50" rx="9" stroke="var(--accent)"/><text x="95.0" y="117" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">vπ(s)</text><rect x="450" y="25" width="200" height="50" rx="9" stroke="var(--accent)"/><text x="550.0" y="57" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">qπ(s,左)=2</text><rect x="450" y="145" width="200" height="50" rx="9" stroke="var(--warm)"/><text x="550.0" y="177" fill="var(--text)" stroke="none" text-anchor="middle" font-size="18">qπ(s,右)=9</text><path d="M170 100 L450 50" stroke="var(--accent)"/><text x="310.0" y="35" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">权重 0.7</text><path d="M170 125 L450 170" stroke="var(--accent)"/><text x="310.0" y="195" text-anchor="middle" fill="var(--text)" stroke="none" font-size="17">权重 0.3</text></g></svg><figcaption>状态价值是当前策略对动作价值的加权平均</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设策略为 \(\pi\)，回报 \(G_t\) 沿用第二课定义，且所讨论的期望存在。状态价值与动作价值分别定义为</p>
+\[v_\pi(s)=\mathbb E_\pi[G_t\mid S_t=s],\qquad q_\pi(s,a)=\mathbb E_\pi[G_t\mid S_t=s,A_t=a].\tag{9.1}\]
+<p>在 \(q_\pi\) 中第一步动作已固定，此后仍服从 \(\pi\)。按第一步动作对条件期望分组，用全期望公式得到</p>
+\[v_\pi(s)=\sum_a\Pr(A_t=a\mid S_t=s)\,\mathbb E_\pi[G_t\mid S_t=s,A_t=a]=\sum_a\pi(a\mid s)q_\pi(s,a).\tag{9.2}\]
+<p>因此状态价值是动作价值关于当前策略的加权平均。对有限动作集合，由凸组合性质立刻得到</p>
+\[\min_a q_\pi(s,a)\leq v_\pi(s)\leq\max_a q_\pi(s,a).\tag{9.3}\]
+<p>这个界帮助调试：如果计算的状态价值超出所有动作价值范围，通常是概率、索引或定义出了问题。对于策略从不选择的动作，条件事件可能概率为零；此时把 \(q_\pi\) 理解为“主动指定该第一步动作”的干预式定义，再从下一步执行策略，就避免把零概率条件当成普通经验平均。</p>
+<h3>6. 完整手算示例</h3>
+<p>左门选定后立即得二分，下一步在该走廊得零分并终止；右门先得零分，下一步到充电站得十分并终止。折扣零点九，则两个动作价值为二、九。如果策略左转概率零点七，状态价值为 \(0.7\times2+0.3\times9=4.1\)。把右转概率改成一，房间本身没有移动，价值却变成九；改变的是未来行为。这里算出的两个动作后续都只有固定终止动作，所以它们不随该房间的混合概率变化。</p>
+<h3>7. Python 实验</h3>
+<p>脚本直接生成两种完整奖励序列，按指定第一步计算动作价值，再抽样执行混合策略，用大量回合的平均回报核对状态价值。把右侧奖励改成随机数时，注意动作价值也需要对这部分环境随机性取期望；不要把某次右转的幸运结果当成真实 \(q_\pi\)。</p><p>安装依赖：<code>python -m pip install numpy matplotlib</code>，运行独立脚本 <code>lesson_09.py</code>。下面展示完整脚本；固定种子用于复现，随机结果仍应通过重复实验评估。</p><pre><code class="language-python">import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(7)
+gamma = 0.9
+paths = [[2.0, 0.0], [0.0, 10.0]]
+q = np.array([sum(gamma**t*r for t, r in enumerate(path)) for path in paths])
+policy = np.array([0.7, 0.3])
+v = policy @ q
+chosen = rng.choice(2, size=20000, p=policy)
+returns = q[chosen]  # deterministic path after a sampled first action
+print(&#x27;Action values:&#x27;, q)
+print(&#x27;Exact state value:&#x27;, v, &#x27;empirical:&#x27;, returns.mean())
+assert q.min() &lt;= v &lt;= q.max()
+plt.plot(np.cumsum(returns)/np.arange(1, len(returns)+1), label=&#x27;sample mean&#x27;)
+plt.axhline(v, color=&#x27;gray&#x27;, linestyle=&#x27;--&#x27;, label=&#x27;exact value&#x27;)
+plt.xlabel(&#x27;Episodes&#x27;); plt.ylabel(&#x27;Mean return&#x27;); plt.legend()
+plt.tight_layout(); plt.show()
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>控制理论的 cost-to-go 与状态价值对应，常用最小化且符号相反。控制中的状态—控制联合代价到达函数与动作价值对应。动作价值把第一步控制显式展开，因此很适合在不知道转移模型时比较动作；但如何学习它还需要后续的经验方法。</p>
+<h3>9. 常见误区</h3>
+<p>价值不是位置固定附带的属性，必须声明策略与任务。动作价值也不是动作在任何地点都一样的全局得分。价值包含未来，不能只看奖励函数。第一步指定动作后若余下每步也都选择“最好”，算的已经是另一种对象，不能仍随意标成原策略的动作价值。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：</strong>同一状态为何会有不同 \(v_\pi\)？<br><strong>Level 2：</strong>两个动作价值为负二和六，第一动作概率四分之一，状态价值多少？<br><strong>Level 3：</strong>构造两个即时奖励相同、动作价值不同的动作，明确后续策略与终止时刻。</p><details><summary>参考答案与检查方向</summary><p>L1：不同策略会产生不同未来轨迹。L2：\((-2)/4+6\times3/4=4\)。L3：例如都立即奖励零，一条下一步必得一、另一条必得五并终止，折扣零点九时价值分别零点九、四点五。关键是不能只列第一步奖励。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>状态价值评价从某处按策略行动的长期表现，动作价值额外固定第一步。两者通过策略概率的加权平均相连，所有定义都应保留“从现在开始”和“此后执行哪套策略”这两个限定。</p>
+<h3>12. 下一课预告</h3>
+<p>难道每次评价一个位置，都要展开无限长的未来树吗？下一课把长回报压缩为一步递推。</p>

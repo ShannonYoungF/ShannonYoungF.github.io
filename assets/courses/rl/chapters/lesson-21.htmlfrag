@@ -1,0 +1,64 @@
+<section class="rl-lesson" id="lesson-21">
+<h2>第 21 讲：别人的驾驶录像，怎样成为自己的学习材料？</h2>
+<h3>2. 一个有趣的开场故事</h3>
+<p>你想评价一位谨慎司机，却只有激进司机的行车记录。直接平均录像收益，会把激进习惯当作谨慎策略。把录像全部扔掉又很浪费。能否给符合目标习惯的片段更高权重，让旧数据回答新的问题？重要性采样正是概率论提供的换视角工具。</p>
+<h3>3. 本节课要解决的核心问题</h3>
+<ul><li>行为分布与目标分布不同时，怎样转换期望？</li><li>为何必须要求目标策略的数据支持被覆盖？</li><li>普通与加权重要性采样各牺牲什么？</li></ul>
+<h3>4. 直觉解释</h3>
+<p>假如目标司机80%选择左转，而录像司机只20%左转，一次左转录像就应比原来更受重视；对应倍率是0.8/0.2=4。右转应降低权重。完整轨迹必须同时符合多次动作选择，倍率因此相乘。这种补偿不创造没有发生过的轨迹，只重新调整已有轨迹的贡献。</p>
+<p>本课先评价固定目标策略，不让策略随数据改变。环境动力学在两种策略下相同，所以同一轨迹概率比中，初始状态和环境转移项抵消，只剩动作概率比。若环境也变了，仅用动作比率就不足以修正。</p>
+<figure><svg viewBox="0 0 680 220" width="680" height="220" style="max-width:100%;height:auto" role="img" aria-label="改变贡献权重可以换视角，不能创造缺失的数据支持。"><title>别人的驾驶录像，怎样成为自己的学习材料？</title><rect x="1" y="1" width="678" height="218" rx="16" fill="var(--paper)" stroke="var(--line)"/><rect x="20" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="88" y="102" text-anchor="middle" font-size="17" fill="var(--text)">行为b的录像</text><path d="M159 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="188" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="256" y="102" text-anchor="middle" font-size="17" fill="var(--text)">逐步概率比</text><path d="M327 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="356" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="424" y="102" text-anchor="middle" font-size="17" fill="var(--text)">轨迹权重乘积</text><path d="M495 96h23m-7-6 7 6-7 6" fill="none" stroke="var(--warm)" stroke-width="2"/><rect x="524" y="65" width="136" height="62" rx="10" fill="var(--paper)" stroke="var(--accent)"/><text x="592" y="102" text-anchor="middle" font-size="17" fill="var(--text)">目标π的估计</text><text x="340" y="173" text-anchor="middle" font-size="16" fill="var(--text)">改变贡献权重可以换视角，不能创造缺失的数据支持。</text></svg><figcaption>改变贡献权重可以换视角，不能创造缺失的数据支持。</figcaption></figure>
+<h3>5. 数学原理</h3>
+<p>设行为策略为b，目标策略为π。对任意目标概率非零的轨迹τ，要求行为概率也非零。先以离散求和说明换测度：</p>
+<p>\[\mathbb E_\pi[f(\tau)]=\sum_\tau p_\pi(\tau)f(\tau)=\sum_\tau p_b(\tau)\frac{p_\pi(\tau)}{p_b(\tau)}f(\tau)=\mathbb E_b[\rho(\tau)f(\tau)].\tag{21.1}\]</p>
+<p>相同初始分布、相同动力学下，轨迹因子相消，得到ρ。对N条独立完整轨迹及各自回报G，两个估计为：</p>
+<p>\[\rho_i=\prod_{t=0}^{T_i-1}\frac{\pi(A_t^i\mid S_t^i)}{b(A_t^i\mid S_t^i)},\quad\widehat v_{\rm OIS}=\frac1N\sum_i\rho_iG_i,\quad\widehat v_{\rm WIS}=\frac{\sum_i\rho_iG_i}{\sum_i\rho_i}.\tag{21.2}\]</p>
+<p>普通形式在可积等条件下无偏，但方差可能巨大；归一化形式一般有限样本有偏，常有较稳的表现。分母为0时不能直接计算。权重有效样本数只是诊断量，不是误差保证。</p>
+<h3>6. 手算示例</h3>
+<p>一步任务左转奖励1，右转0。目标左转概率0.8，行为0.2，因此左转权重4，右转权重0.25。若五条数据恰有一次左转，普通估计为4/5=0.8；权重和为4+4×0.25=5，加权估计也为0.8。若五条全为右转，两者都得到0，不能因为公式无偏就断言单次结果准确。</p>
+<h3>7. Python 实验</h3>
+<p>程序构造三步独立选择，目标每步选奖励动作概率0.8，行为为0.2，真期望为3×0.8=2.4。输出行为均值、两种IS估计、平均权重、最大权重与有效样本数。修改--horizon为10或20，观察乘积权重导致的数据稀薄；此时增加样本可能仍难覆盖少数高权重轨迹。</p>
+<p>安装：<code>python -m pip install numpy matplotlib</code>。运行：<code>python lesson_21.py</code>。<a href="../assets/courses/rl/examples/lesson_21.py" download>下载完整实验</a>。</p>
+<pre><code class="language-python">"""Ordinary and weighted importance sampling on complete short trajectories."""
+import argparse
+import numpy as np
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--samples', type=int, default=10000)
+    p.add_argument('--horizon', type=int, default=3)
+    p.add_argument('--seed', type=int, default=21)
+    a = p.parse_args()
+    rng = np.random.default_rng(a.seed)
+    # a=1 earns 1. Behavior chooses it with 0.2, target with 0.8.
+    behavior, target = 0.2, 0.8
+    actions = rng.binomial(1, behavior, size=(a.samples, a.horizon))
+    ratios = np.where(actions == 1, target / behavior,
+                      (1 - target) / (1 - behavior))
+    weights = ratios.prod(axis=1)
+    returns = actions.sum(axis=1)
+    ordinary = np.mean(weights * returns)
+    weighted = np.dot(weights, returns) / weights.sum()
+    ess = weights.sum()**2 / np.dot(weights, weights)
+    print('analytic target value:', a.horizon * target)
+    print('raw behavior mean:', returns.mean())
+    print('ordinary IS:', ordinary, 'weighted IS:', weighted)
+    print('mean weight:', weights.mean(), 'effective sample size:', ess)
+    print('largest weight:', weights.max())
+</code></pre>
+<h3>8. 与已有知识的联系</h3>
+<p>这是概率统计中的重要性采样在轨迹上的应用，也是后续离策略评价、策略梯度和PPO概率比率的先修工具。不过PPO的局部比率目标并不等同于本课完整轨迹IS；它还引入截断与近似。一步表格Q-Learning无需这些轨迹权重，与这里修正整段回报并不矛盾。</p>
+<h3>9. 常见误区</h3>
+<p>权重大不等于轨迹回报高，它表示相对可能性。不能把行为概率写成训练结束后的新策略概率，必须记录生成数据时的概率。目标动作在行为下概率为0时，除法技巧无法补救缺失覆盖。加权形式的有限样本偏差不能因为数值看起来稳定就忽略。</p>
+<h3>10. 思考题与挑战任务</h3>
+<p><strong>Level 1：为何环境转移概率能从比率中消掉？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>两种策略面对相同环境与初始分布，同一轨迹的对应环境因子相同。</p></details>
+<p><strong>Level 2：两步都左转的轨迹权重是多少？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>每步倍率4，完整轨迹权重4×4=16。</p></details>
+<p><strong>Level 3：如何诊断一份录像数据是否适合评价目标策略？</strong></p>
+<details><summary>参考答案与验证思路</summary><p>检查动作支持、权重分布、最大权重与有效样本数，并在不同样本量和种子下观察估计；诊断良好仍不能替代误差界或独立验证。</p></details>
+<h3>11. 本节知识总结</h3>
+<p>重要性采样用概率比率修正数据分布，覆盖是前提，方差是代价。它允许复用旧策略数据，但不可能凭权重重建从未观察的行为。</p>
+<h3>12. 下一节预告</h3>
+<p>长回报的权重容易爆炸，延迟奖励也难归因。能否给近期访问留下逐渐褪色的痕迹，让终点奖励一次传回多个状态？</p>
+</section>
