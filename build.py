@@ -79,21 +79,21 @@ UI = {
         "thought_card_title": "保留尚未收敛的问题",
         "thought_card_text": "研究方法、认知工具、失败复盘，以及还没有标准答案的事情。",
         "latest_title": "最近更新",
-        "all_posts_label": "全部文章",
+        "all_posts_label": "全部内容",
         "manifesto_quote": "“写下来，不是因为已经想明白；而是为了让模糊的直觉有机会变成可以检查的结构。”",
         "manifesto_text": "如果一篇笔记能让未来的我少走一点弯路，或让另一个人更快地进入一个问题，它就已经有价值。",
-        "blog_title": "文章与笔记",
-        "blog_description": "按时间整理的技术实践、理论学习与思考随笔。",
-        "blog_intro": "按时间保留想法的变化。文章可能会在理解加深后继续修订。",
-        "archive_aria": "文章列表",
-        "filter_aria": "文章分类",
+        "blog_title": "文章与课程",
+        "blog_description": "按时间整理的技术文章、理论笔记、思考随笔与系统课程。",
+        "blog_intro": "文章与课程按发布时间汇总，也可按分类浏览或搜索。",
+        "archive_aria": "内容列表",
+        "filter_aria": "内容分类",
         "filter_all": "全部",
         "filter_tech": "技术",
         "filter_theory": "理论",
         "filter_thought": "思考",
-        "search_label": "搜索文章",
+        "search_label": "搜索文章与课程",
         "search_placeholder": "搜索标题、摘要或标签…",
-        "empty_state": "没有找到对应的文章，试试别的关键词。",
+        "empty_state": "没有找到对应的内容，试试别的关键词。",
         "back_prefix": "返回",
         "reading_time_format": "{minutes} 分钟阅读",
         "archive_time_format": "{minutes} 分钟",
@@ -151,21 +151,21 @@ UI = {
         "thought_card_title": "Keeping unresolved questions alive",
         "thought_card_text": "Research methods, cognitive tools, lessons from failure, and questions without settled answers.",
         "latest_title": "Latest writing",
-        "all_posts_label": "All posts",
+        "all_posts_label": "All content",
         "manifesto_quote": "“I write not because the thought is already clear, but to give a vague intuition the chance to become a structure that can be examined.”",
         "manifesto_text": "If a note helps my future self avoid a detour, or helps someone else enter a problem more quickly, it has already done something worthwhile.",
-        "blog_title": "Writing and Notes",
-        "blog_description": "Technical practice, theoretical learning, and reflections arranged over time.",
-        "blog_intro": "A chronological record of changing ideas. Posts may continue to evolve as my understanding deepens.",
-        "archive_aria": "Post archive",
-        "filter_aria": "Post categories",
+        "blog_title": "Writing and Courses",
+        "blog_description": "Technical articles, theory notes, reflections, and guided courses in chronological order.",
+        "blog_intro": "Browse posts and courses by publication date, filter by category, or search.",
+        "archive_aria": "Content archive",
+        "filter_aria": "Content categories",
         "filter_all": "All",
         "filter_tech": "Tech",
         "filter_theory": "Theory",
         "filter_thought": "Reflections",
-        "search_label": "Search posts",
+        "search_label": "Search posts and courses",
         "search_placeholder": "Search titles, summaries, or tags…",
-        "empty_state": "No matching posts. Try another search.",
+        "empty_state": "No matching content. Try another search.",
         "back_prefix": "Back to",
         "reading_time_format": "{minutes} min read",
         "archive_time_format": "{minutes} min",
@@ -560,21 +560,26 @@ def post_row(post: dict[str, Any], lang: str) -> str:
 </a>'''
 
 
-def archive_card(post: dict[str, Any], lang: str) -> str:
+def archive_card(post: dict[str, Any], lang: str, *, course: bool = False) -> str:
     tags = "".join(f"<span>{html.escape(tag)}</span>" for tag in post["tags_list"])
-    search_value = " ".join([post["title"], post["summary"], *post["tags_list"]]).lower()
-    category_label = CATEGORIES[post["category"]][lang]
-    reading_time = UI[lang]["archive_time_format"].format(minutes=post["reading_time"])
+    category = "course" if course else post["category"]
+    category_label = UI[lang]["nav_courses"] if course else CATEGORIES[category][lang]
+    search_value = " ".join([post["title"], post["summary"], category_label, *post["tags_list"]]).lower()
+    reading_time = (
+        UI[lang]["course_chapters_format"].format(count=post["lecture_count"] or len(post["chapters"]))
+        if course else UI[lang]["archive_time_format"].format(minutes=post["reading_time"])
+    )
+    href = f'{"courses" if course else "posts"}/{quote(post["slug"])}.html'
     read_aria = UI[lang]["read_aria_format"].format(title=post["title"])
-    return f'''<article class="entry-card" data-category="{post['category']}" data-search="{html.escape(search_value, quote=True)}">
+    return f'''<article class="entry-card" data-category="{category}" data-search="{html.escape(search_value, quote=True)}">
   <div class="entry-date"><time datetime="{post['date']}">{post['date_display']}</time></div>
   <div class="entry-content">
-    <div class="entry-overline"><span class="category-dot {post['category']}"></span>{category_label} · {reading_time}</div>
-    <h2><a href="posts/{quote(post['slug'])}.html">{html.escape(post['title'])}</a></h2>
+    <div class="entry-overline"><span class="category-dot {category}"></span>{category_label} · {reading_time}</div>
+    <h2><a href="{href}">{html.escape(post['title'])}</a></h2>
     <p>{html.escape(post['summary'])}</p>
     <div class="entry-tags">{tags}</div>
   </div>
-  <a class="entry-arrow" href="posts/{quote(post['slug'])}.html" aria-label="{html.escape(read_aria, quote=True)}">↗</a>
+  <a class="entry-arrow" href="{href}" aria-label="{html.escape(read_aria, quote=True)}">↗</a>
 </article>'''
 
 
@@ -675,10 +680,15 @@ def build_locale(
         blog_path,
         {"zh": "blog.html", "en": "en/blog.html"},
     )
+    archive_entries = sorted(
+        [(post, False) for post in posts] + [(course, True) for course in courses],
+        key=lambda entry: (entry[0]["date_obj"], entry[0]["slug"]),
+        reverse=True,
+    )
     blog_context.update(
         {
-            "all_posts": "\n".join(archive_card(post, lang) for post in posts),
-            "total_count": len(posts),
+            "archive_entries": "\n".join(archive_card(item, lang, course=is_course) for item, is_course in archive_entries),
+            "total_count": len(archive_entries),
             "tech_count": counts["tech"],
             "theory_count": counts["theory"],
             "thought_count": counts["thought"],
@@ -762,7 +772,7 @@ def build_courses_locale(site: dict[str, str], all_courses: list[dict[str, Any]]
     )
     context["course_count_label"] = ui["course_count_format"].format(count=len(courses), plural="" if len(courses) == 1 else "s")
     context.update({
-        "total_count": len(posts),
+        "total_count": len(posts) + len(courses),
         "course_count": len(courses),
         **{f"{key}_count": sum(post["category"] == key for post in posts) for key in CATEGORIES},
     })
